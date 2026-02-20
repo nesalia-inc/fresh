@@ -109,12 +109,13 @@ def extract_name_from_url(url: str) -> str:
     return name if name else url
 
 
-def deduplicate(urls: Sequence[str]) -> list[str]:
+def deduplicate(urls: Sequence[str], strip_query: bool = False) -> list[str]:
     """
     Remove duplicate URLs while preserving order.
 
     Args:
         urls: List of URLs (may contain duplicates)
+        strip_query: If True, ignore query strings when comparing
 
     Returns:
         List of unique URLs in original order
@@ -123,7 +124,13 @@ def deduplicate(urls: Sequence[str]) -> list[str]:
     result = []
 
     for url in urls:
+        # Normalize: remove trailing slash and lowercase
         normalized = url.rstrip("/").lower()
+
+        if strip_query:
+            # Remove query string for comparison
+            normalized = normalized.split("?")[0]
+
         if normalized not in seen:
             seen.add(normalized)
             result.append(url)

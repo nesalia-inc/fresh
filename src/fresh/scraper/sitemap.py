@@ -7,7 +7,7 @@ import re
 import urllib.parse
 from typing import TYPE_CHECKING
 
-from .http import fetch_with_retry
+from .http import fetch, fetch_with_retry
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -40,9 +40,10 @@ def discover_sitemap(base_url: str) -> str | None:
     for pattern in SITEMAP_PATTERNS:
         sitemap_url = f"{base}{pattern}"
         logger.debug(f"Checking for sitemap: {sitemap_url}")
-        # Just check if it exists, don't download yet
-        # We'll download in parse_sitemap if needed
-        return sitemap_url
+        # Verify the sitemap exists with a HEAD request
+        if fetch(sitemap_url) is not None:
+            logger.info(f"Found sitemap: {sitemap_url}")
+            return sitemap_url
 
     # Try to find sitemap from robots.txt
     robots_url = f"{base}/robots.txt"

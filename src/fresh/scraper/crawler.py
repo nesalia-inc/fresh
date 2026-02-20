@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import logging
-import re
 import urllib.parse
+
+from bs4 import BeautifulSoup
 
 from .http import fetch_with_retry
 from .sitemap import normalize_urls
 
 logger = logging.getLogger(__name__)
-
-# Regex to extract links from HTML
-LINK_PATTERN = re.compile(r'<a[^>]+href=["\']([^"\']+)["\']', re.IGNORECASE)
 
 
 def fetch_page(url: str) -> str | None:
@@ -39,11 +37,18 @@ def extract_links(html: str, base_url: str) -> list[str]:
     Returns:
         List of absolute URLs
     """
-    # Extract all href values
-    matches = LINK_PATTERN.findall(html)
+    # Use BeautifulSoup to parse HTML
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Extract all href values from <a> tags
+    hrefs: list[str] = []
+    for link in soup.find_all("a", href=True):
+        href = link.get("href")
+        if href and isinstance(href, str):
+            hrefs.append(href)
 
     # Normalize to absolute URLs
-    normalized = normalize_urls(matches, base_url)
+    normalized = normalize_urls(hrefs, base_url)
 
     # Filter to same domain only
     parsed_base = urllib.parse.urlparse(base_url)

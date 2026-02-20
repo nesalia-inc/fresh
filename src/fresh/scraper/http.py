@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import atexit
 import logging
 import time
 from typing import Any
@@ -97,3 +98,7 @@ def close() -> None:
     if _client is not None:
         _client.close()
         _client = None
+
+
+# Register cleanup handler for automatic cleanup on exit
+atexit.register(close)

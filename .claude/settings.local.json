@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add src/fresh/scraper/__init__.py)",
+      "Bash(git commit:*)",
+      "Bash(git add:*)",
+      "Bash(uv sync)",
+      "Bash(uv run python:*)",
+      "Bash(uv run ruff:*)",
+      "Bash(uv run mypy:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv run pytest src/fresh/scraper/ -v)"
+    ]
+  }
+}
