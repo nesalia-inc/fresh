@@ -5,6 +5,7 @@ from __future__ import annotations
 import atexit
 import ipaddress
 import logging
+import re
 import threading
 import time
 import urllib.parse
@@ -249,6 +250,28 @@ def fetch_robots_txt(base_url: str) -> str | None:
 _robots_cache: dict[str, tuple[float, set[str]]] = {}  # domain -> (timestamp, disallowed paths)
 _robots_cache_lock = threading.Lock()
 ROBOTS_CACHE_TTL = 300  # 5 minutes
+ROBOTS_CACHE_MAX_SIZE = 100  # Max domains to cache
+
+
+def _cleanup_robots_cache() -> None:
+    """Clean up expired entries from robots cache."""
+    now = time.time()
+    expired = [
+        domain
+        for domain, (timestamp, _) in _robots_cache.items()
+        if now - timestamp > ROBOTS_CACHE_TTL
+    ]
+    for domain in expired:
+        del _robots_cache[domain]
+
+    # If still too large, remove oldest entries
+    if len(_robots_cache) > ROBOTS_CACHE_MAX_SIZE:
+        sorted_domains = sorted(
+            _robots_cache.keys(),
+            key=lambda d: _robots_cache[d][0],
+        )
+        for domain in sorted_domains[: len(_robots_cache) - ROBOTS_CACHE_MAX_SIZE]:
+            del _robots_cache[domain]
 
 
 def is_allowed_by_robots(url: str, user_agent: str = "*") -> bool:
@@ -268,6 +291,10 @@ def is_allowed_by_robots(url: str, user_agent: str = "*") -> bool:
     disallowed_paths: set[str] = set()
 
     with _robots_cache_lock:
+        # Periodic cleanup
+        if len(_robots_cache) > ROBOTS_CACHE_MAX_SIZE:
+            _cleanup_robots_cache()
+
         now = time.time()
 
         # Check cache
@@ -288,16 +315,23 @@ def is_allowed_by_robots(url: str, user_agent: str = "*") -> bool:
     robots_content = fetch_robots_txt(base_url)
 
     if robots_content and isinstance(robots_content, str):
+        # Track which user-agent section we're in
+        in_target_section = False
+        user_agent_lower = user_agent.lower()
+
         for line in robots_content.splitlines():
             line = line.strip()
-            # Look for Disallow lines for the specific user_agent or *
-            if line.lower().startswith(f"user-agent: {user_agent.lower()}"):
-                # Found our user agent, continue to parse Disallow lines
+            if not line or line.startswith("#"):
                 continue
-            elif line.lower().startswith("user-agent:"):
-                # Found a different user agent, skip it
-                continue
-            elif line.lower().startswith("disallow:"):
+
+            # Check for user-agent directive
+            if line.lower().startswith("user-agent:"):
+                agent = line.split(":", 1)[1].strip().lower()
+                # Match exact user-agent or wildcard *
+                in_target_section = agent == user_agent_lower or agent == "*"
+
+            # Check for disallow only if we're in the target section
+            elif line.lower().startswith("disallow:") and in_target_section:
                 disallow_path = line.split(":", 1)[1].strip()
                 if disallow_path:
                     disallowed_paths.add(disallow_path)
@@ -337,7 +371,6 @@ def _matches_robots_pattern(path: str, pattern: str) -> bool:
     if "*" in pattern:
         # Convert pattern to regex
         regex_pattern = pattern.replace("*", ".*")
-        import re
         return bool(re.match(f"^{regex_pattern}", path))
 
     # Simple prefix match

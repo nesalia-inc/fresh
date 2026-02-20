@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DELAY = 0.5  # seconds between requests
 RATE_LIMIT_TTL = 3600  # Clean up entries older than 1 hour
+RATE_LIMIT_MAX_DOMAINS = 100  # Max domains to track
 
 # Per-domain rate limiting
 _domain_last_request: dict[str, float] = {}
@@ -34,6 +35,15 @@ def _cleanup_rate_limit_dict() -> None:
     ]
     for domain in expired:
         del _domain_last_request[domain]
+
+    # If still too large, remove oldest entries
+    if len(_domain_last_request) > RATE_LIMIT_MAX_DOMAINS:
+        sorted_domains = sorted(
+            _domain_last_request.keys(),
+            key=lambda d: _domain_last_request[d],
+        )
+        for domain in sorted_domains[: len(_domain_last_request) - RATE_LIMIT_MAX_DOMAINS]:
+            del _domain_last_request[domain]
 
     if expired:
         logger.debug(f"Cleaned up {len(expired)} expired rate limit entries")
@@ -54,7 +64,7 @@ def _rate_limit_per_domain(url: str, delay: float) -> None:
 
     with _domain_lock:
         # Periodic cleanup
-        if len(_domain_last_request) > 1000:
+        if len(_domain_last_request) > RATE_LIMIT_MAX_DOMAINS:
             _cleanup_rate_limit_dict()
 
         now = time.time()

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from .http import fetch_with_retry, get_client
+from .http import fetch_with_retry, get_client, validate_url
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -39,10 +39,18 @@ def discover_sitemap(base_url: str) -> str | None:
     """
     base = base_url.rstrip("/")
 
+    # Validate base URL before making any requests
+    if not validate_url(base_url):
+        logger.warning(f"Base URL validation failed: {base_url}")
+        return None
+
     # Try common sitemap locations with HEAD requests
     for pattern in SITEMAP_PATTERNS:
         sitemap_url = f"{base}{pattern}"
         logger.debug(f"Checking for sitemap: {sitemap_url}")
+        # Validate sitemap URL
+        if not validate_url(sitemap_url):
+            continue
         # Use HEAD request for efficiency
         client = get_client()
         try:
@@ -58,6 +66,9 @@ def discover_sitemap(base_url: str) -> str | None:
 
     # Try to find sitemap from robots.txt
     robots_url = f"{base}/robots.txt"
+    if not validate_url(robots_url):
+        logger.warning(f"Robots.txt URL validation failed: {robots_url}")
+        return None
     robots_content = fetch_with_retry(robots_url)
     if robots_content and isinstance(robots_content, str):
         sitemap_match = re.search(
