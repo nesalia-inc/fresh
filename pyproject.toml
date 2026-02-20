@@ -39,3 +39,6 @@ disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.hatch.version]
+path = "src/fresh/__init__.py"

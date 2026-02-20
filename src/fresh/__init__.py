@@ -1,5 +1,7 @@
 """fresh - CLI application."""
 
+__version__ = "0.1.0"
+
 import typer
 
 app = typer.Typer(help="fresh - A CLI application")
