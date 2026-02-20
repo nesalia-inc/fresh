@@ -5,14 +5,9 @@ from __future__ import annotations
 import logging
 import re
 import urllib.parse
-from collections import deque
-from typing import TYPE_CHECKING
 
 from .http import fetch_with_retry
 from .sitemap import normalize_urls
-
-if TYPE_CHECKING:
-    from collections.abc import Set
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +62,7 @@ def crawl(
     start_url: str,
     max_pages: int = 100,
     max_depth: int = 3,
-) -> Set[str]:
+) -> set[str]:
     """
     BFS crawl of the website.
 
@@ -79,7 +74,7 @@ def crawl(
     Returns:
         Set of unique URLs discovered
     """
-    visited: Set[str] = set()
+    visited: set[str] = set()
     urls_by_depth: dict[int, list[str]] = {0: [start_url]}
 
     for depth in range(max_depth + 1):

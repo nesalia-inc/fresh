@@ -4,12 +4,9 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING
+from typing import Any
 
 import httpx
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 DEFAULT_HEADERS = {
     "User-Agent": "fresh/0.1.0 (https://fresh.nesalia.com)",
@@ -34,7 +31,7 @@ def get_client() -> httpx.Client:
     return _client
 
 
-def fetch(url: str, **kwargs: object) -> httpx.Response | None:
+def fetch(url: str, **kwargs: Any) -> httpx.Response | None:
     """
     Fetch a URL with default configuration.
 
@@ -59,7 +56,7 @@ def fetch_with_retry(
     url: str,
     max_retries: int = 3,
     backoff: float = 1.0,
-    **kwargs: object,
+    **kwargs: Any,
 ) -> str | None:
     """
     Fetch a URL with exponential backoff retry.
@@ -74,7 +71,6 @@ def fetch_with_retry(
         Response text content or None on failure
     """
     client = get_client()
-    last_exception: Exception | None = None
 
     for attempt in range(max_retries):
         try:
@@ -82,7 +78,6 @@ def fetch_with_retry(
             response.raise_for_status()
             return response.text
         except httpx.HTTPError as e:
-            last_exception = e
             if attempt < max_retries - 1:
                 wait_time = backoff * (2**attempt)
                 logger.warning(
