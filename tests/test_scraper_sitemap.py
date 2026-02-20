@@ -2,7 +2,6 @@
 
 from unittest import mock
 
-import pytest
 
 from fresh.scraper import sitemap as sitemap_module
 

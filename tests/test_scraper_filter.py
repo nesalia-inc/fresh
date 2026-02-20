@@ -1,6 +1,5 @@
 """Tests for scraper.filter module."""
 
-import pytest
 
 from fresh.scraper import filter as filter_module
 

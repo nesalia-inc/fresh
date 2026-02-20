@@ -2,7 +2,6 @@
 
 from unittest import mock
 
-import pytest
 import httpx
 
 from fresh.scraper import http as http_module

@@ -48,7 +48,7 @@ def discover_sitemap(base_url: str) -> str | None:
     # Try to find sitemap from robots.txt
     robots_url = f"{base}/robots.txt"
     robots_content = fetch_with_retry(robots_url)
-    if robots_content:
+    if robots_content and isinstance(robots_content, str):
         sitemap_match = re.search(
             r"Sitemap:\s*(\S+)",
             robots_content,

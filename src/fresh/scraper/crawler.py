@@ -26,7 +26,10 @@ def fetch_page(url: str) -> str | None:
     Returns:
         HTML content or None on failure
     """
-    return fetch_with_retry(url)
+    result = fetch_with_retry(url)
+    if isinstance(result, str):
+        return result
+    return None
 
 
 def extract_links(html: str, base_url: str) -> list[str]:
