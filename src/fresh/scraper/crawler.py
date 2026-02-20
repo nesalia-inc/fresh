@@ -20,7 +20,7 @@ RATE_LIMIT_MAX_DOMAINS = 100  # Max domains to track
 
 # Per-domain rate limiting
 _domain_last_request: dict[str, float] = {}
-_domain_lock = threading.Lock()
+_domain_lock: threading.Lock = threading.Lock()
 
 
 def _cleanup_rate_limit_dict() -> None:

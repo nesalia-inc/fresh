@@ -22,7 +22,7 @@ DEFAULT_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 logger = logging.getLogger(__name__)
 
 _client: httpx.Client | None = None
-_client_lock = threading.Lock()
+_client_lock: threading.Lock = threading.Lock()
 
 
 def _is_private_ip(hostname: str) -> bool:

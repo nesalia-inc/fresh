@@ -255,3 +255,87 @@ class TestValidateUrl:
     def test_invalid_url_returns_false(self):
         """Invalid URLs should return False."""
         assert not http_module.validate_url("not-a-url")
+
+
+class TestRobotsTxt:
+    """Tests for robots.txt functions."""
+
+    def setup_method(self):
+        """Reset caches before each test."""
+        http_module._robots_cache.clear()
+
+    @mock.patch("fresh.scraper.http.fetch_robots_txt")
+    def test_is_allowed_by_robots_no_robots(self, mock_fetch):
+        """Should allow when no robots.txt exists."""
+        mock_fetch.return_value = None
+        result = http_module.is_allowed_by_robots("https://example.com/page")
+        assert result is True
+
+    @mock.patch("fresh.scraper.http.fetch_robots_txt")
+    def test_is_allowed_by_robots_disallow(self, mock_fetch):
+        """Should disallow paths in robots.txt."""
+        robots_content = """User-agent: *
+Disallow: /admin
+Disallow: /private/
+"""
+        mock_fetch.return_value = robots_content
+        result = http_module.is_allowed_by_robots("https://example.com/admin")
+        assert result is False
+
+    @mock.patch("fresh.scraper.http.fetch_robots_txt")
+    def test_is_allowed_by_robots_allowed_path(self, mock_fetch):
+        """Should allow paths not in robots.txt."""
+        robots_content = """User-agent: *
+Disallow: /admin
+"""
+        mock_fetch.return_value = robots_content
+        result = http_module.is_allowed_by_robots("https://example.com/public")
+        assert result is True
+
+    @mock.patch("fresh.scraper.http.fetch_robots_txt")
+    def test_is_allowed_by_robots_specific_user_agent(self, mock_fetch):
+        """Should respect specific user-agent rules."""
+        robots_content = """User-agent: bot
+Disallow: /private
+
+User-agent: *
+Allow: /
+"""
+        mock_fetch.return_value = robots_content
+        # Default user-agent * should be allowed
+        result = http_module.is_allowed_by_robots("https://example.com/private")
+        assert result is True
+
+    def test_matches_robots_pattern_simple(self):
+        """Simple pattern matching (prefix-based)."""
+        assert http_module._matches_robots_pattern("/admin", "/admin")
+        assert http_module._matches_robots_pattern("/admin/", "/admin")
+        # Uses prefix matching, so /administration also matches /admin
+        assert http_module._matches_robots_pattern("/administration", "/admin")
+
+    def test_matches_robots_pattern_wildcard(self):
+        """Wildcard pattern matching."""
+        assert http_module._matches_robots_pattern("/admin/page", "/admin/*")
+        assert http_module._matches_robots_pattern("/admin", "/admin*")
+        # Uses prefix matching for wildcards too
+        assert http_module._matches_robots_pattern("/adminpage", "/admin*")
+
+    def test_matches_robots_pattern_end_anchor(self):
+        """End anchor pattern matching."""
+        assert http_module._matches_robots_pattern("/admin", "/admin$")
+        assert not http_module._matches_robots_pattern("/admin/page", "/admin$")
+
+    @mock.patch("fresh.scraper.http.fetch_robots_txt")
+    def test_fetch_robots_txt(self, mock_fetch):
+        """Test fetch_robots_txt function."""
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "User-agent: *\nDisallow: /admin"
+        mock_client = mock.MagicMock()
+        mock_client.get.return_value = mock_response
+        mock_fetch.return_value = mock_response.text
+
+        with mock.patch("fresh.scraper.http.get_client", return_value=mock_client):
+            result = http_module.fetch_robots_txt("https://example.com")
+
+        assert result is not None
