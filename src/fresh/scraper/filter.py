@@ -69,7 +69,7 @@ def is_relevant_url(
         # Default: include URLs with common doc path segments
         doc_segments = ["docs", "api", "guide", "reference", "tutorial", "learn"]
         parsed = urllib.parse.urlparse(url)
-        path = parsed.path.lower()
+        path = parsed.path or ""
         return any(segment in path for segment in doc_segments)
 
     return False
@@ -86,7 +86,7 @@ def extract_name_from_url(url: str) -> str:
         A human-readable name
     """
     parsed = urllib.parse.urlparse(url)
-    path = parsed.path.rstrip("/")
+    path = (parsed.path or "").rstrip("/")
 
     # Get the last segment
     segments = path.split("/")

@@ -72,12 +72,17 @@ def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
         # Handle IPv6 in netloc (e.g., http://[::1]/admin or http://::1/admin)
         netloc = parsed.netloc
         if not hostname and netloc:
-            # Might be IPv6 - check if netloc contains ::
-            if "::" in netloc:
-                # Extract IPv6 address (remove brackets if present)
+            # Check if netloc is an IPv6 address (with optional brackets)
+            try:
+                # Try to parse as IPv6
+                ip = ipaddress.ip_address(netloc.lstrip("[").rstrip("]"))
                 hostname = netloc.lstrip("[").rstrip("]")
-            else:
-                hostname = netloc.split(":")[0] if ":" in netloc else netloc
+            except ValueError:
+                # Not IPv6, might be host:port
+                if ":" in netloc:
+                    hostname = netloc.split(":")[0]
+                else:
+                    hostname = netloc
         blocked_hosts = [
             "localhost",
             "127.0.0.1",
