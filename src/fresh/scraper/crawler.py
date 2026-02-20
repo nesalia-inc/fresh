@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 import urllib.parse
 
 from bs4 import BeautifulSoup
@@ -11,6 +12,8 @@ from .http import fetch_with_retry
 from .sitemap import normalize_urls
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_DELAY = 0.5  # seconds between requests
 
 
 def fetch_page(url: str) -> str | None:
@@ -67,6 +70,7 @@ def crawl(
     start_url: str,
     max_pages: int = 100,
     max_depth: int = 3,
+    delay: float = DEFAULT_DELAY,
 ) -> set[str]:
     """
     BFS crawl of the website.
@@ -75,6 +79,7 @@ def crawl(
         start_url: The starting URL
         max_pages: Maximum number of pages to fetch
         max_depth: Maximum crawl depth
+        delay: Delay in seconds between requests
 
     Returns:
         Set of unique URLs discovered
@@ -108,6 +113,10 @@ def crawl(
             for link in links:
                 if link not in visited and len(visited) < max_pages:
                     next_urls.append(link)
+
+            # Rate limiting: delay between requests
+            if delay > 0 and len(visited) < max_pages:
+                time.sleep(delay)
 
         if next_urls:
             urls_by_depth[depth + 1] = next_urls
