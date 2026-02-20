@@ -5,9 +5,12 @@ from __future__ import annotations
 import logging
 import re
 import urllib.parse
+import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
-from .http import fetch, fetch_with_retry
+import httpx
+
+from .http import fetch_with_retry, get_client
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -36,14 +39,22 @@ def discover_sitemap(base_url: str) -> str | None:
     """
     base = base_url.rstrip("/")
 
-    # Try common sitemap locations
+    # Try common sitemap locations with HEAD requests
     for pattern in SITEMAP_PATTERNS:
         sitemap_url = f"{base}{pattern}"
         logger.debug(f"Checking for sitemap: {sitemap_url}")
-        # Verify the sitemap exists with a HEAD request
-        if fetch(sitemap_url) is not None:
-            logger.info(f"Found sitemap: {sitemap_url}")
-            return sitemap_url
+        # Use HEAD request for efficiency
+        client = get_client()
+        try:
+            response = client.head(sitemap_url)
+            if response.status_code == 200:
+                logger.info(f"Found sitemap: {sitemap_url}")
+                return sitemap_url
+        except httpx.HTTPError:
+            pass
+
+    # Fall back to GET for robots.txt since we need the content
+    # Try to find sitemap from robots.txt
 
     # Try to find sitemap from robots.txt
     robots_url = f"{base}/robots.txt"
@@ -73,8 +84,6 @@ def parse_sitemap(xml_content: str) -> list[str] | None:
     Returns:
         List of URLs found in the sitemap, or None if parsing fails
     """
-    import xml.etree.ElementTree as ET
-
     try:
         root = ET.fromstring(xml_content)
     except ET.ParseError as e:

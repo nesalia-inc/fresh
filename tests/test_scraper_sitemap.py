@@ -9,25 +9,30 @@ from fresh.scraper import sitemap as sitemap_module
 class TestDiscoverSitemap:
     """Tests for discover_sitemap function."""
 
-    @mock.patch("fresh.scraper.sitemap.fetch")
+    @mock.patch("fresh.scraper.sitemap.get_client")
     @mock.patch("fresh.scraper.sitemap.fetch_with_retry")
-    def test_find_sitemap_at_common_location(self, mock_fetch_retry, mock_fetch):
-        """Should find sitemap at common location."""
-        mock_response = mock.MagicMock(spec=object)
+    def test_find_sitemap_at_common_location(self, mock_fetch_retry, mock_get_client):
+        """Should find sitemap at common location using HEAD request."""
+        mock_response = mock.MagicMock()
         mock_response.status_code = 200
-        mock_fetch.return_value = mock_response
+        mock_client = mock.MagicMock()
+        mock_client.head.return_value = mock_response
+        mock_get_client.return_value = mock_client
 
         result = sitemap_module.discover_sitemap("https://example.com")
 
         assert result == "https://example.com/sitemap.xml"
-        mock_fetch.assert_called()
+        mock_client.head.assert_called()
 
-    @mock.patch("fresh.scraper.sitemap.fetch")
+    @mock.patch("fresh.scraper.sitemap.get_client")
     @mock.patch("fresh.scraper.sitemap.fetch_with_retry")
-    def test_find_sitemap_in_robots(self, mock_fetch_retry, mock_fetch):
-        """Should find sitemap in robots.txt."""
-        # First fetch returns 404
-        mock_fetch.return_value = None
+    def test_find_sitemap_in_robots(self, mock_fetch_retry, mock_get_client):
+        """Should find sitemap in robots.txt when HEAD returns 404."""
+        mock_response_404 = mock.MagicMock()
+        mock_response_404.status_code = 404
+        mock_client = mock.MagicMock()
+        mock_client.head.return_value = mock_response_404
+        mock_get_client.return_value = mock_client
         # Second fetch (for robots.txt) returns content
         mock_fetch_retry.return_value = "Sitemap: https://example.com/sitemap-index.xml"
 
@@ -35,11 +40,15 @@ class TestDiscoverSitemap:
 
         assert result == "https://example.com/sitemap-index.xml"
 
-    @mock.patch("fresh.scraper.sitemap.fetch")
+    @mock.patch("fresh.scraper.sitemap.get_client")
     @mock.patch("fresh.scraper.sitemap.fetch_with_retry")
-    def test_no_sitemap_found(self, mock_fetch_retry, mock_fetch):
+    def test_no_sitemap_found(self, mock_fetch_retry, mock_get_client):
         """Should return None when no sitemap found."""
-        mock_fetch.return_value = None
+        mock_response_404 = mock.MagicMock()
+        mock_response_404.status_code = 404
+        mock_client = mock.MagicMock()
+        mock_client.head.return_value = mock_response_404
+        mock_get_client.return_value = mock_client
         mock_fetch_retry.return_value = None
 
         result = sitemap_module.discover_sitemap("https://example.com")

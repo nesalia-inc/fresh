@@ -9,16 +9,34 @@ import urllib.parse
 
 from bs4 import BeautifulSoup
 
-from .http import fetch_with_retry
+from .http import fetch_with_retry, is_allowed_by_robots
 from .sitemap import normalize_urls
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_DELAY = 0.5  # seconds between requests
+RATE_LIMIT_TTL = 3600  # Clean up entries older than 1 hour
 
 # Per-domain rate limiting
 _domain_last_request: dict[str, float] = {}
 _domain_lock = threading.Lock()
+
+
+def _cleanup_rate_limit_dict() -> None:
+    """Clean up old entries from the rate limit dictionary."""
+    global _domain_last_request
+    now = time.time()
+    # Remove entries older than TTL
+    expired = [
+        domain
+        for domain, timestamp in _domain_last_request.items()
+        if now - timestamp > RATE_LIMIT_TTL
+    ]
+    for domain in expired:
+        del _domain_last_request[domain]
+
+    if expired:
+        logger.debug(f"Cleaned up {len(expired)} expired rate limit entries")
 
 
 def _rate_limit_per_domain(url: str, delay: float) -> None:
@@ -35,6 +53,10 @@ def _rate_limit_per_domain(url: str, delay: float) -> None:
     domain = parsed.netloc
 
     with _domain_lock:
+        # Periodic cleanup
+        if len(_domain_last_request) > 1000:
+            _cleanup_rate_limit_dict()
+
         now = time.time()
         last_request = _domain_last_request.get(domain, 0)
         time_since_last = now - last_request
@@ -105,6 +127,7 @@ def crawl(
     max_pages: int = 100,
     max_depth: int = 3,
     delay: float = DEFAULT_DELAY,
+    respect_robots: bool = True,
 ) -> set[str]:
     """
     BFS crawl of the website.
@@ -114,6 +137,7 @@ def crawl(
         max_pages: Maximum number of pages to fetch
         max_depth: Maximum crawl depth
         delay: Delay in seconds between requests
+        respect_robots: Whether to respect robots.txt rules
 
     Returns:
         Set of unique URLs discovered
@@ -133,6 +157,11 @@ def crawl(
                 break
 
             if url in visited:
+                continue
+
+            # Check robots.txt if enabled
+            if respect_robots and not is_allowed_by_robots(url):
+                logger.debug(f"Skipping {url} - disallowed by robots.txt")
                 continue
 
             logger.debug(f"Crawling (depth={depth}): {url}")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import atexit
+import ipaddress
 import logging
 import threading
 import time
@@ -21,6 +22,24 @@ logger = logging.getLogger(__name__)
 
 _client: httpx.Client | None = None
 _client_lock = threading.Lock()
+
+
+def _is_private_ip(hostname: str) -> bool:
+    """Check if hostname is a private or reserved IP address.
+
+    Args:
+        hostname: The hostname or IP to check
+
+    Returns:
+        True if the IP is private/reserved, False otherwise
+    """
+    try:
+        ip = ipaddress.ip_address(hostname)
+        # Check if IP is private, reserved, or loopback
+        return ip.is_private or ip.is_reserved or ip.is_loopback
+    except ValueError:
+        # Not an IP address (probably a domain name)
+        return False
 
 
 def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
@@ -59,10 +78,13 @@ def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
         # Handle IPv6 URLs (contains :: after http://)
         after_scheme = url.split("://", 1)[1] if "://" in url else ""
         is_ipv6 = "::" in after_scheme.split("/")[0]
+        # Check for private IP ranges
+        is_private_ip = _is_private_ip(hostname)
         is_localhost = (
             hostname in blocked_hosts
             or hostname.endswith(".local")
             or is_ipv6
+            or is_private_ip
         )
         if is_localhost:
             logger.warning(f"Blocked localhost or private URL: {url}")
@@ -152,6 +174,17 @@ def fetch_with_retry(
             if return_response:
                 return response
             return response.text
+        except httpx.TimeoutException as e:
+            # Shorter retries for timeouts
+            if attempt < max_retries - 1:
+                wait_time = backoff * (2**attempt) * 0.5
+                logger.warning(
+                    f"Timeout on attempt {attempt + 1}/{max_retries} for {url}. "
+                    f"Retrying in {wait_time}s: {e}",
+                )
+                time.sleep(wait_time)
+            else:
+                logger.error(f"All {max_retries} timeout attempts failed for {url}: {e}")
         except httpx.HTTPError as e:
             if attempt < max_retries - 1:
                 wait_time = backoff * (2**attempt)
@@ -193,6 +226,122 @@ class HTTPClient:
     def get_client(self) -> httpx.Client:
         """Get the underlying httpx client."""
         return self._client
+
+
+def fetch_robots_txt(base_url: str) -> str | None:
+    """Fetch robots.txt for a given base URL.
+
+    Args:
+        base_url: The base URL of the website
+
+    Returns:
+        robots.txt content or None on failure
+    """
+    parsed = urllib.parse.urlparse(base_url)
+    robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
+    result = fetch_with_retry(robots_url, max_retries=1)
+    if isinstance(result, str):
+        return result
+    return None
+
+
+# Cache for robots.txt rules
+_robots_cache: dict[str, tuple[float, set[str]]] = {}  # domain -> (timestamp, disallowed paths)
+_robots_cache_lock = threading.Lock()
+ROBOTS_CACHE_TTL = 300  # 5 minutes
+
+
+def is_allowed_by_robots(url: str, user_agent: str = "*") -> bool:
+    """Check if a URL is allowed by robots.txt.
+
+    Args:
+        url: The URL to check
+        user_agent: The user agent to check against (default: *)
+
+    Returns:
+        True if the URL is allowed, False if disallowed
+    """
+    parsed = urllib.parse.urlparse(url)
+    domain = parsed.netloc
+    path = parsed.path or "/"
+
+    disallowed_paths: set[str] = set()
+
+    with _robots_cache_lock:
+        now = time.time()
+
+        # Check cache
+        if domain in _robots_cache:
+            cache_time, cached_disallowed = _robots_cache[domain]
+            if now - cache_time < ROBOTS_CACHE_TTL:
+                # Check if path matches any disallowed pattern
+                for pattern in cached_disallowed:
+                    if _matches_robots_pattern(path, pattern):
+                        logger.debug(f"URL {url} disallowed by robots.txt")
+                        return False
+                return True
+            # Cache expired, remove it
+            del _robots_cache[domain]
+
+    # Fetch and parse robots.txt
+    base_url = f"{parsed.scheme}://{domain}"
+    robots_content = fetch_robots_txt(base_url)
+
+    if robots_content and isinstance(robots_content, str):
+        for line in robots_content.splitlines():
+            line = line.strip()
+            # Look for Disallow lines for the specific user_agent or *
+            if line.lower().startswith(f"user-agent: {user_agent.lower()}"):
+                # Found our user agent, continue to parse Disallow lines
+                continue
+            elif line.lower().startswith("user-agent:"):
+                # Found a different user agent, skip it
+                continue
+            elif line.lower().startswith("disallow:"):
+                disallow_path = line.split(":", 1)[1].strip()
+                if disallow_path:
+                    disallowed_paths.add(disallow_path)
+
+    # Cache the results
+    with _robots_cache_lock:
+        _robots_cache[domain] = (now, disallowed_paths)
+
+    # Check if path is disallowed
+    for pattern in disallowed_paths:
+        if _matches_robots_pattern(path, pattern):
+            logger.debug(f"URL {url} disallowed by robots.txt (pattern: {pattern})")
+            return False
+
+    return True
+
+
+def _matches_robots_pattern(path: str, pattern: str) -> bool:
+    """Check if a path matches a robots.txt pattern.
+
+    Args:
+        path: The URL path
+        pattern: The robots.txt pattern
+
+    Returns:
+        True if path matches pattern
+    """
+    if not pattern:
+        return False
+
+    # Handle $ end anchor
+    if pattern.endswith("$"):
+        pattern = pattern[:-1]
+        return path == pattern
+
+    # Handle * wildcard (match anything)
+    if "*" in pattern:
+        # Convert pattern to regex
+        regex_pattern = pattern.replace("*", ".*")
+        import re
+        return bool(re.match(f"^{regex_pattern}", path))
+
+    # Simple prefix match
+    return path.startswith(pattern)
 
 
 # Register cleanup handler for automatic cleanup on exit

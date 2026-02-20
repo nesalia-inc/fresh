@@ -224,6 +224,23 @@ class TestValidateUrl:
         """Private IPs should be blocked."""
         assert not http_module.validate_url("http://0.0.0.0/admin")
 
+    def test_block_private_ip_ranges(self):
+        """Private IP ranges should be blocked."""
+        # 10.0.0.0/8
+        assert not http_module.validate_url("http://10.0.0.1/admin")
+        assert not http_module.validate_url("http://10.255.255.255/admin")
+        # 172.16.0.0/12
+        assert not http_module.validate_url("http://172.16.0.1/admin")
+        assert not http_module.validate_url("http://172.31.255.255/admin")
+        # 192.168.0.0/16
+        assert not http_module.validate_url("http://192.168.0.1/admin")
+        assert not http_module.validate_url("http://192.168.255.255/admin")
+
+    def test_allow_public_ips(self):
+        """Public IPs should be allowed."""
+        assert http_module.validate_url("http://8.8.8.8/dns")
+        assert http_module.validate_url("http://1.1.1.1/dns")
+
     def test_block_dot_local(self):
         """.local domains should be blocked."""
         assert not http_module.validate_url("http://myserver.local/admin")
