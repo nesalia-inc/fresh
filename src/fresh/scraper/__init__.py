@@ -1,6 +1,6 @@
 """Fresh scraping engine."""
 
-from .http import get_client, fetch, fetch_with_retry, close
+from .http import HTTPClient, get_client, fetch, fetch_with_retry, close
 from .sitemap import discover_sitemap, parse_sitemap, normalize_urls
 from .crawler import fetch_page, extract_links, crawl
 from .filter import (
@@ -12,6 +12,7 @@ from .filter import (
 
 __all__ = [
     # HTTP client
+    "HTTPClient",
     "get_client",
     "fetch",
     "fetch_with_retry",

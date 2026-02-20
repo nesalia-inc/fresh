@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import atexit
 import logging
+import threading
 import time
 from typing import Any
 
@@ -18,17 +19,21 @@ DEFAULT_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 logger = logging.getLogger(__name__)
 
 _client: httpx.Client | None = None
+_client_lock = threading.Lock()
 
 
 def get_client() -> httpx.Client:
-    """Get or create the shared HTTP client."""
+    """Get or create the shared HTTP client (thread-safe)."""
     global _client
     if _client is None:
-        _client = httpx.Client(
-            headers=DEFAULT_HEADERS,
-            timeout=DEFAULT_TIMEOUT,
-            follow_redirects=True,
-        )
+        with _client_lock:
+            # Double-check after acquiring lock
+            if _client is None:
+                _client = httpx.Client(
+                    headers=DEFAULT_HEADERS,
+                    timeout=DEFAULT_TIMEOUT,
+                    follow_redirects=True,
+                )
     return _client
 
 
@@ -57,8 +62,9 @@ def fetch_with_retry(
     url: str,
     max_retries: int = 3,
     backoff: float = 1.0,
+    return_response: bool = False,
     **kwargs: Any,
-) -> str | None:
+) -> str | httpx.Response | None:
     """
     Fetch a URL with exponential backoff retry.
 
@@ -66,10 +72,11 @@ def fetch_with_retry(
         url: The URL to fetch
         max_retries: Maximum number of retry attempts
         backoff: Initial backoff time in seconds
+        return_response: If True, return the Response object instead of text
         **kwargs: Additional arguments to pass to httpx.Client.get
 
     Returns:
-        Response text content or None on failure
+        Response text, Response object, or None on failure
     """
     client = get_client()
 
@@ -77,6 +84,8 @@ def fetch_with_retry(
         try:
             response = client.get(url, **kwargs)
             response.raise_for_status()
+            if return_response:
+                return response
             return response.text
         except httpx.HTTPError as e:
             if attempt < max_retries - 1:
@@ -95,9 +104,30 @@ def fetch_with_retry(
 def close() -> None:
     """Close the HTTP client."""
     global _client
-    if _client is not None:
-        _client.close()
-        _client = None
+    with _client_lock:
+        if _client is not None:
+            _client.close()
+            _client = None
+
+
+class HTTPClient:
+    """Thread-safe HTTP client wrapper with context manager support."""
+
+    def __init__(self) -> None:
+        """Initialize the HTTP client."""
+        self._client = get_client()
+
+    def __enter__(self) -> httpx.Client:
+        """Enter context manager."""
+        return self._client
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Exit context manager (does not close the shared client)."""
+        pass
+
+    def get_client(self) -> httpx.Client:
+        """Get the underlying httpx client."""
+        return self._client
 
 
 # Register cleanup handler for automatic cleanup on exit
