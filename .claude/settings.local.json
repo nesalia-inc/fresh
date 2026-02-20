@@ -9,7 +9,10 @@
       "Bash(uv run ruff:*)",
       "Bash(uv run mypy:*)",
       "Bash(uv sync:*)",
-      "Bash(uv run pytest src/fresh/scraper/ -v)"
+      "Bash(uv run pytest src/fresh/scraper/ -v)",
+      "Bash(gh issue edit:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue create:*)"
     ]
   }
 }
