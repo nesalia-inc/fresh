@@ -1,21 +1,44 @@
 # fresh
 
-CLI to get the latest and freshest documentation from any website in Markdown format.
+A Python CLI application created with @nesalia/create.
 
-## ⚠️ Work in Progress
+## Requirements
 
-This project is currently under development. Features and API may change.
+- Python 3.12+
+- uv (recommended) or pip
+
+## Installation
+
+```bash
+# Using uv (recommended)
+uv sync
+
+# Or using pip
+pip install -e .
+```
 
 ## Usage
 
 ```bash
-# List all documentation pages on a website
-fresh list https://nextjs.org
+# Run the CLI
+fresh --help
 
-# Fetch a specific documentation page in Markdown
-fresh get https://nextjs.org/docs/app/api-reference/file-conventions/page
+# Say hello
+fresh hello --name World
+
+# Run tests
+pytest
 ```
 
-## Website
+## Development
 
-https://fresh.nesalia.com
+```bash
+# Install dev dependencies
+uv sync --extra dev
+
+# Run linter
+ruff check .
+
+# Run tests
+pytest
+```
