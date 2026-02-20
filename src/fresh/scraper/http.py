@@ -69,16 +69,29 @@ def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
 
         # Block localhost and private IPs
         hostname = parsed.hostname or ""
+        # Handle IPv6 in netloc (e.g., http://[::1]/admin or http://::1/admin)
+        netloc = parsed.netloc
+        if not hostname and netloc:
+            # Might be IPv6 - check if netloc contains ::
+            if "::" in netloc:
+                # Extract IPv6 address (remove brackets if present)
+                hostname = netloc.lstrip("[").rstrip("]")
+            else:
+                hostname = netloc.split(":")[0] if ":" in netloc else netloc
         blocked_hosts = [
             "localhost",
             "127.0.0.1",
             "0.0.0.0",
             "::",
         ]
-        # Check for common localhost variants
-        # Handle IPv6 URLs (contains :: after http://)
-        after_scheme = url.split("://", 1)[1] if "://" in url else ""
-        is_ipv6 = "::" in after_scheme.split("/")[0]
+        # Check for IPv6 URL using proper parsing
+        is_ipv6 = False
+        if hostname:
+            try:
+                ip = ipaddress.ip_address(hostname)
+                is_ipv6 = ip.version == 6
+            except ValueError:
+                is_ipv6 = False
         # Check for private IP ranges
         is_private_ip = _is_private_ip(hostname)
         is_localhost = (
@@ -324,7 +337,7 @@ def is_allowed_by_robots(url: str, user_agent: str = "*") -> bool:
             if not line or line.startswith("#"):
                 continue
 
-            # Check for user-agent directive
+            # Check for user-agent directive - reset section when new user-agent found
             if line.lower().startswith("user-agent:"):
                 agent = line.split(":", 1)[1].strip().lower()
                 # Match exact user-agent or wildcard *
@@ -335,6 +348,10 @@ def is_allowed_by_robots(url: str, user_agent: str = "*") -> bool:
                 disallow_path = line.split(":", 1)[1].strip()
                 if disallow_path:
                     disallowed_paths.add(disallow_path)
+
+            # Reset section for other directives (crawl-delay, allow, etc.)
+            else:
+                in_target_section = False
 
     # Cache the results
     with _robots_cache_lock:
