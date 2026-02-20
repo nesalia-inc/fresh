@@ -6,6 +6,7 @@ import atexit
 import logging
 import threading
 import time
+import urllib.parse
 from typing import Any
 
 import httpx
@@ -20,6 +21,57 @@ logger = logging.getLogger(__name__)
 
 _client: httpx.Client | None = None
 _client_lock = threading.Lock()
+
+
+def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
+    """
+    Validate URL for security (SSRF prevention).
+
+    Args:
+        url: The URL to validate
+        allowed_domains: Optional list of allowed domains
+
+    Returns:
+        True if URL is valid, False otherwise
+    """
+    try:
+        parsed = urllib.parse.urlparse(url)
+
+        # Only allow http and https schemes
+        if parsed.scheme not in ("http", "https"):
+            logger.warning(f"URL scheme not allowed: {parsed.scheme}")
+            return False
+
+        # Check allowed domains if specified
+        if allowed_domains and parsed.netloc not in allowed_domains:
+            logger.warning(f"Domain not in allowed list: {parsed.netloc}")
+            return False
+
+        # Block localhost and private IPs
+        hostname = parsed.hostname or ""
+        blocked_hosts = [
+            "localhost",
+            "127.0.0.1",
+            "0.0.0.0",
+            "::",
+        ]
+        # Check for common localhost variants
+        # Handle IPv6 URLs (contains :: after http://)
+        after_scheme = url.split("://", 1)[1] if "://" in url else ""
+        is_ipv6 = "::" in after_scheme.split("/")[0]
+        is_localhost = (
+            hostname in blocked_hosts
+            or hostname.endswith(".local")
+            or is_ipv6
+        )
+        if is_localhost:
+            logger.warning(f"Blocked localhost or private URL: {url}")
+            return False
+
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to parse URL: {e}")
+        return False
 
 
 def get_client() -> httpx.Client:
@@ -37,17 +89,25 @@ def get_client() -> httpx.Client:
     return _client
 
 
-def fetch(url: str, **kwargs: Any) -> httpx.Response | None:
+def fetch(
+    url: str,
+    allowed_domains: list[str] | None = None,
+    **kwargs: Any,
+) -> httpx.Response | None:
     """
     Fetch a URL with default configuration.
 
     Args:
         url: The URL to fetch
+        allowed_domains: Optional list of allowed domains
         **kwargs: Additional arguments to pass to httpx.Client.get
 
     Returns:
         Response object or None on failure
     """
+    if not validate_url(url, allowed_domains):
+        return None
+
     client = get_client()
     try:
         response = client.get(url, **kwargs)
@@ -63,6 +123,7 @@ def fetch_with_retry(
     max_retries: int = 3,
     backoff: float = 1.0,
     return_response: bool = False,
+    allowed_domains: list[str] | None = None,
     **kwargs: Any,
 ) -> str | httpx.Response | None:
     """
@@ -73,11 +134,15 @@ def fetch_with_retry(
         max_retries: Maximum number of retry attempts
         backoff: Initial backoff time in seconds
         return_response: If True, return the Response object instead of text
+        allowed_domains: Optional list of allowed domains
         **kwargs: Additional arguments to pass to httpx.Client.get
 
     Returns:
         Response text, Response object, or None on failure
     """
+    if not validate_url(url, allowed_domains):
+        return None
+
     client = get_client()
 
     for attempt in range(max_retries):

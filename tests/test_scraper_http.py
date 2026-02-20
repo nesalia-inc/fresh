@@ -193,3 +193,48 @@ class TestThreadSafety:
 
         # All threads should get the same client
         assert len(set(results)) == 1
+
+
+class TestValidateUrl:
+    """Tests for validate_url function."""
+
+    def test_valid_https_url(self):
+        """Valid HTTPS URL should be allowed."""
+        assert http_module.validate_url("https://example.com/docs")
+
+    def test_valid_http_url(self):
+        """Valid HTTP URL should be allowed."""
+        assert http_module.validate_url("http://example.com/docs")
+
+    def test_block_file_scheme(self):
+        """File scheme should be blocked."""
+        assert not http_module.validate_url("file:///etc/passwd")
+
+    def test_block_ftp_scheme(self):
+        """FTP scheme should be blocked."""
+        assert not http_module.validate_url("ftp://example.com/file")
+
+    def test_block_localhost(self):
+        """Localhost should be blocked."""
+        assert not http_module.validate_url("http://localhost:8080")
+        assert not http_module.validate_url("http://127.0.0.1/admin")
+        assert not http_module.validate_url("http://::1/admin")
+
+    def test_block_private_ip(self):
+        """Private IPs should be blocked."""
+        assert not http_module.validate_url("http://0.0.0.0/admin")
+
+    def test_block_dot_local(self):
+        """.local domains should be blocked."""
+        assert not http_module.validate_url("http://myserver.local/admin")
+
+    def test_allowed_domains_whitelist(self):
+        """Should respect allowed domains whitelist."""
+        allowed = ["example.com", "docs.example.com"]
+        assert http_module.validate_url("https://example.com/docs", allowed)
+        assert http_module.validate_url("https://docs.example.com/api", allowed)
+        assert not http_module.validate_url("https://evil.com/docs", allowed)
+
+    def test_invalid_url_returns_false(self):
+        """Invalid URLs should return False."""
+        assert not http_module.validate_url("not-a-url")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import urllib.parse
 
@@ -14,6 +15,36 @@ from .sitemap import normalize_urls
 logger = logging.getLogger(__name__)
 
 DEFAULT_DELAY = 0.5  # seconds between requests
+
+# Per-domain rate limiting
+_domain_last_request: dict[str, float] = {}
+_domain_lock = threading.Lock()
+
+
+def _rate_limit_per_domain(url: str, delay: float) -> None:
+    """Apply per-domain rate limiting.
+
+    Args:
+        url: The URL being requested
+        delay: Minimum delay between requests to the same domain
+    """
+    if delay <= 0:
+        return
+
+    parsed = urllib.parse.urlparse(url)
+    domain = parsed.netloc
+
+    with _domain_lock:
+        now = time.time()
+        last_request = _domain_last_request.get(domain, 0)
+        time_since_last = now - last_request
+
+        if time_since_last < delay:
+            wait_time = delay - time_since_last
+            logger.debug(f"Rate limiting {domain}: waiting {wait_time:.2f}s")
+            time.sleep(wait_time)
+
+        _domain_last_request[domain] = time.time()
 
 
 def fetch_page(url: str) -> str | None:
@@ -117,9 +148,9 @@ def crawl(
                 if link not in visited and len(visited) < max_pages:
                     next_urls.append(link)
 
-            # Rate limiting: delay between requests
-            if delay > 0 and len(visited) < max_pages:
-                time.sleep(delay)
+            # Per-domain rate limiting
+            if len(visited) < max_pages:
+                _rate_limit_per_domain(url, delay)
 
         if next_urls:
             urls_by_depth[depth + 1] = next_urls

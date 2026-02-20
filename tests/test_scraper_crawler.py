@@ -183,10 +183,10 @@ class TestCrawl:
 
         assert "https://example.com" in result
 
-    @mock.patch("time.sleep")
+    @mock.patch("fresh.scraper.crawler._rate_limit_per_domain")
     @mock.patch("fresh.scraper.crawler.fetch_page")
     @mock.patch("fresh.scraper.crawler.extract_links")
-    def test_rate_limiting(self, mock_extract, mock_fetch, mock_sleep):
+    def test_rate_limiting(self, mock_extract, mock_fetch, mock_rate_limit):
         """Should apply rate limiting delay."""
         mock_fetch.return_value = "<html><a href='/page'>Link</a></html>"
         mock_extract.return_value = []
@@ -198,8 +198,8 @@ class TestCrawl:
             delay=0.5,
         )
 
-        # Should have slept between requests
-        assert mock_sleep.call_count > 0
+        # Should have called rate limiting
+        assert mock_rate_limit.call_count > 0
 
 
 class TestDefaultDelay:
