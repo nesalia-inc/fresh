@@ -349,10 +349,6 @@ def is_allowed_by_robots(url: str, user_agent: str = "*") -> bool:
                 if disallow_path:
                     disallowed_paths.add(disallow_path)
 
-            # Reset section for other directives (crawl-delay, allow, etc.)
-            else:
-                in_target_section = False
-
     # Cache the results
     with _robots_cache_lock:
         _robots_cache[domain] = (now, disallowed_paths)

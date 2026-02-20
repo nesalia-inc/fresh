@@ -9,7 +9,7 @@ import urllib.parse
 
 from bs4 import BeautifulSoup
 
-from .http import fetch_with_retry, is_allowed_by_robots
+from .http import fetch_with_retry, is_allowed_by_robots, validate_url
 from .sitemap import normalize_urls
 
 logger = logging.getLogger(__name__)
@@ -138,6 +138,7 @@ def crawl(
     max_depth: int = 3,
     delay: float = DEFAULT_DELAY,
     respect_robots: bool = True,
+    allowed_domains: list[str] | None = None,
 ) -> set[str]:
     """
     BFS crawl of the website.
@@ -148,6 +149,7 @@ def crawl(
         max_depth: Maximum crawl depth
         delay: Delay in seconds between requests
         respect_robots: Whether to respect robots.txt rules
+        allowed_domains: Optional list of allowed domains for validation
 
     Returns:
         Set of unique URLs discovered
@@ -167,6 +169,11 @@ def crawl(
                 break
 
             if url in visited:
+                continue
+
+            # Validate URL against allowed domains
+            if not validate_url(url, allowed_domains):
+                logger.debug(f"Skipping {url} - failed validation")
                 continue
 
             # Check robots.txt if enabled
