@@ -1,10 +1,14 @@
 # Fresh - Documentation Fetcher CLI
 
-A command-line tool to fetch fresh documentation from websites. The goal is to retrieve up-to-date documentation from various sources in Markdown format for consumption by AI agents.
+Agent-first CLI to get the latest and freshest documentation from any website in Markdown format.
+
+## ⚠️ Work in Progress
+
+This project is currently under development. Features and API may change.
 
 ## Purpose
 
-When working with AI assistants, having access to current documentation is essential. This CLI scrapes documentation websites and converts pages to Markdown, making it easy to keep documentation fresh and accessible.
+This CLI scrapes documentation websites and converts pages to Markdown, making it easy to keep documentation fresh and accessible for AI agents.
 
 ## Commands
 
@@ -31,6 +35,7 @@ fresh get https://nextjs.org/docs/app/api-reference/file-conventions/page
 - **Documentation discovery**: Automatically find all doc pages on a website
 - **Markdown output**: Convert HTML documentation pages to clean Markdown
 - **Public sources only**: Works with publicly accessible documentation sites
+- **Implicit cache**: Pages are cached automatically. Use `--no-cache` to bypass
 - **Flexible output**: Write to file or output to STDOUT
 
 ## Use Cases
@@ -38,3 +43,10 @@ fresh get https://nextjs.org/docs/app/api-reference/file-conventions/page
 - Keep local documentation updated for offline access
 - Feed documentation to AI agents for context-aware assistance
 - Quickly explore the structure of unfamiliar documentation sites
+
+## Technical Stack
+
+- **Language**: Python
+- **CLI Framework**: Typer
+- **Package Manager**: uv
+- **License**: MIT
