@@ -9,6 +9,6 @@ runner = CliRunner()
 
 def test_hello():
     """Test hello command."""
-    result = runner.invoke(app, ["hello", "World"])
+    result = runner.invoke(app, ["--name", "World"], prog_name="fresh")
     assert result.exit_code == 0
-    assert "Hello, World!" in result.stdout
+    assert "Hello, World!" in result.output
