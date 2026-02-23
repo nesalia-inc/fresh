@@ -29,6 +29,13 @@ dev = [
 rich = [
     "rich>=13.0.0",
 ]
+yaml = [
+    "pyyaml>=6.0",
+]
+all = [
+    "rich>=13.0.0",
+    "pyyaml>=6.0",
+]
 
 [tool.ruff]
 line-length = 100

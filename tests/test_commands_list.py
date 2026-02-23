@@ -202,3 +202,23 @@ class TestListCommand:
 
         assert result.exit_code == 0
         assert "Warning" in result.output
+
+    @mock.patch("fresh.commands.list.crawler.crawl")
+    @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
+    def test_list_verbose_output(self, mock_discover, mock_crawl):
+        """Should output rich table when --verbose is used."""
+        mock_discover.return_value = None
+        mock_crawl.return_value = {
+            "https://example.com/docs/page1",
+            "https://example.com/docs/page2",
+        }
+
+        result = runner.invoke(
+            app, ["list", "https://example.com", "--verbose"]
+        )
+
+        assert result.exit_code == 0
+        # Rich table output should contain these elements
+        assert "Documentation Pages" in result.output
+        assert "page1" in result.output
+        assert "page2" in result.output

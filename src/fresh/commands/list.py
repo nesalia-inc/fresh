@@ -7,6 +7,7 @@ import urllib.parse
 from typing import Any
 
 import typer
+from importlib import metadata as importlib_metadata
 
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import validate_url
@@ -117,11 +118,12 @@ def list_urls(
             typer.echo(json.dumps(entries, indent=2))
         elif format == "yaml":
             try:
-                import yaml  # type: ignore[import-untyped]
-                typer.echo(yaml.dump(entries))
-            except ImportError:
-                typer.echo("Error: PyYAML not installed. Use --format json", err=True)
+                importlib_metadata.version("pyyaml")
+            except importlib_metadata.PackageNotFoundError:
+                typer.echo("Error: PyYAML not installed. Use --format json or install with: pip install fresh[yaml]", err=True)
                 raise typer.Exit(1)
+            import yaml  # type: ignore[import-untyped]
+            typer.echo(yaml.dump(entries))
         elif format == "xml":
             import xml.etree.ElementTree as ET
 
