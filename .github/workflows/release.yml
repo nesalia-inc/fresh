@@ -39,12 +39,16 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
+      - uses: actions/setup-python@v5
         with:
-          enable-cache: false
-      - run: rm -rf dist/ .hatch-cache/ *.egg-info/ .venv/
-      - run: uv sync --all-groups
-      - run: uv build
+          python-version: '3.12'
+      - run: pip install build
+      - run: rm -rf dist/
+      - run: python -m build
+      - run: ls -la dist/
+      - run: |
+          uv publish \
+            --token "${{ secrets.PYPI_TOKEN }}"
       - run: |
           uv publish \
             --token "${{ secrets.PYPI_TOKEN }}"
