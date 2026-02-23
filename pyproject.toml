@@ -52,3 +52,6 @@ testpaths = ["tests"]
 
 [tool.hatch.version]
 path = "src/fresh/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fresh"]
