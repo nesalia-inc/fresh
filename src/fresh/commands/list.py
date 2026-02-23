@@ -21,6 +21,7 @@ def list_urls(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Use rich output format"),
     pattern: str | None = typer.Option(None, "--pattern", "-p", help="Filter paths matching pattern"),
     depth: int = typer.Option(3, "--depth", "-d", help="Maximum crawl depth"),
+    max_pages: int = typer.Option(100, "--max-pages", help="Maximum number of pages to discover"),
     sort: str = typer.Option("name", "--sort", help="Sort results by name or path"),
     format: str = typer.Option("json", "--format", "-f", help="Output format: json, yaml, xml"),
     count: bool = typer.Option(False, "--count", "-c", help="Show only total count"),
@@ -29,6 +30,16 @@ def list_urls(
     # Validate URL
     if not validate_url(url):
         typer.echo(f"Error: Invalid URL: {url}", err=True)
+        raise typer.Exit(1)
+
+    # Validate sort option
+    if sort not in ("name", "path"):
+        typer.echo(f"Error: Invalid sort option '{sort}'. Must be 'name' or 'path'.", err=True)
+        raise typer.Exit(1)
+
+    # Validate format option
+    if format not in ("json", "yaml", "xml"):
+        typer.echo(f"Error: Invalid format '{format}'. Must be 'json', 'yaml', or 'xml'.", err=True)
         raise typer.Exit(1)
 
     # Discover pages using sitemap or crawler
@@ -47,11 +58,11 @@ def list_urls(
 
     # Fallback to crawler if no sitemap found
     if not discovered_urls:
-        discovered_urls = crawler.crawl(url, max_pages=100, max_depth=depth)
+        discovered_urls = crawler.crawl(url, max_pages=max_pages, max_depth=depth)
 
     # Apply pattern filter if specified
     if pattern:
-        discovered_urls = set(filter_module.filter_by_pattern(list(discovered_urls), pattern))  # type: ignore[arg-type]
+        discovered_urls = set(filter_module.filter_by_pattern([*discovered_urls], pattern))  # type: ignore[arg-type]
 
     # Convert URLs to named entries
     entries: EntryList = []
@@ -74,6 +85,10 @@ def list_urls(
     if count:
         typer.echo(len(entries))
         return
+
+    # Warn if no pages found
+    if not entries:
+        typer.echo("Warning: No documentation pages found.", err=True)
 
     # Output in requested format
     if verbose:
@@ -119,10 +134,3 @@ def list_urls(
 
             ET.indent(root)
             typer.echo(ET.tostring(root, encoding="unicode"))
-        else:
-            typer.echo(f"Error: Unknown format: {format}", err=True)
-            raise typer.Exit(1)
-
-
-# Alias for backward compatibility
-list = list_urls

@@ -68,11 +68,9 @@ class TestListCommand:
         assert result.output.strip() == "3"
 
     @mock.patch("fresh.commands.list.crawler.crawl")
-    @mock.patch("fresh.scraper.http.validate_url")
     @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
-    def test_list_pattern_option(self, mock_discover, mock_validate, mock_crawl):
+    def test_list_pattern_option(self, mock_discover, mock_crawl):
         """Should apply pattern filter when provided."""
-        mock_validate.return_value = True
         mock_discover.return_value = None
         mock_crawl.return_value = {
             "https://example.com/docs/page1",
@@ -83,8 +81,9 @@ class TestListCommand:
             app, ["list", "https://example.com", "--pattern", "/docs/*"]
         )
 
-        # Should complete without error - the pattern filter is applied to crawler results
-        assert result.exit_code in [0, 1]
+        # Should complete without error and filter results
+        assert result.exit_code == 0
+        assert "page1" in result.output
 
     @mock.patch("fresh.commands.list.crawler.crawl")
     @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
@@ -114,6 +113,20 @@ class TestListCommand:
 
     @mock.patch("fresh.commands.list.crawler.crawl")
     @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
+    def test_list_invalid_sort(self, mock_discover, mock_crawl):
+        """Should fail with invalid sort option."""
+        mock_discover.return_value = None
+        mock_crawl.return_value = {"https://example.com/docs/page1"}
+
+        result = runner.invoke(
+            app, ["list", "https://example.com", "--sort", "invalid"]
+        )
+
+        assert result.exit_code == 1
+        assert "Invalid sort option" in result.output
+
+    @mock.patch("fresh.commands.list.crawler.crawl")
+    @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
     def test_list_xml_format(self, mock_discover, mock_crawl):
         """Should output XML format when requested."""
         mock_discover.return_value = None
@@ -139,7 +152,6 @@ class TestListCommand:
         )
 
         # YAML requires PyYAML which may not be installed
-        # Either it works or we get an error about PyYAML
         assert result.exit_code in [0, 1]
 
     @mock.patch("fresh.commands.list.crawler.crawl")
@@ -154,4 +166,32 @@ class TestListCommand:
         )
 
         assert result.exit_code == 1
-        assert "Unknown format" in result.output
+        assert "Invalid format" in result.output
+
+    @mock.patch("fresh.commands.list.crawler.crawl")
+    @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
+    def test_list_max_pages_option(self, mock_discover, mock_crawl):
+        """Should use max-pages option when provided."""
+        mock_discover.return_value = None
+        mock_crawl.return_value = {"https://example.com/docs/page1"}
+
+        result = runner.invoke(
+            app, ["list", "https://example.com", "--max-pages", "50"]
+        )
+
+        assert result.exit_code == 0
+        mock_crawl.assert_called_once_with("https://example.com", max_pages=50, max_depth=3)
+
+    @mock.patch("fresh.commands.list.crawler.crawl")
+    @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
+    def test_list_no_pages_warning(self, mock_discover, mock_crawl):
+        """Should show warning when no pages found."""
+        mock_discover.return_value = None
+        mock_crawl.return_value = set()
+
+        result = runner.invoke(
+            app, ["list", "https://example.com"]
+        )
+
+        assert result.exit_code == 0
+        assert "Warning" in result.output
