@@ -74,8 +74,8 @@ def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
         if not hostname and netloc:
             # Check if netloc is an IPv6 address (with optional brackets)
             try:
-                # Try to parse as IPv6
-                ip = ipaddress.ip_address(netloc.lstrip("[").rstrip("]"))
+                # Validate as IP, then extract hostname
+                ipaddress.ip_address(netloc.lstrip("[").rstrip("]"))
                 hostname = netloc.lstrip("[").rstrip("]")
             except ValueError:
                 # Not IPv6, might be host:port
@@ -89,20 +89,12 @@ def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
             "0.0.0.0",
             "::",
         ]
-        # Check for IPv6 URL using proper parsing
-        is_ipv6 = False
-        if hostname:
-            try:
-                ip = ipaddress.ip_address(hostname)
-                is_ipv6 = ip.version == 6
-            except ValueError:
-                is_ipv6 = False
-        # Check for private IP ranges
-        is_private_ip = _is_private_ip(hostname)
+
+        # Check for private/reserved IP ranges (includes IPv6 private ranges)
+        is_private_ip = _is_private_ip(hostname) if hostname else False
         is_localhost = (
             hostname in blocked_hosts
             or hostname.endswith(".local")
-            or is_ipv6
             or is_private_ip
         )
         if is_localhost:
@@ -282,6 +274,8 @@ _robots_cache: dict[str, tuple[float, set[str]]] = {}  # domain -> (timestamp, d
 _robots_cache_lock = threading.Lock()
 ROBOTS_CACHE_TTL = 300  # 5 minutes
 ROBOTS_CACHE_MAX_SIZE = 100  # Max domains to cache
+_robots_request_counter = 0
+_ROBOTS_CLEANUP_INTERVAL = 100  # Cleanup every 100 requests
 
 
 def _cleanup_robots_cache() -> None:
@@ -321,10 +315,14 @@ def is_allowed_by_robots(url: str, user_agent: str = "*") -> bool:
 
     disallowed_paths: set[str] = set()
 
+    global _robots_request_counter
+
     with _robots_cache_lock:
-        # Periodic cleanup
-        if len(_robots_cache) > ROBOTS_CACHE_MAX_SIZE:
+        # Periodic cleanup every N requests
+        _robots_request_counter += 1
+        if _robots_request_counter >= _ROBOTS_CLEANUP_INTERVAL:
             _cleanup_robots_cache()
+            _robots_request_counter = 0
 
         now = time.time()
 

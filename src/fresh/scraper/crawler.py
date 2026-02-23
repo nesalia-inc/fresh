@@ -17,10 +17,12 @@ logger = logging.getLogger(__name__)
 DEFAULT_DELAY = 0.5  # seconds between requests
 RATE_LIMIT_TTL = 3600  # Clean up entries older than 1 hour
 RATE_LIMIT_MAX_DOMAINS = 100  # Max domains to track
+_RATE_LIMIT_CLEANUP_INTERVAL = 100  # Cleanup every 100 requests
 
 # Per-domain rate limiting
 _domain_last_request: dict[str, float] = {}
 _domain_lock: threading.Lock = threading.Lock()
+_request_counter = 0
 
 
 def _cleanup_rate_limit_dict() -> None:
@@ -62,10 +64,14 @@ def _rate_limit_per_domain(url: str, delay: float) -> None:
     parsed = urllib.parse.urlparse(url)
     domain = parsed.netloc
 
+    global _request_counter
+
     with _domain_lock:
-        # Periodic cleanup
-        if len(_domain_last_request) > RATE_LIMIT_MAX_DOMAINS:
+        # Periodic cleanup every N requests
+        _request_counter += 1
+        if _request_counter >= _RATE_LIMIT_CLEANUP_INTERVAL:
             _cleanup_rate_limit_dict()
+            _request_counter = 0
 
         now = time.time()
         last_request = _domain_last_request.get(domain, 0)
