@@ -29,7 +29,7 @@ def discover_sitemap(base_url: str) -> str | None:
     """
     Discover sitemap.xml on the website.
 
-    Checks common locations and also looks in robots.txt.
+    Checks common locations at the domain root and also looks in robots.txt.
 
     Args:
         base_url: The base URL of the website
@@ -44,9 +44,14 @@ def discover_sitemap(base_url: str) -> str | None:
         logger.warning(f"Base URL validation failed: {base_url}")
         return None
 
-    # Try common sitemap locations with HEAD requests
+    # Extract domain root for sitemap discovery
+    # Sitemaps are typically at the domain root, not subpaths
+    parsed = urllib.parse.urlparse(base)
+    domain_root = f"{parsed.scheme}://{parsed.netloc}"
+
+    # Try common sitemap locations with HEAD requests at domain root
     for pattern in SITEMAP_PATTERNS:
-        sitemap_url = f"{base}{pattern}"
+        sitemap_url = f"{domain_root}{pattern}"
         logger.debug(f"Checking for sitemap: {sitemap_url}")
         # Validate sitemap URL
         if not validate_url(sitemap_url):
@@ -62,10 +67,8 @@ def discover_sitemap(base_url: str) -> str | None:
             logger.debug(f"HEAD request failed for {sitemap_url}: {e}")
 
     # Fall back to GET for robots.txt since we need the content
-    # Try to find sitemap from robots.txt
-
-    # Try to find sitemap from robots.txt
-    robots_url = f"{base}/robots.txt"
+    # Try to find sitemap from robots.txt at domain root
+    robots_url = f"{domain_root}/robots.txt"
     if not validate_url(robots_url):
         logger.warning(f"Robots.txt URL validation failed: {robots_url}")
         return None
