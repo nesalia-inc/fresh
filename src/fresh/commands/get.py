@@ -126,6 +126,7 @@ def get(
             return_response=True,
             headers=headers,
             follow_redirects=not no_follow,
+            timeout=timeout,
         )
 
         if response is None:
