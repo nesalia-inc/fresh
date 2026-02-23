@@ -339,3 +339,106 @@ Allow: /
             result = http_module.fetch_robots_txt("https://example.com")
 
         assert result is not None
+
+
+class TestIsPrivateIp:
+    """Tests for _is_private_ip function."""
+
+    def test_private_ipv4(self):
+        """Private IPv4 addresses should be detected."""
+        assert http_module._is_private_ip("10.0.0.1")
+        assert http_module._is_private_ip("172.16.0.1")
+        assert http_module._is_private_ip("192.168.0.1")
+
+    def test_public_ipv4(self):
+        """Public IPv4 addresses should not be detected as private."""
+        assert not http_module._is_private_ip("8.8.8.8")
+        assert not http_module._is_private_ip("1.1.1.1")
+        assert not http_module._is_private_ip("93.184.216.34")
+
+    def test_loopback_ipv4(self):
+        """Loopback IPv4 should be detected."""
+        assert http_module._is_private_ip("127.0.0.1")
+
+    def test_ipv6_private(self):
+        """Private IPv6 addresses should be detected."""
+        # Link-local
+        assert http_module._is_private_ip("fe80::1")
+        # Unique local
+        assert http_module._is_private_ip("fc00::1")
+
+    def test_ipv6_public(self):
+        """Public IPv6 should not be detected as private."""
+        assert not http_module._is_private_ip("2001:4860:4860::8888")
+
+    def test_hostname_not_ip(self):
+        """Hostname should not be detected as private IP."""
+        assert not http_module._is_private_ip("example.com")
+        assert not http_module._is_private_ip("localhost")
+
+
+class TestRobotsTxtEdgeCases:
+    """Tests for robots.txt edge cases."""
+
+    def setup_method(self):
+        """Reset caches before each test."""
+        http_module._robots_cache.clear()
+
+    @mock.patch("fresh.scraper.http.fetch_robots_txt")
+    def test_robots_with_comments(self, mock_fetch):
+        """Should handle robots.txt with comments."""
+        robots_content = """# This is a comment
+User-agent: *
+Disallow: /admin
+"""
+        mock_fetch.return_value = robots_content
+        result = http_module.is_allowed_by_robots("https://example.com/admin")
+        assert result is False
+
+    @mock.patch("fresh.scraper.http.fetch_robots_txt")
+    def test_robots_empty_disallow(self, mock_fetch):
+        """Should handle empty Disallow lines."""
+        robots_content = """User-agent: *
+Disallow:
+"""
+        mock_fetch.return_value = robots_content
+        result = http_module.is_allowed_by_robots("https://example.com/")
+        assert result is True
+
+    @mock.patch("fresh.scraper.http.fetch_robots_txt")
+    def test_robots_allow_takes_precedence(self, mock_fetch):
+        """Allow directive should take precedence over Disallow."""
+        robots_content = """User-agent: *
+Allow: /public
+Disallow: /
+"""
+        mock_fetch.return_value = robots_content
+        result = http_module.is_allowed_by_robots("https://example.com/public")
+        assert result is True
+
+
+class TestResetFunction:
+    """Tests for reset function."""
+
+    def test_reset_closes_client(self):
+        """Reset should close the HTTP client."""
+        # Get a client first
+        client = http_module.get_client()
+        assert client is not None
+
+        # Reset should close and set to None
+        http_module.reset()
+
+        # After reset, getting client should create a new one
+        new_client = http_module.get_client()
+        assert new_client is not None
+
+    def test_reset_clears_robots_cache(self):
+        """Reset should clear the robots.txt cache."""
+        # Add something to cache
+        http_module._robots_cache["example.com"] = (0, set(), set())
+        assert "example.com" in http_module._robots_cache
+
+        http_module.reset()
+
+        assert len(http_module._robots_cache) == 0

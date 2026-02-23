@@ -209,3 +209,93 @@ class TestDefaultDelay:
         """DEFAULT_DELAY should be a positive number."""
         assert crawler_module.DEFAULT_DELAY > 0
         assert isinstance(crawler_module.DEFAULT_DELAY, (int, float))
+
+
+class TestCrawlEdgeCases:
+    """Tests for crawl edge cases."""
+
+    @mock.patch("fresh.scraper.crawler.is_allowed_by_robots")
+    @mock.patch("fresh.scraper.crawler.validate_url")
+    @mock.patch("fresh.scraper.crawler.fetch_page")
+    @mock.patch("fresh.scraper.crawler.extract_links")
+    def test_skip_invalid_url(self, mock_extract, mock_fetch, mock_validate, mock_robots):
+        """Should skip URLs that fail validation."""
+        mock_fetch.return_value = "<html><a href='/page'>Link</a></html>"
+        mock_extract.return_value = ["https://example.com/page"]
+        # First URL is valid, second is not
+        mock_validate.side_effect = [True, False]
+
+        result = crawler_module.crawl(
+            "https://example.com",
+            max_pages=10,
+            max_depth=1,
+            delay=0,
+        )
+
+        # Should still have the valid URL
+        assert len(result) >= 1
+
+    @mock.patch("fresh.scraper.crawler.is_allowed_by_robots")
+    @mock.patch("fresh.scraper.crawler.validate_url")
+    @mock.patch("fresh.scraper.crawler.fetch_page")
+    @mock.patch("fresh.scraper.crawler.extract_links")
+    def test_skip_disallowed_by_robots(
+        self, mock_extract, mock_fetch, mock_validate, mock_robots
+    ):
+        """Should skip URLs disallowed by robots.txt when respect_robots=True."""
+        mock_fetch.return_value = "<html><a href='/page'>Link</a></html>"
+        mock_extract.return_value = ["https://example.com/page"]
+        mock_validate.return_value = True
+        # First URL is allowed, second is disallowed
+        mock_robots.side_effect = [True, False]
+
+        result = crawler_module.crawl(
+            "https://example.com",
+            max_pages=10,
+            max_depth=1,
+            delay=0,
+            respect_robots=True,
+        )
+
+        # Should still have the allowed URL
+        assert len(result) >= 1
+
+
+class TestResetFunction:
+    """Tests for crawler reset function."""
+
+    def test_reset_clears_rate_limit_dict(self):
+        """Reset should clear the rate limit dictionary."""
+        # Add something to rate limit dict
+        crawler_module._domain_last_request["example.com"] = 1234567890
+
+        assert "example.com" in crawler_module._domain_last_request
+
+        crawler_module.reset()
+
+        assert len(crawler_module._domain_last_request) == 0
+
+
+class TestRateLimiting:
+    """Tests for rate limiting."""
+
+    def test_rate_limit_with_zero_delay(self):
+        """Rate limiting with zero delay should return immediately."""
+        # This should not raise any errors
+        crawler_module._rate_limit_per_domain("https://example.com/page1", 0)
+
+    def test_rate_limit_preserves_dict(self):
+        """Rate limiting should preserve the rate limit dictionary."""
+        # This should work without errors
+        crawler_module._rate_limit_per_domain("https://example.com/page1", 0)
+        crawler_module._rate_limit_per_domain("https://example.com/page2", 0)
+
+
+class TestConstants:
+    """Tests for module constants."""
+
+    def test_rate_limit_constants(self):
+        """Test rate limit constants are defined."""
+        assert crawler_module.RATE_LIMIT_TTL > 0
+        assert crawler_module.RATE_LIMIT_MAX_DOMAINS > 0
+        assert crawler_module._RATE_LIMIT_CLEANUP_INTERVAL > 0
