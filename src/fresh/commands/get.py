@@ -1,0 +1,174 @@
+"""Get command - fetch a documentation page and convert to Markdown."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import typer
+from markdownify import markdownify as md
+
+from ..scraper.http import fetch_with_retry, validate_url
+
+app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
+
+
+def html_to_markdown(html: str, skip_scripts: bool = False) -> str:
+    """Convert HTML to Markdown.
+
+    Args:
+        html: The HTML content to convert
+        skip_scripts: If True, remove script tags before conversion
+
+    Returns:
+        Markdown formatted string
+    """
+    if skip_scripts:
+        # Remove script tags and their content
+        import re
+        html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
+
+    return md(html, heading_style="ATX")
+
+
+def get_cache_dir() -> Path:
+    """Get the cache directory for fresh.
+
+    Returns:
+        Path to the cache directory
+    """
+    cache_dir = Path.home() / ".fresh" / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir
+
+
+def get_cached_content(url: str) -> str | None:
+    """Get cached content for a URL.
+
+    Args:
+        url: The URL to get cached content for
+
+    Returns:
+        Cached content or None if not cached
+    """
+    import hashlib
+
+    # Create a hash of the URL for the filename
+    url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
+    cache_file = get_cache_dir() / f"{url_hash}.md"
+
+    if cache_file.exists():
+        return cache_file.read_text(encoding="utf-8")
+    return None
+
+
+def save_to_cache(url: str, content: str) -> None:
+    """Save content to cache.
+
+    Args:
+        url: The URL the content was fetched from
+        content: The Markdown content to cache
+    """
+    import hashlib
+
+    url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
+    cache_file = get_cache_dir() / f"{url_hash}.md"
+    cache_file.write_text(content, encoding="utf-8")
+
+
+@app.command(name="get")
+def get(
+    url: str = typer.Argument(..., help="The URL of the documentation page to fetch"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Use verbose output"),
+    timeout: int = typer.Option(30, "--timeout", "-t", help="Request timeout in seconds"),
+    header: str | None = typer.Option(None, "--header", help="Custom HTTP header (format: 'Key: Value')"),
+    no_follow: bool = typer.Option(False, "--no-follow", help="Do not follow redirects"),
+    embed_images: bool = typer.Option(False, "--embed-images", help="Embed images as base64"),
+    skip_scripts: bool = typer.Option(False, "--skip-scripts", help="Exclude JavaScript from output"),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass cache"),
+    output: str | None = typer.Option(None, "--output", "-o", help="Write output to file"),
+    retry: int = typer.Option(3, "--retry", "-r", help="Number of retry attempts"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be fetched without downloading"),
+) -> None:
+    """Fetch a documentation page and convert it to Markdown."""
+    # Validate URL
+    if not validate_url(url):
+        typer.echo(f"Error: Invalid URL: {url}", err=True)
+        raise typer.Exit(1)
+
+    # Check cache first (unless --no-cache is specified)
+    content: str | None = None
+    if not no_cache:
+        if verbose:
+            typer.echo("Checking cache...")
+        content = get_cached_content(url)
+        if content:
+            if verbose:
+                typer.echo("✓ Found in cache")
+
+    # Fetch if not cached
+    if content is None:
+        if dry_run:
+            typer.echo(f"Would fetch: {url}")
+            return
+
+        if verbose:
+            typer.echo(f"Fetching {url}...")
+
+        # Prepare headers
+        headers = {}
+        if header:
+            if ":" not in header:
+                typer.echo("Error: Header must be in format 'Key: Value'", err=True)
+                raise typer.Exit(1)
+            key, value = header.split(":", 1)
+            headers[key.strip()] = value.strip()
+
+        # Fetch the page
+        response = fetch_with_retry(
+            url,
+            max_retries=retry,
+            return_response=True,
+            timeout=timeout,
+        )
+
+        if response is None:
+            typer.echo(f"Error: Failed to fetch {url}", err=True)
+            raise typer.Exit(1)
+
+        if hasattr(response, "text"):
+            html_content = response.text
+        else:
+            html_content = str(response)
+
+        if verbose:
+            typer.echo(f"✓ Fetched ({len(html_content)} bytes)")
+
+        # Convert to Markdown
+        if verbose:
+            typer.echo("Converting to Markdown...")
+        content = html_to_markdown(html_content, skip_scripts=skip_scripts)
+
+        # Handle image embedding if requested
+        if embed_images:
+            # TODO: Implement image embedding as base64
+            if verbose:
+                typer.echo("Note: Image embedding not yet implemented")
+
+        # Save to cache
+        if not no_cache:
+            save_to_cache(url, content)
+            if verbose:
+                typer.echo("✓ Saved to cache")
+
+    # Output the content
+    if output:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(content, encoding="utf-8")
+        if verbose:
+            typer.echo(f"✓ Written to {output}")
+    else:
+        typer.echo(content)
+
+    if verbose:
+        typer.echo(f"✓ Done ({len(content)} chars)")
