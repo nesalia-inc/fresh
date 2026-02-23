@@ -67,23 +67,29 @@ class TestListCommand:
         assert result.exit_code == 0
         assert result.output.strip() == "3"
 
+    @mock.patch("fresh.commands.list.filter_module.filter_by_pattern")
     @mock.patch("fresh.commands.list.crawler.crawl")
     @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
-    def test_list_pattern_option(self, mock_discover, mock_crawl):
-        """Should apply pattern filter when provided."""
+    def test_list_pattern_filter_excludes_non_matching(
+        self, mock_discover, mock_crawl, mock_filter
+    ):
+        """Should filter out non-matching paths when pattern is provided."""
         mock_discover.return_value = None
         mock_crawl.return_value = {
             "https://example.com/docs/page1",
             "https://example.com/api/page2",
         }
+        # Pattern should only match /docs/* URLs
+        mock_filter.return_value = ["https://example.com/docs/page1"]
 
         result = runner.invoke(
             app, ["list", "https://example.com", "--pattern", "/docs/*"]
         )
 
-        # Should complete without error and filter results
         assert result.exit_code == 0
         assert "page1" in result.output
+        # api/page2 should not be in output since it doesn't match pattern
+        assert "api" not in result.output
 
     @mock.patch("fresh.commands.list.crawler.crawl")
     @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
@@ -127,8 +133,8 @@ class TestListCommand:
 
     @mock.patch("fresh.commands.list.crawler.crawl")
     @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
-    def test_list_xml_format(self, mock_discover, mock_crawl):
-        """Should output XML format when requested."""
+    def test_list_xml_format_with_declaration(self, mock_discover, mock_crawl):
+        """Should output XML format with declaration header."""
         mock_discover.return_value = None
         mock_crawl.return_value = {"https://example.com/docs/page1"}
 
@@ -137,6 +143,7 @@ class TestListCommand:
         )
 
         assert result.exit_code == 0
+        assert '<?xml version="1.0" encoding="UTF-8"?>' in result.output
         assert "<pages>" in result.output
         assert "<page>" in result.output
 

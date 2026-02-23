@@ -125,6 +125,7 @@ def list_urls(
         elif format == "xml":
             import xml.etree.ElementTree as ET
 
+            # Add XML declaration header
             root = ET.Element("pages")
             for entry in entries:
                 page = ET.SubElement(root, "page")
@@ -133,4 +134,7 @@ def list_urls(
                 ET.SubElement(page, "url").text = entry["url"]
 
             ET.indent(root)
-            typer.echo(ET.tostring(root, encoding="unicode"))
+            # Build XML with declaration
+            xml_string = ET.tostring(root, encoding="unicode")
+            typer.echo('<?xml version="1.0" encoding="UTF-8"?>')
+            typer.echo(xml_string)
