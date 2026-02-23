@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import re
 from pathlib import Path
 
 import typer
@@ -24,7 +26,6 @@ def html_to_markdown(html: str, skip_scripts: bool = False) -> str:
     """
     if skip_scripts:
         # Remove script tags and their content
-        import re
         html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
 
     return md(html, heading_style="ATX")
@@ -50,8 +51,6 @@ def get_cached_content(url: str) -> str | None:
     Returns:
         Cached content or None if not cached
     """
-    import hashlib
-
     # Create a hash of the URL for the filename
     url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
     cache_file = get_cache_dir() / f"{url_hash}.md"
@@ -68,8 +67,6 @@ def save_to_cache(url: str, content: str) -> None:
         url: The URL the content was fetched from
         content: The Markdown content to cache
     """
-    import hashlib
-
     url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
     cache_file = get_cache_dir() / f"{url_hash}.md"
     cache_file.write_text(content, encoding="utf-8")
@@ -82,7 +79,6 @@ def get(
     timeout: int = typer.Option(30, "--timeout", "-t", help="Request timeout in seconds"),
     header: str | None = typer.Option(None, "--header", help="Custom HTTP header (format: 'Key: Value')"),
     no_follow: bool = typer.Option(False, "--no-follow", help="Do not follow redirects"),
-    embed_images: bool = typer.Option(False, "--embed-images", help="Embed images as base64"),
     skip_scripts: bool = typer.Option(False, "--skip-scripts", help="Exclude JavaScript from output"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass cache"),
     output: str | None = typer.Option(None, "--output", "-o", help="Write output to file"),
@@ -128,7 +124,8 @@ def get(
             url,
             max_retries=retry,
             return_response=True,
-            timeout=timeout,
+            headers=headers,
+            follow_redirects=not no_follow,
         )
 
         if response is None:
@@ -147,12 +144,6 @@ def get(
         if verbose:
             typer.echo("Converting to Markdown...")
         content = html_to_markdown(html_content, skip_scripts=skip_scripts)
-
-        # Handle image embedding if requested
-        if embed_images:
-            # TODO: Implement image embedding as base64
-            if verbose:
-                typer.echo("Note: Image embedding not yet implemented")
 
         # Save to cache
         if not no_cache:
