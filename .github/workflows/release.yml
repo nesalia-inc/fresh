@@ -24,7 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv build --all-extras --no-sources
+      - run: uv sync --all
+      - run: uv build
       - run: |
           uv publish \
             --token "${{ secrets.PYPI_TOKEN }}"
