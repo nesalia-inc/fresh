@@ -40,9 +40,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: rm -rf dist/
+      - run: rm -rf dist/ .hatch-cache/ *.egg-info/
       - run: uv sync --all-groups
-      - run: uv build
+      - run: uv build --no-cache
       - run: |
           uv publish \
             --token "${{ secrets.PYPI_TOKEN }}"
