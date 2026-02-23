@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -e .[dev]
-      - uses: astral-sh/mypy-action@v2
+      - run: mypy src/
 
   test:
     runs-on: ubuntu-latest
