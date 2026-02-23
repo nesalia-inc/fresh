@@ -11,9 +11,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv sync --all-extras
-      - run: ruff check .
-      - run: mypy .
-      - run: pytest
+      - run: uv run ruff check .
+      - run: uv run mypy .
+      - run: uv run pytest
 
   pypi:
     runs-on: ubuntu-latest
