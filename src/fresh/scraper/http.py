@@ -24,6 +24,14 @@ logger = logging.getLogger(__name__)
 _client: httpx.Client | None = None
 _client_lock: threading.Lock = threading.Lock()
 
+# Cache for robots.txt rules
+_robots_cache: dict[str, tuple[float, set[str], set[str]]] = {}  # domain -> (timestamp, disallowed, allowed)
+_robots_cache_lock: threading.Lock = threading.Lock()
+ROBOTS_CACHE_TTL = 300  # 5 minutes
+ROBOTS_CACHE_MAX_SIZE = 100  # Max domains to cache
+_robots_request_counter = 0
+_ROBOTS_CLEANUP_INTERVAL = 100  # Cleanup every 100 requests
+
 
 def _is_private_ip(hostname: str) -> bool:
     """Check if hostname is a private or reserved IP address.
@@ -269,22 +277,13 @@ def fetch_robots_txt(base_url: str) -> str | None:
     return None
 
 
-# Cache for robots.txt rules
-_robots_cache: dict[str, tuple[float, set[str]]] = {}  # domain -> (timestamp, disallowed paths)
-_robots_cache_lock = threading.Lock()
-ROBOTS_CACHE_TTL = 300  # 5 minutes
-ROBOTS_CACHE_MAX_SIZE = 100  # Max domains to cache
-_robots_request_counter = 0
-_ROBOTS_CLEANUP_INTERVAL = 100  # Cleanup every 100 requests
-
-
 def _cleanup_robots_cache() -> None:
     """Clean up expired entries from robots cache."""
     now = time.time()
     expired = [
         domain
-        for domain, (timestamp, _) in _robots_cache.items()
-        if now - timestamp > ROBOTS_CACHE_TTL
+        for domain, cached in _robots_cache.items()
+        if now - cached[0] > ROBOTS_CACHE_TTL
     ]
     for domain in expired:
         del _robots_cache[domain]
@@ -314,6 +313,7 @@ def is_allowed_by_robots(url: str, user_agent: str = "*") -> bool:
     path = parsed.path or "/"
 
     disallowed_paths: set[str] = set()
+    allowed_paths: set[str] = set()
 
     global _robots_request_counter
 
@@ -328,9 +328,14 @@ def is_allowed_by_robots(url: str, user_agent: str = "*") -> bool:
 
         # Check cache
         if domain in _robots_cache:
-            cache_time, cached_disallowed = _robots_cache[domain]
+            cache_time, cached_disallowed, cached_allowed = _robots_cache[domain]
             if now - cache_time < ROBOTS_CACHE_TTL:
-                # Check if path matches any disallowed pattern
+                # Check allowed first (takes precedence)
+                for pattern in cached_allowed:
+                    if _matches_robots_pattern(path, pattern):
+                        logger.debug(f"URL {url} explicitly allowed by robots.txt")
+                        return True
+                # Check disallowed
                 for pattern in cached_disallowed:
                     if _matches_robots_pattern(path, pattern):
                         logger.debug(f"URL {url} disallowed by robots.txt")
@@ -367,15 +372,26 @@ def is_allowed_by_robots(url: str, user_agent: str = "*") -> bool:
                     in_target_section = False
                     seen_other_agent = True
 
-            # Check for disallow only if we're in the target section
-            elif line.lower().startswith("disallow:") and in_target_section:
-                disallow_path = line.split(":", 1)[1].strip()
-                if disallow_path:
-                    disallowed_paths.add(disallow_path)
+            # Check for allow/disallow only if we're in the target section
+            elif in_target_section:
+                if line.lower().startswith("allow:"):
+                    allow_path = line.split(":", 1)[1].strip()
+                    if allow_path:
+                        allowed_paths.add(allow_path)
+                elif line.lower().startswith("disallow:"):
+                    disallow_path = line.split(":", 1)[1].strip()
+                    if disallow_path:
+                        disallowed_paths.add(disallow_path)
 
     # Cache the results
     with _robots_cache_lock:
-        _robots_cache[domain] = (now, disallowed_paths)
+        _robots_cache[domain] = (now, disallowed_paths, allowed_paths)
+
+    # Check if path is explicitly allowed (Allow takes precedence)
+    for pattern in allowed_paths:
+        if _matches_robots_pattern(path, pattern):
+            logger.debug(f"URL {url} explicitly allowed by robots.txt (pattern: {pattern})")
+            return True
 
     # Check if path is disallowed
     for pattern in disallowed_paths:
