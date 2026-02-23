@@ -12,7 +12,7 @@ class TestFetch:
 
     def setup_method(self):
         """Reset the HTTP client before each test."""
-        http_module._client = None
+        http_module.reset()
 
     @mock.patch("fresh.scraper.http.get_client")
     def test_successful_fetch(self, mock_get_client):
@@ -64,7 +64,7 @@ class TestFetchWithRetry:
 
     def setup_method(self):
         """Reset the HTTP client before each test."""
-        http_module._client = None
+        http_module.reset()
 
     @mock.patch("fresh.scraper.http.get_client")
     def test_successful_fetch(self, mock_get_client):
@@ -143,7 +143,7 @@ class TestHTTPClient:
 
     def setup_method(self):
         """Reset the HTTP client before each test."""
-        http_module._client = None
+        http_module.reset()
 
     @mock.patch("fresh.scraper.http.get_client")
     def test_context_manager(self, mock_get_client):
@@ -169,7 +169,7 @@ class TestThreadSafety:
 
     def setup_method(self):
         """Reset the HTTP client before each test."""
-        http_module._client = None
+        http_module.reset()
 
     @mock.patch("fresh.scraper.http.get_client")
     def test_concurrent_access(self, mock_get_client):

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import urllib.parse
 from typing import TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -159,11 +162,20 @@ def filter_by_pattern(urls: Sequence[str], pattern: str) -> list[str]:
         URLs matching the pattern
     """
     # Convert glob to regex
+    # Limit pattern length to prevent catastrophic backtracking
+    if len(pattern) > 200:
+        logger.warning(f"Pattern too long, skipping: {pattern[:50]}...")
+        return []
+
     regex_pattern = pattern.replace(".", r"\.")
     regex_pattern = regex_pattern.replace("**", ".*")
     regex_pattern = regex_pattern.replace("*", "[^/]*")
     regex_pattern = regex_pattern.replace("?", ".")
 
-    compiled = re.compile(regex_pattern, re.IGNORECASE)
+    try:
+        compiled = re.compile(regex_pattern, re.IGNORECASE)
+    except re.error as e:
+        logger.warning(f"Invalid regex pattern: {e}")
+        return []
 
     return [url for url in urls if compiled.search(url)]

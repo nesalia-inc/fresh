@@ -58,8 +58,8 @@ def discover_sitemap(base_url: str) -> str | None:
             if response.status_code == 200:
                 logger.info(f"Found sitemap: {sitemap_url}")
                 return sitemap_url
-        except httpx.HTTPError:
-            pass
+        except httpx.HTTPError as e:
+            logger.debug(f"HEAD request failed for {sitemap_url}: {e}")
 
     # Fall back to GET for robots.txt since we need the content
     # Try to find sitemap from robots.txt

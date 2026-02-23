@@ -227,6 +227,19 @@ def close() -> None:
             _client = None
 
 
+def reset() -> None:
+    """Reset the HTTP client and clear caches. For testing purposes."""
+    global _client
+    with _client_lock:
+        if _client is not None:
+            _client.close()
+            _client = None
+    # Clear robots cache
+    global _robots_cache
+    with _robots_cache_lock:
+        _robots_cache.clear()
+
+
 class HTTPClient:
     """Thread-safe HTTP client wrapper with context manager support."""
 
@@ -336,17 +349,25 @@ def is_allowed_by_robots(url: str, user_agent: str = "*") -> bool:
         # Track which user-agent section we're in
         in_target_section = False
         user_agent_lower = user_agent.lower()
+        seen_other_agent = False  # Track if we've seen a different user-agent
 
         for line in robots_content.splitlines():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
 
-            # Check for user-agent directive - reset section when new user-agent found
+            # Check for user-agent directive
             if line.lower().startswith("user-agent:"):
                 agent = line.split(":", 1)[1].strip().lower()
+                # If we already saw a different agent, don't re-enter target section
+                if seen_other_agent:
+                    in_target_section = False
                 # Match exact user-agent or wildcard *
-                in_target_section = agent == user_agent_lower or agent == "*"
+                if agent == user_agent_lower or agent == "*":
+                    in_target_section = True
+                else:
+                    in_target_section = False
+                    seen_other_agent = True
 
             # Check for disallow only if we're in the target section
             elif line.lower().startswith("disallow:") and in_target_section:
