@@ -4,12 +4,14 @@ __version__ = "0.1.0"
 
 import typer
 
+from .commands.get import get
 from .commands.list import list_urls
 
 app = typer.Typer(help="fresh - A CLI application")
 
 # Register subcommands
 app.command(name="list")(list_urls)
+app.command(name="get")(get)
 
 
 @app.command()
