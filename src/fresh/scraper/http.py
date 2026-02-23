@@ -77,16 +77,30 @@ def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
 
         # Block localhost and private IPs
         hostname = parsed.hostname or ""
-        # Handle IPv6 in netloc (e.g., http://[::1]/admin or http://::1/admin)
+        # Handle IPv6 in netloc (e.g., http://[::1]/admin, http://[::1]:8080/admin, http://::1/admin)
         netloc = parsed.netloc
         if not hostname and netloc:
-            # Check if netloc is an IPv6 address (with optional brackets)
-            try:
-                # Validate as IP, then extract hostname
-                ipaddress.ip_address(netloc.lstrip("[").rstrip("]"))
-                hostname = netloc.lstrip("[").rstrip("]")
-            except ValueError:
-                # Not IPv6, might be host:port
+            # Check if it's IPv6 (contains ::)
+            if "::" in netloc:
+                # Could be IPv6 - try to parse it
+                try:
+                    # Extract IPv6 part (before any port)
+                    ipv6_part = netloc.split(":")[0]
+                    if ipv6_part.startswith("["):
+                        ipv6_part = ipv6_part[1:-1]  # Remove brackets
+                    elif ipv6_part == "":
+                        # Full IPv6 like ::1
+                        ipv6_part = netloc.rstrip("/").split("/")[0]
+                    ipaddress.ip_address(ipv6_part)
+                    hostname = ipv6_part
+                except ValueError:
+                    pass
+            elif netloc.startswith("[") and "]" in netloc:
+                # IPv6 with brackets
+                bracket_end = netloc.index("]")
+                hostname = netloc[1:bracket_end]
+            else:
+                # Regular host:port
                 if ":" in netloc:
                     hostname = netloc.split(":")[0]
                 else:

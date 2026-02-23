@@ -51,6 +51,14 @@ def _cleanup_rate_limit_dict() -> None:
         logger.debug(f"Cleaned up {len(expired)} expired rate limit entries")
 
 
+def reset() -> None:
+    """Reset the rate limit dictionary. For testing purposes."""
+    global _domain_last_request, _request_counter
+    with _domain_lock:
+        _domain_last_request.clear()
+        _request_counter = 0
+
+
 def _rate_limit_per_domain(url: str, delay: float) -> None:
     """Apply per-domain rate limiting.
 
