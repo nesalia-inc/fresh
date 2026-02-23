@@ -40,6 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
+      - run: rm -rf dist/
       - run: uv sync --all-groups
       - run: uv build
       - run: |
