@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv sync --all-extras
+      - run: uv sync --all-groups
       - run: uv run ruff check .
       - run: uv run mypy .
       - run: uv run pytest
@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv sync --all
+      - run: uv sync --all-groups
       - run: uv build
       - run: |
           uv publish \
