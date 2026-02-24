@@ -18,6 +18,10 @@ from ..ui import is_interactive, show_info_message, show_success_message, spinne
 Entry = dict[str, Any]
 EntryList = list[Entry]
 
+# Constants for --all option (effectively unlimited limits)
+ALL_PAGES_MAX_PAGES = 999999
+ALL_PAGES_DEPTH = 99
+
 
 def list_urls(
     url: str = typer.Argument(..., help="The URL or alias of the documentation website"),
@@ -33,8 +37,8 @@ def list_urls(
     """List all documentation pages available on a website."""
     # Handle --all flag
     if all_pages:
-        max_pages = 999999  # Effectively unlimited
-        depth = 99  # Deep crawl
+        max_pages = ALL_PAGES_MAX_PAGES
+        depth = ALL_PAGES_DEPTH
 
     # Resolve alias to URL
     resolved_url = resolve_alias(url)
