@@ -11,7 +11,7 @@ from markdownify import markdownify as md
 
 from ..config import resolve_alias
 from ..scraper.http import fetch_with_retry, validate_url
-from ..ui import is_interactive, show_error_message, spinner
+from ..ui import is_interactive, show_error_message, show_success_message, spinner
 
 app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
 
@@ -114,6 +114,8 @@ def get(
         if content:
             if verbose:
                 typer.echo("✓ Found in cache")
+            elif is_interactive():
+                show_success_message("Found in cache")
 
     # Fetch if not cached
     if content is None:

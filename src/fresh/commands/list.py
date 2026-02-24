@@ -12,7 +12,7 @@ from importlib import metadata as importlib_metadata
 from ..config import resolve_alias
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import validate_url
-from ..ui import is_interactive, show_info_message, spinner
+from ..ui import is_interactive, show_info_message, show_success_message, spinner
 
 # Type alias for entries
 Entry = dict[str, Any]
@@ -68,6 +68,7 @@ def list_urls(
         if verbose:
             typer.echo(f"Found sitemap at {sitemap_url}")
         elif is_interactive():
+            show_success_message(f"Found sitemap at {sitemap_url}")
             with spinner(f"Parsing {sitemap_url}..."):
                 xml_content = sitemap.fetch_with_retry(sitemap_url)
         else:
