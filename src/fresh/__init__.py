@@ -20,12 +20,6 @@ app.command(name="doc")(doc)
 app.add_typer(alias_app, name="alias")
 
 
-@app.command()
-def hello(name: str = "World") -> None:
-    """Say hello to someone."""
-    print(f"Hello, {name}!")
-
-
 def main() -> None:
     """Entry point for the CLI."""
     app()
