@@ -109,7 +109,6 @@ def search_pages(
             query,
             case_sensitive=case_sensitive,
             regex=regex,
-            context_lines=context_lines,
         )
 
         if matches:
