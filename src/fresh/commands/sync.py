@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import json
+import re
+import shutil
+from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse, quote
 
 import typer
 
 from ..config import resolve_alias
 from ..scraper import crawler, filter as filter_module, sitemap
-from ..scraper.http import fetch_with_retry, validate_url
+from ..scraper.http import fetch_with_retry, is_allowed_by_robots, validate_url
 
 app = typer.Typer(help="Download entire documentation for offline use.")
 
@@ -23,8 +27,6 @@ def _get_sync_dir(url: str, output_dir: Path | None) -> Path:
         return output_dir
 
     # Create directory based on domain
-    from urllib.parse import urlparse
-
     parsed = urlparse(url)
     domain = parsed.netloc.replace(":", "_").replace(".", "_")
     return DEFAULT_SYNC_DIR / domain
@@ -34,7 +36,7 @@ def _save_metadata(sync_dir: Path, base_url: str, page_count: int) -> None:
     """Save sync metadata."""
     metadata = {
         "site": base_url,
-        "last_sync": str(Path().home()),
+        "last_sync": datetime.now().isoformat(),
         "page_count": page_count,
     }
     metadata_file = sync_dir / "_sync.json"
@@ -50,7 +52,7 @@ def sync(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Use verbose output"),
     max_pages: int = typer.Option(100, "--max-pages", help="Maximum number of pages to sync"),
     depth: int = typer.Option(3, "--depth", "-d", help="Maximum crawl depth"),
-    force: bool = typer.Option(False, "--force", "-f", help="Force re-sync all pages"),
+    force: bool = typer.Option(False, "--force", "-f", help="Force re-sync (delete existing files first)"),
     pattern: str | None = typer.Option(None, "--pattern", "-p", help="Filter paths matching pattern"),
 ) -> None:
     """Download entire documentation for offline use."""
@@ -67,6 +69,13 @@ def sync(
 
     # Get sync directory
     sync_dir = _get_sync_dir(resolved_url, output_dir)
+
+    # Handle --force option
+    if force and sync_dir.exists():
+        if verbose:
+            typer.echo("Removing existing sync directory...")
+        shutil.rmtree(sync_dir)
+
     sync_dir.mkdir(parents=True, exist_ok=True)
 
     typer.echo(f"Syncing to: {sync_dir}")
@@ -96,8 +105,6 @@ def sync(
 
     # Apply pattern filter if specified
     if pattern:
-        import re
-
         pattern_re = re.compile(pattern.replace("*", ".*"))
         discovered_urls = {u for u in discovered_urls if pattern_re.search(u)}
 
@@ -118,27 +125,34 @@ def sync(
         if verbose:
             typer.echo(f"[{i + 1}/{len(urls_to_sync)}] Syncing: {page_url}")
 
+        # Check robots.txt before fetching
+        if not is_allowed_by_robots(page_url):
+            if verbose:
+                typer.echo(f"  Skipping (disallowed by robots.txt): {page_url}")
+            fail_count += 1
+            continue
+
         # Fetch the page
-        response = fetch_with_retry(page_url)
-        if response and isinstance(response, str):
-            # Save to file
-            from urllib.parse import urlparse, quote
+        try:
+            response = fetch_with_retry(page_url)
+            if response and isinstance(response, str):
+                parsed = urlparse(page_url)
+                path = parsed.path.lstrip("/")
+                if not path or path.endswith("/"):
+                    path = path + "index.html"
 
-            parsed = urlparse(page_url)
-            path = parsed.path.lstrip("/")
-            if not path or path.endswith("/"):
-                path = path + "index.html"
+                # Sanitize filename
+                filename = quote(path, safe="")
+                if len(filename) > 200:
+                    filename = filename[:200]
 
-            # Sanitize filename
-            filename = quote(path, safe="")
-            if len(filename) > 200:
-                filename = filename[:200]
-
-            page_file = pages_dir / filename
-            page_file.parent.mkdir(parents=True, exist_ok=True)
-            page_file.write_text(response, encoding="utf-8")
-            success_count += 1
-        else:
+                page_file = pages_dir / filename
+                page_file.parent.mkdir(parents=True, exist_ok=True)
+                page_file.write_text(response, encoding="utf-8")
+                success_count += 1
+            else:
+                fail_count += 1
+        except Exception:
             fail_count += 1
 
     # Save metadata
