@@ -1,11 +1,6 @@
 """Tests for fresh.shutdown module."""
 
-import pytest
-
-from fresh.shutdown import (
-    is_interrupted,
-    register_shutdown_callback,
-)
+from fresh.shutdown import register_shutdown_callback
 
 
 class TestShutdown:
