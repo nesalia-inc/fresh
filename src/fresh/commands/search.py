@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from ..config import resolve_alias
-from ..console import echo_error, reset_console, set_verbose
+from ..console import echo_error, print_summary, reset_console, set_verbose
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import fetch_with_retry, validate_url
 from ..scraper.searcher import (
@@ -245,3 +245,6 @@ def search(
             for r in results
         ]
         typer.echo(json.dumps(output, indent=2))
+
+    # Print error/warning summary
+    print_summary()

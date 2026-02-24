@@ -10,7 +10,7 @@ import typer
 from importlib import metadata as importlib_metadata
 
 from ..config import resolve_alias
-from ..console import echo_error, echo_warning, reset_console, set_verbose
+from ..console import echo_error, echo_warning, print_summary, reset_console, set_verbose
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import validate_url
 from ..ui import is_interactive, show_info_message, show_success_message, spinner
@@ -202,3 +202,6 @@ def list_urls(
             xml_string = ET.tostring(root, encoding="unicode")
             typer.echo('<?xml version="1.0" encoding="UTF-8"?>')
             typer.echo(xml_string)
+
+    # Print error/warning summary
+    print_summary()

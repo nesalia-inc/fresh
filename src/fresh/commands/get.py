@@ -11,7 +11,7 @@ import typer
 from markdownify import markdownify as md
 
 from ..config import resolve_alias
-from ..console import echo_error, reset_console, set_verbose
+from ..console import echo_error, print_summary, reset_console, set_verbose
 from ..scraper.http import fetch_with_retry, validate_url
 from ..ui import is_interactive, show_success_message, spinner
 
@@ -362,3 +362,6 @@ def get(
 
     if verbose:
         typer.echo(f"✓ Done ({len(content)} chars)")
+
+    # Print error/warning summary
+    print_summary()
