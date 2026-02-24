@@ -104,20 +104,42 @@ def parse_sitemap(xml_content: str) -> list[str] | None:
         logger.error(f"Failed to parse XML: {e}")
         return None
 
+    # Common namespace URIs
+    namespaces = [
+        "",  # No namespace
+        "http://www.sitemaps.org/schemas/sitemap/0.9",
+        "http://www.google.com/schemas/sitemap/0.9",
+    ]
+
     # Handle sitemap index (contains other sitemaps)
     if root.tag.endswith("}sitemapindex") or root.tag == "sitemapindex":
         urls = []
-        for sitemap in root.findall(".//{*}loc"):
-            if sitemap.text:
-                urls.append(sitemap.text)
-        return urls
+        for ns in namespaces:
+            for sitemap in root.findall(f".//{{{ns}}}loc"):
+                if sitemap.text:
+                    urls.append(sitemap.text)
+            if urls:
+                break
+        return urls if urls else None
 
-    # Handle regular sitemap
+    # Handle regular sitemap - try multiple namespace approaches
     urls = []
-    for url in root.findall(".//{*}url"):
-        loc = url.find("{*}loc")
-        if loc is not None and loc.text:
-            urls.append(loc.text)
+    for ns in namespaces:
+        for url in root.findall(f".//{{{ns}}}url"):
+            loc = url.find(f"{{{ns}}}loc")
+            if loc is None:
+                loc = url.find("loc")  # Try without namespace
+            if loc is not None and loc.text:
+                urls.append(loc.text)
+        if urls:
+            break
+
+    # Fallback: try to find any loc element regardless of parent
+    if not urls:
+        for elem in root.iter():
+            if elem.tag.endswith("}loc") or elem.tag == "loc":
+                if elem.text:
+                    urls.append(elem.text)
 
     return urls if urls else None
 

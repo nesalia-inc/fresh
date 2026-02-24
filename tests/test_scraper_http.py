@@ -245,6 +245,15 @@ class TestValidateUrl:
         """.local domains should be blocked."""
         assert not http_module.validate_url("http://myserver.local/admin")
 
+    def test_url_length_limit(self):
+        """URLs exceeding max length should be blocked."""
+        # Create a URL longer than MAX_URL_LENGTH (2048)
+        long_url = "http://example.com/" + "a" * 3000
+        assert not http_module.validate_url(long_url)
+
+        # Short URLs should be allowed
+        assert http_module.validate_url("http://example.com/docs")
+
     def test_block_ipv6_zone_id(self):
         """IPv6 zone IDs should be blocked."""
         assert not http_module.validate_url("http://[fe80::1%eth0]/admin")

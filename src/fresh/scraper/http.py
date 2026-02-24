@@ -51,6 +51,10 @@ def _is_private_ip(hostname: str) -> bool:
         return False
 
 
+# Maximum URL length to prevent DoS
+MAX_URL_LENGTH = 2048
+
+
 def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
     """
     Validate URL for security (SSRF prevention).
@@ -62,6 +66,11 @@ def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
     Returns:
         True if URL is valid, False otherwise
     """
+    # Check URL length to prevent DoS
+    if len(url) > MAX_URL_LENGTH:
+        logger.warning(f"URL too long: {len(url)} characters (max {MAX_URL_LENGTH})")
+        return False
+
     try:
         parsed = urllib.parse.urlparse(url)
 

@@ -111,6 +111,36 @@ class TestParseSitemap:
 
         assert result is None
 
+    def test_parse_sitemap_with_google_namespace(self):
+        """Should parse sitemap with Google namespace."""
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
+        <urlset xmlns="http://www.google.com/schemas/sitemap/0.9">
+            <url>
+                <loc>https://example.com/page1</loc>
+            </url>
+        </urlset>"""
+
+        result = sitemap_module.parse_sitemap(xml)
+
+        assert result is not None
+        assert len(result) == 1
+        assert "https://example.com/page1" in result
+
+    def test_parse_sitemap_without_namespace(self):
+        """Should parse sitemap without namespace."""
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
+        <urlset>
+            <url>
+                <loc>https://example.com/page1</loc>
+            </url>
+        </urlset>"""
+
+        result = sitemap_module.parse_sitemap(xml)
+
+        assert result is not None
+        assert len(result) == 1
+        assert "https://example.com/page1" in result
+
 
 class TestNormalizeUrls:
     """Tests for normalize_urls function."""
