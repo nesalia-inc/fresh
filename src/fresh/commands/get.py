@@ -11,8 +11,9 @@ import typer
 from markdownify import markdownify as md
 
 from ..config import resolve_alias
+from ..console import echo_error, print_summary, reset_console, set_verbose
 from ..scraper.http import fetch_with_retry, validate_url
-from ..ui import is_interactive, show_error_message, show_success_message, spinner
+from ..ui import is_interactive, show_success_message, spinner
 
 app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
 
@@ -202,6 +203,10 @@ def get(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be fetched without downloading"),
 ) -> None:
     """Fetch a documentation page and convert it to Markdown."""
+    # Initialize console with verbose mode
+    set_verbose(verbose)
+    reset_console()
+
     # Resolve alias to URL
     resolved_url = resolve_alias(url)
 
@@ -210,7 +215,15 @@ def get(
 
     # Validate URL
     if not validate_url(resolved_url):
-        typer.echo(f"Error: Invalid URL: {resolved_url}", err=True)
+        echo_error(
+            message=f"Invalid URL: {resolved_url}",
+            url=resolved_url,
+            code="INVALID_URL",
+            suggestions=[
+                "Check if the URL is correct",
+                "URL must start with http:// or https://",
+            ],
+        )
         raise typer.Exit(1)
 
     # Check cache first (unless --no-cache is specified)
@@ -241,15 +254,27 @@ def get(
         headers = {}
         if header:
             if ":" not in header:
-                typer.echo("Error: Header must be in format 'Key: Value'", err=True)
+                echo_error(
+                    message="Header must be in format 'Key: Value'",
+                    code="INVALID_HEADER",
+                    suggestions=["Use format: --header 'Authorization: Bearer xxx'"],
+                )
                 raise typer.Exit(1)
             key, value = header.split(":", 1)
             # Validate header key and value to prevent HTTP header injection
             if re.search("[\r\n]", key):
-                typer.echo("Error: Header key must not contain newline characters", err=True)
+                echo_error(
+                    message="Header key must not contain newline characters",
+                    code="HEADER_INJECTION",
+                    suggestions=["Remove newline characters from header key"],
+                )
                 raise typer.Exit(1)
             if re.search("[\r\n]", value):
-                typer.echo("Error: Header value must not contain newline characters", err=True)
+                echo_error(
+                    message="Header value must not contain newline characters",
+                    code="HEADER_INJECTION",
+                    suggestions=["Remove newline characters from header value"],
+                )
                 raise typer.Exit(1)
             headers[key.strip()] = value.strip()
 
@@ -285,7 +310,17 @@ def get(
             )
 
         if response is None:
-            show_error_message(f"Failed to fetch {resolved_url}")
+            echo_error(
+                message=f"Failed to fetch page after {retry} attempts",
+                url=resolved_url,
+                code="FETCH_FAILED",
+                suggestions=[
+                    "Check if the URL is correct",
+                    "The server may be down",
+                    "Try with --verbose for more details",
+                    f"Try increasing timeout with --timeout {timeout + 30}",
+                ],
+            )
             raise typer.Exit(1)
 
         if hasattr(response, "text"):
@@ -327,3 +362,6 @@ def get(
 
     if verbose:
         typer.echo(f"✓ Done ({len(content)} chars)")
+
+    # Print error/warning summary
+    print_summary()
