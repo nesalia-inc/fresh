@@ -9,6 +9,7 @@ from typing import Any
 import typer
 from importlib import metadata as importlib_metadata
 
+from ..config import resolve_alias
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import validate_url
 
@@ -18,7 +19,7 @@ EntryList = list[Entry]
 
 
 def list_urls(
-    url: str = typer.Argument(..., help="The URL of the documentation website"),
+    url: str = typer.Argument(..., help="The URL or alias of the documentation website"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Use rich output format"),
     pattern: str | None = typer.Option(None, "--pattern", "-p", help="Filter paths matching pattern"),
     depth: int = typer.Option(3, "--depth", "-d", help="Maximum crawl depth"),
@@ -28,9 +29,15 @@ def list_urls(
     count: bool = typer.Option(False, "--count", "-c", help="Show only total count"),
 ) -> None:
     """List all documentation pages available on a website."""
+    # Resolve alias to URL
+    resolved_url = resolve_alias(url)
+
+    if verbose and resolved_url != url:
+        typer.echo(f"Resolved alias '{url}' to {resolved_url}")
+
     # Validate URL
-    if not validate_url(url):
-        typer.echo(f"Error: Invalid URL: {url}", err=True)
+    if not validate_url(resolved_url):
+        typer.echo(f"Error: Invalid URL: {resolved_url}", err=True)
         raise typer.Exit(1)
 
     # Validate sort option
@@ -47,7 +54,7 @@ def list_urls(
     discovered_urls: set[str] = set()
 
     # Try sitemap first
-    sitemap_url = sitemap.discover_sitemap(url)
+    sitemap_url = sitemap.discover_sitemap(resolved_url)
     if sitemap_url:
         xml_content = sitemap.fetch_with_retry(sitemap_url)
         if xml_content and isinstance(xml_content, str):
@@ -59,7 +66,7 @@ def list_urls(
 
     # Fallback to crawler if no sitemap found
     if not discovered_urls:
-        discovered_urls = crawler.crawl(url, max_pages=max_pages, max_depth=depth)
+        discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
 
     # Apply pattern filter if specified
     if pattern:

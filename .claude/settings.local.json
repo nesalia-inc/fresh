@@ -12,7 +12,25 @@
       "Bash(uv run pytest src/fresh/scraper/ -v)",
       "Bash(gh issue edit:*)",
       "Bash(gh issue view:*)",
-      "Bash(gh issue create:*)"
+      "Bash(gh issue create:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(dir /b /a-d \"C:\\\\Users\\\\dpereira\\\\Documents\\\\github\\\\fresh\")",
+      "Bash(findstr:*)",
+      "Bash(python -m fresh:*)",
+      "Bash(python -m mypy:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python -m ruff check:*)",
+      "Bash(git push)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh release delete:*)",
+      "Bash(gh release create:*)",
+      "Bash(git push:*)",
+      "Bash(git tag:*)",
+      "Bash(python -c:*)",
+      "Bash(pip install:*)",
+      "Bash(pytest:*)"
     ]
   }
 }
