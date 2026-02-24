@@ -7,7 +7,6 @@ import typer
 from .commands.alias import alias_app
 from .commands.get import get
 from .commands.list import list_urls
-from .config import resolve_alias
 
 app = typer.Typer(help="fresh - A CLI application")
 
