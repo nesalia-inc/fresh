@@ -244,3 +244,27 @@ class TestCacheFunctions:
             count = get_module.clear_cache()
             assert count == 2
             assert len(list(Path(tmpdir).glob("*.md"))) == 0
+
+    @mock.patch("fresh.commands.get.get_cache_dir")
+    def test_enforce_cache_limits_removes_old_files(self, mock_cache_dir):
+        """Should remove expired cache files based on TTL."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_cache_dir.return_value = Path(tmpdir)
+            import time
+
+            # Create old file (30 days + 1 second ago)
+            old_file = Path(tmpdir) / "old.md"
+            old_file.write_text("old content")
+            old_time = time.time() - (31 * 24 * 60 * 60)
+            import os
+            os.utime(old_file, (old_time, old_time))
+
+            # Create new file
+            (Path(tmpdir) / "new.md").write_text("new content")
+
+            # Run enforce limits
+            get_module._enforce_cache_limits()
+
+            # Old file should be removed, new should remain
+            assert not old_file.exists()
+            assert (Path(tmpdir) / "new.md").exists()
