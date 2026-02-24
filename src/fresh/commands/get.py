@@ -9,6 +9,7 @@ from pathlib import Path
 import typer
 from markdownify import markdownify as md
 
+from ..config import resolve_alias
 from ..scraper.http import fetch_with_retry, validate_url
 
 app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
@@ -74,7 +75,7 @@ def save_to_cache(url: str, content: str) -> None:
 
 @app.command(name="get")
 def get(
-    url: str = typer.Argument(..., help="The URL of the documentation page to fetch"),
+    url: str = typer.Argument(..., help="The URL or alias of the documentation page to fetch"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Use verbose output"),
     timeout: int = typer.Option(30, "--timeout", "-t", help="Request timeout in seconds"),
     header: str | None = typer.Option(None, "--header", help="Custom HTTP header (format: 'Key: Value')"),
@@ -86,9 +87,15 @@ def get(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be fetched without downloading"),
 ) -> None:
     """Fetch a documentation page and convert it to Markdown."""
+    # Resolve alias to URL
+    resolved_url = resolve_alias(url)
+
+    if verbose and resolved_url != url:
+        typer.echo(f"Resolved alias '{url}' to {resolved_url}")
+
     # Validate URL
-    if not validate_url(url):
-        typer.echo(f"Error: Invalid URL: {url}", err=True)
+    if not validate_url(resolved_url):
+        typer.echo(f"Error: Invalid URL: {resolved_url}", err=True)
         raise typer.Exit(1)
 
     # Check cache first (unless --no-cache is specified)
@@ -96,7 +103,7 @@ def get(
     if not no_cache:
         if verbose:
             typer.echo("Checking cache...")
-        content = get_cached_content(url)
+        content = get_cached_content(resolved_url)
         if content:
             if verbose:
                 typer.echo("✓ Found in cache")
@@ -104,11 +111,11 @@ def get(
     # Fetch if not cached
     if content is None:
         if dry_run:
-            typer.echo(f"Would fetch: {url}")
+            typer.echo(f"Would fetch: {resolved_url}")
             return
 
         if verbose:
-            typer.echo(f"Fetching {url}...")
+            typer.echo(f"Fetching {resolved_url}...")
 
         # Prepare headers
         headers = {}
@@ -121,7 +128,7 @@ def get(
 
         # Fetch the page
         response = fetch_with_retry(
-            url,
+            resolved_url,
             max_retries=retry,
             return_response=True,
             headers=headers,
@@ -130,7 +137,7 @@ def get(
         )
 
         if response is None:
-            typer.echo(f"Error: Failed to fetch {url}", err=True)
+            typer.echo(f"Error: Failed to fetch {resolved_url}", err=True)
             raise typer.Exit(1)
 
         if hasattr(response, "text"):
@@ -148,7 +155,7 @@ def get(
 
         # Save to cache
         if not no_cache:
-            save_to_cache(url, content)
+            save_to_cache(resolved_url, content)
             if verbose:
                 typer.echo("✓ Saved to cache")
 
