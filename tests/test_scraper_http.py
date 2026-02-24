@@ -245,6 +245,11 @@ class TestValidateUrl:
         """.local domains should be blocked."""
         assert not http_module.validate_url("http://myserver.local/admin")
 
+    def test_block_ipv6_zone_id(self):
+        """IPv6 zone IDs should be blocked."""
+        assert not http_module.validate_url("http://[fe80::1%eth0]/admin")
+        assert not http_module.validate_url("http://[fe80::1%25eth0]/admin")  # Encoded
+
     def test_allowed_domains_whitelist(self):
         """Should respect allowed domains whitelist."""
         allowed = ["example.com", "docs.example.com"]
