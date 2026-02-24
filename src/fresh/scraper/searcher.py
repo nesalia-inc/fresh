@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass
@@ -22,22 +21,23 @@ def search_in_content(
     query: str,
     case_sensitive: bool = False,
     regex: bool = False,
-    context_lines: int = 1,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, str]]:
     """
-    Search for a query in markdown content.
+    Search for a query in content.
 
     Args:
-        content: The markdown content to search in
+        content: The content to search in
         query: The search query
         case_sensitive: Whether to do case-sensitive search
         regex: Whether to treat query as regex
-        context_lines: Number of lines to include around the match
 
     Returns:
-        List of matches with snippet and line number
+        List of matches with snippet and match text
+
+    Raises:
+        re.error: If regex pattern is invalid
     """
-    results: list[dict[str, Any]] = []
+    results: list[dict[str, str]] = []
 
     if not regex:
         # Escape special regex characters for literal search
@@ -51,21 +51,10 @@ def search_in_content(
     for i, line in enumerate(lines):
         match = pattern.search(line)
         if match:
-            # Get surrounding context
-            start = max(0, i - context_lines)
-            end = min(len(lines), i + context_lines + 1)
-            context = "\n".join(lines[start:end])
-
-            # Create snippet with markers
-            snippet = context
-            if not case_sensitive:
-                # Highlight match case-insensitively
-                snippet = pattern.sub(lambda m: f"[{m.group()}]", snippet, count=1)
-
             results.append(
                 {
-                    "line_number": i + 1,
-                    "snippet": snippet.strip(),
+                    "line_number": str(i + 1),
+                    "snippet": line.strip()[:200],
                     "match": match.group(),
                 }
             )
@@ -73,42 +62,51 @@ def search_in_content(
     return results
 
 
-def extract_title_from_content(content: str) -> str:
-    """Extract title from markdown content (first heading)."""
-    lines = content.split("\n")
-    for line in lines:
-        line = line.strip()
-        if line.startswith("#"):
-            # Remove heading markers
-            return line.lstrip("#").strip()
-    return ""
-
-
 def create_snippet(
     content: str,
     query: str,
+    context_lines: int = 1,
     max_length: int = 200,
 ) -> str:
-    """Create a short snippet around the first match."""
-    query_lower = query.lower()
-    content_lower = content.lower()
+    """Create a short snippet around the first match.
 
-    # Find the position of the query
-    pos = content_lower.find(query_lower)
-    if pos == -1:
+    Args:
+        content: The content to search in
+        query: The search query
+        context_lines: Number of lines of context around the match
+        max_length: Maximum length of the snippet
+
+    Returns:
+        A snippet string with context around the match
+    """
+    lines = content.split("\n")
+    query_lower = query.lower()
+
+    # Find the line with the match
+    match_line_idx = -1
+    for i, line in enumerate(lines):
+        if query_lower in line.lower():
+            match_line_idx = i
+            break
+
+    if match_line_idx == -1:
         # Return beginning of content if no match
         return content[:max_length] + "..." if len(content) > max_length else content
 
-    # Get a window around the match
-    start = max(0, pos - 50)
-    end = min(len(content), pos + len(query) + 150)
+    # Get surrounding context
+    start = max(0, match_line_idx - context_lines)
+    end = min(len(lines), match_line_idx + context_lines + 1)
 
-    snippet = content[start:end]
+    context = "\n".join(lines[start:end])
+
+    # Truncate
+    if len(context) > max_length:
+        context = context[:max_length] + "..."
 
     # Add ellipsis if truncated
     if start > 0:
-        snippet = "..." + snippet
-    if end < len(content):
-        snippet = snippet + "..."
+        context = "..." + context
+    if end < len(lines):
+        context = context + "..."
 
-    return snippet
+    return context

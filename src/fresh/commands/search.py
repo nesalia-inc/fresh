@@ -16,7 +16,7 @@ from ..scraper.searcher import (
     create_snippet,
     search_in_content,
 )
-from ..ui import is_interactive, show_success_message, spinner
+from ..ui import is_interactive, show_error_message, show_success_message, spinner
 
 app = typer.Typer(help="Search for content across documentation pages.")
 console = Console()
@@ -31,6 +31,7 @@ def search_pages(
     regex: bool = False,
     context_lines: int = 1,
     verbose: bool = False,
+    result_limit: int | None = None,
 ) -> list[SearchResult]:
     """
     Search for a query across documentation pages.
@@ -44,6 +45,7 @@ def search_pages(
         regex: Whether to treat query as regex
         context_lines: Number of lines of context around matches
         verbose: Whether to show verbose output
+        result_limit: Early termination when this many results found
 
     Returns:
         List of SearchResult objects
@@ -115,7 +117,7 @@ def search_pages(
             title = filter_module.extract_name_from_url(page_url)
 
             # Create snippet
-            snippet = create_snippet(text_content, query)
+            snippet = create_snippet(text_content, query, context_lines=context_lines)
 
             results.append(
                 SearchResult(
@@ -125,6 +127,10 @@ def search_pages(
                     url=page_url,
                 )
             )
+
+            # Early termination when result_limit is reached
+            if result_limit and len(results) >= result_limit:
+                break
 
     return results
 
@@ -150,12 +156,12 @@ def search(
 
     # Validate URL
     if not validate_url(resolved_url):
-        typer.echo(f"Error: Invalid URL: {resolved_url}", err=True)
+        show_error_message(f"Invalid URL: {resolved_url}")
         raise typer.Exit(1)
 
-    # Perform search
-    if verbose:
-        results = search_pages(
+    # Perform search with appropriate UI
+    def do_search() -> list[SearchResult]:
+        return search_pages(
             resolved_url,
             query,
             max_pages=max_pages,
@@ -164,30 +170,20 @@ def search(
             regex=regex,
             context_lines=context,
             verbose=verbose,
+            result_limit=limit,
         )
-    elif is_interactive():
-        with spinner(f"Searching for \"{query}\"..."):
-            results = search_pages(
-                resolved_url,
-                query,
-                max_pages=max_pages,
-                depth=depth,
-                case_sensitive=case_sensitive,
-                regex=regex,
-                context_lines=context,
-                verbose=verbose,
-            )
-    else:
-        results = search_pages(
-            resolved_url,
-            query,
-            max_pages=max_pages,
-            depth=depth,
-            case_sensitive=case_sensitive,
-            regex=regex,
-            context_lines=context,
-            verbose=verbose,
-        )
+
+    try:
+        if verbose:
+            results = do_search()
+        elif is_interactive():
+            with spinner(f"Searching for \"{query}\"..."):
+                results = do_search()
+        else:
+            results = do_search()
+    except Exception as e:  # noqa: BLE001
+        show_error_message(f"Search error: {e}")
+        raise typer.Exit(1)
 
     # Limit results
     results = results[:limit]
