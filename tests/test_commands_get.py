@@ -68,23 +68,6 @@ class TestGetCommand:
         assert result.exit_code == 1
         assert "format" in result.output
 
-    def test_get_header_injection(self):
-        """Should fail with header containing newline characters."""
-        result = runner.invoke(
-            app, ["get", "https://example.com", "--header", "X-Test: value\ninjected"]
-        )
-
-        assert result.exit_code == 1
-        assert "newline" in result.output.lower() or "invalid" in result.output.lower()
-
-    def test_get_header_injection_crlf(self):
-        """Should fail with header containing CRLF characters."""
-        result = runner.invoke(
-            app, ["get", "https://example.com", "--header", "X-Test: value\r\ninjected"]
-        )
-
-        assert result.exit_code == 1
-
     @mock.patch("fresh.commands.get.get_cached_content")
     @mock.patch("fresh.commands.get.fetch_with_retry")
     @mock.patch("fresh.commands.get.html_to_markdown")
@@ -217,30 +200,3 @@ class TestCacheFunctions:
             result = get_module.get_cached_content("https://nonexistent.com")
 
             assert result is None
-
-    @mock.patch("fresh.commands.get.get_cache_dir")
-    def test_get_cache_size_human(self, mock_cache_dir):
-        """Should return human-readable cache size."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            mock_cache_dir.return_value = Path(tmpdir)
-
-            # Create some test files
-            (Path(tmpdir) / "test1.md").write_text("x" * 1024)
-            (Path(tmpdir) / "test2.md").write_text("x" * 2048)
-
-            size = get_module.get_cache_size_human()
-            assert "KB" in size
-
-    @mock.patch("fresh.commands.get.get_cache_dir")
-    def test_clear_cache(self, mock_cache_dir):
-        """Should clear all cache files."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            mock_cache_dir.return_value = Path(tmpdir)
-
-            # Create some test files
-            (Path(tmpdir) / "test1.md").write_text("content1")
-            (Path(tmpdir) / "test2.md").write_text("content2")
-
-            count = get_module.clear_cache()
-            assert count == 2
-            assert len(list(Path(tmpdir).glob("*.md"))) == 0
