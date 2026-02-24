@@ -39,6 +39,10 @@ EXCLUDE_PATTERNS = [
     r"/500",
 ]
 
+# Pre-compiled patterns for performance
+_EXCLUDE_PATTERNS_COMPILED = [re.compile(p, re.IGNORECASE) for p in EXCLUDE_PATTERNS]
+_DEFAULT_DOC_PATTERNS_COMPILED = [re.compile(p, re.IGNORECASE) for p in DEFAULT_DOC_PATTERNS]
+
 
 def is_relevant_url(
     url: str,
@@ -56,15 +60,21 @@ def is_relevant_url(
     """
     url_lower = url.lower()
 
-    # Check exclude patterns first
-    for pattern in EXCLUDE_PATTERNS:
-        if re.search(pattern, url_lower):
+    # Check exclude patterns first (using pre-compiled patterns)
+    for pattern in _EXCLUDE_PATTERNS_COMPILED:
+        if pattern.search(url_lower):
             return False
 
-    # Check include patterns
+    # Check include patterns (using pre-compiled patterns)
     check_patterns = patterns if patterns is not None else DEFAULT_DOC_PATTERNS
-    for pattern in check_patterns:
-        if re.search(pattern, url_lower):
+    if patterns is not None:
+        # Compile custom patterns
+        check_compiled = [re.compile(p, re.IGNORECASE) for p in check_patterns]
+    else:
+        check_compiled = _DEFAULT_DOC_PATTERNS_COMPILED
+
+    for pattern in check_compiled:
+        if pattern.search(url_lower):
             return True
 
     # If no custom patterns, use default behavior
