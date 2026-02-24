@@ -2,13 +2,4 @@
 
 from typer.testing import CliRunner
 
-from fresh import app
-
 runner = CliRunner()
-
-
-def test_hello():
-    """Test hello command."""
-    result = runner.invoke(app, ["hello", "--name", "World"], prog_name="fresh")
-    assert result.exit_code == 0
-    assert "Hello, World!" in result.output
