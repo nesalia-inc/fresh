@@ -70,15 +70,23 @@ def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
             logger.warning(f"URL scheme not allowed: {parsed.scheme}")
             return False
 
-        # Check allowed domains if specified
-        if allowed_domains and parsed.netloc not in allowed_domains:
-            logger.warning(f"Domain not in allowed list: {parsed.netloc}")
+        # Check allowed domains if specified (extract hostname without port)
+        hostname = parsed.hostname or ""
+        if allowed_domains and hostname not in allowed_domains:
+            logger.warning(f"Domain not in allowed list: {hostname}")
             return False
 
         # Block localhost and private IPs
         hostname = parsed.hostname or ""
         # Handle IPv6 in netloc (e.g., http://[::1]/admin, http://[::1]:8080/admin, http://::1/admin)
         netloc = parsed.netloc
+        # Decode URL to catch encoded zone IDs (e.g., fe80::1%25eth0 -> fe80::1%eth0)
+        decoded_netloc = urllib.parse.unquote(netloc)
+        # Block IPv6 with zone IDs (e.g., fe80::1%eth0) - security risk
+        if "%" in decoded_netloc:
+            logger.warning(f"URL contains zone ID (potential security risk): {url}")
+            return False
+
         if not hostname and netloc:
             # Check if it's IPv6 (contains ::)
             if "::" in netloc:
@@ -110,6 +118,7 @@ def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
             "127.0.0.1",
             "0.0.0.0",
             "::",
+            "::1",  # IPv6 loopback
         ]
 
         # Check for private/reserved IP ranges (includes IPv6 private ranges)
