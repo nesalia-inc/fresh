@@ -28,8 +28,14 @@ def list_urls(
     sort: str = typer.Option("name", "--sort", help="Sort results by name or path"),
     format: str = typer.Option("json", "--format", "-f", help="Output format: json, yaml, xml"),
     count: bool = typer.Option(False, "--count", "-c", help="Show only total count"),
+    all_pages: bool = typer.Option(False, "--all", help="Retrieve ALL pages without limits"),
 ) -> None:
     """List all documentation pages available on a website."""
+    # Handle --all flag
+    if all_pages:
+        max_pages = 999999  # Effectively unlimited
+        depth = 99  # Deep crawl
+
     # Resolve alias to URL
     resolved_url = resolve_alias(url)
 
