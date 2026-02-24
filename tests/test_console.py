@@ -1,7 +1,5 @@
 """Tests for fresh.console module."""
 
-import pytest
-
 from fresh.console import (
     ErrorMessage,
     WarningMessage,
