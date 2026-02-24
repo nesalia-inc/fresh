@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 import typer
 from rich.console import Console
@@ -16,7 +17,7 @@ from ..scraper.searcher import (
     create_snippet,
     search_in_content,
 )
-from ..ui import is_interactive, show_error_message, show_success_message, spinner
+from ..ui import is_interactive, show_success_message, spinner
 
 app = typer.Typer(help="Search for content across documentation pages.")
 console = Console()
@@ -99,8 +100,6 @@ def search_pages(
 
         # Simple HTML to text conversion (basic)
         # Remove HTML tags for searching
-        import re
-
         text_content = re.sub(r"<[^>]+>", "", html_content)
 
         # Search in the content
@@ -116,7 +115,9 @@ def search_pages(
             title = filter_module.extract_name_from_url(page_url)
 
             # Create snippet
-            snippet = create_snippet(text_content, query, context_lines=context_lines)
+            snippet = create_snippet(
+                text_content, query, context_lines=context_lines, case_sensitive=case_sensitive
+            )
 
             results.append(
                 SearchResult(
@@ -155,7 +156,7 @@ def search(
 
     # Validate URL
     if not validate_url(resolved_url):
-        show_error_message(f"Invalid URL: {resolved_url}")
+        typer.echo(f"Error: Invalid URL: {resolved_url}", err=True)
         raise typer.Exit(1)
 
     # Perform search with appropriate UI
@@ -181,7 +182,7 @@ def search(
         else:
             results = do_search()
     except Exception as e:  # noqa: BLE001
-        show_error_message(f"Search error: {e}")
+        typer.echo(f"Error: Search error: {e}", err=True)
         raise typer.Exit(1)
 
     # Limit results
