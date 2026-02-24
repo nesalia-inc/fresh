@@ -250,12 +250,33 @@ class TestValidateUrl:
         assert not http_module.validate_url("http://[fe80::1%eth0]/admin")
         assert not http_module.validate_url("http://[fe80::1%25eth0]/admin")  # Encoded
 
+    def test_ipv6_with_port(self):
+        """IPv6 with port should work correctly."""
+        # IPv6 loopback with port should be blocked
+        assert not http_module.validate_url("http://[::1]:8080/admin")
+        # IPv6 public with port should be allowed (using Google's public DNS)
+        assert http_module.validate_url("http://[2001:4860:4860::8888]:8080/admin")
+
+    def test_ipv4_mapped_ipv6(self):
+        """IPv4-mapped IPv6 addresses should be blocked."""
+        # ::ffff:127.0.0.1 maps to 127.0.0.1 (loopback)
+        assert not http_module.validate_url("http://[::ffff:127.0.0.1]/admin")
+        # ::ffff:192.168.1.1 is private
+        assert not http_module.validate_url("http://[::ffff:192.168.1.1]/admin")
+
     def test_allowed_domains_whitelist(self):
         """Should respect allowed domains whitelist."""
         allowed = ["example.com", "docs.example.com"]
         assert http_module.validate_url("https://example.com/docs", allowed)
         assert http_module.validate_url("https://docs.example.com/api", allowed)
         assert not http_module.validate_url("https://evil.com/docs", allowed)
+
+    def test_allowed_domains_with_port(self):
+        """Should allow domains with non-standard ports."""
+        allowed = ["example.com"]
+        # With port should still match domain
+        assert http_module.validate_url("https://example.com:8080/docs", allowed)
+        assert not http_module.validate_url("https://evil.com:8080/docs", allowed)
 
     def test_invalid_url_returns_false(self):
         """Invalid URLs should return False."""

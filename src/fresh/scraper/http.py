@@ -70,9 +70,10 @@ def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
             logger.warning(f"URL scheme not allowed: {parsed.scheme}")
             return False
 
-        # Check allowed domains if specified
-        if allowed_domains and parsed.netloc not in allowed_domains:
-            logger.warning(f"Domain not in allowed list: {parsed.netloc}")
+        # Check allowed domains if specified (extract hostname without port)
+        hostname = parsed.hostname or ""
+        if allowed_domains and hostname not in allowed_domains:
+            logger.warning(f"Domain not in allowed list: {hostname}")
             return False
 
         # Block localhost and private IPs
