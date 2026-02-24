@@ -138,6 +138,14 @@ def get(
         # Fetch the page with spinner in interactive mode
         if verbose:
             typer.echo(f"Fetching {resolved_url}...")
+            response = fetch_with_retry(
+                resolved_url,
+                max_retries=retry,
+                return_response=True,
+                headers=headers,
+                follow_redirects=not no_follow,
+                timeout=timeout,
+            )
         elif is_interactive():
             with Progress(
                 SpinnerColumn(),

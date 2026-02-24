@@ -57,6 +57,7 @@ def list_urls(
     # Try sitemap first with spinner in interactive mode
     if verbose:
         typer.echo("Discovering sitemap...")
+        sitemap_url = sitemap.discover_sitemap(resolved_url)
     elif is_interactive():
         from rich.progress import Progress, SpinnerColumn, TextColumn
 
