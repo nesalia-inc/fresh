@@ -19,6 +19,10 @@ from ..ui import is_interactive, show_info_message, show_success_message, spinne
 Entry = dict[str, Any]
 EntryList = list[Entry]
 
+# Constants for --all option (effectively unlimited limits)
+ALL_PAGES_MAX_PAGES = 999999
+ALL_PAGES_DEPTH = 99
+
 
 def list_urls(
     url: str = typer.Argument(..., help="The URL or alias of the documentation website"),
@@ -29,11 +33,17 @@ def list_urls(
     sort: str = typer.Option("name", "--sort", help="Sort results by name or path"),
     format: str = typer.Option("json", "--format", "-f", help="Output format: json, yaml, xml"),
     count: bool = typer.Option(False, "--count", "-c", help="Show only total count"),
+    all_pages: bool = typer.Option(False, "--all", help="Retrieve ALL pages without limits"),
 ) -> None:
     """List all documentation pages available on a website."""
     # Initialize console with verbose mode
     set_verbose(verbose)
     reset_console()
+
+    # Handle --all flag
+    if all_pages:
+        max_pages = ALL_PAGES_MAX_PAGES
+        depth = ALL_PAGES_DEPTH
 
     # Resolve alias to URL
     resolved_url = resolve_alias(url)

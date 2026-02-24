@@ -252,3 +252,38 @@ class TestListCommand:
         assert "Documentation" in result.output and "Pages" in result.output
         assert "page1" in result.output
         assert "page2" in result.output
+
+    @mock.patch("fresh.commands.list.crawler.crawl")
+    @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
+    def test_list_all_option(self, mock_discover, mock_crawl):
+        """Should retrieve all pages when --all is used."""
+        mock_discover.return_value = None
+        # Return many pages
+        mock_crawl.return_value = {f"https://example.com/docs/page{i}" for i in range(200)}
+
+        result = runner.invoke(
+            app, ["list", "https://example.com", "--all"]
+        )
+
+        assert result.exit_code == 0
+        # Should have all 200 pages
+        assert "page199" in result.output
+
+    @mock.patch("fresh.commands.list.crawler.crawl")
+    @mock.patch("fresh.commands.list.sitemap.fetch_with_retry")
+    @mock.patch("fresh.commands.list.sitemap.parse_sitemap")
+    @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
+    def test_list_all_with_sitemap(self, mock_discover, mock_parse, mock_fetch, mock_crawl):
+        """Should retrieve all sitemap pages when --all is used."""
+        mock_discover.return_value = "https://example.com/sitemap.xml"
+        # Return more pages than default limit
+        mock_parse.return_value = [f"https://example.com/docs/page{i}" for i in range(150)]
+        mock_fetch.return_value = "<?xml><urlset></urlset>"
+
+        result = runner.invoke(
+            app, ["list", "https://example.com", "--all"]
+        )
+
+        assert result.exit_code == 0
+        # Should have pages beyond default limit (100)
+        assert "page100" in result.output
