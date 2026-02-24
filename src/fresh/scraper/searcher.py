@@ -68,6 +68,7 @@ def create_snippet(
     context_lines: int = 1,
     max_length: int = 200,
     case_sensitive: bool = False,
+    regex: bool = False,
 ) -> str:
     """Create a short snippet around the first match.
 
@@ -77,23 +78,23 @@ def create_snippet(
         context_lines: Number of lines of context around the match
         max_length: Maximum length of the snippet
         case_sensitive: Whether to do case-sensitive matching
+        regex: Whether to treat query as regex
 
     Returns:
         A snippet string with context around the match
     """
     lines = content.split("\n")
 
+    # Compile pattern for matching
+    flags = 0 if case_sensitive else re.IGNORECASE
+    pattern = re.compile(query, flags)
+
     # Find the line with the match
     match_line_idx = -1
     for i, line in enumerate(lines):
-        if case_sensitive:
-            if query in line:
-                match_line_idx = i
-                break
-        else:
-            if query.lower() in line.lower():
-                match_line_idx = i
-                break
+        if pattern.search(line):
+            match_line_idx = i
+            break
 
     if match_line_idx == -1:
         # Return beginning of content if no match

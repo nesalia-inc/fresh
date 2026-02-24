@@ -17,6 +17,8 @@ from ..scraper.searcher import (
     create_snippet,
     search_in_content,
 )
+from bs4 import BeautifulSoup
+
 from ..ui import is_interactive, show_success_message, spinner
 
 app = typer.Typer(help="Search for content across documentation pages.")
@@ -98,14 +100,19 @@ def search_pages(
         else:
             html_content = str(response)
 
-        # Simple HTML to text conversion (basic)
-        # Remove HTML tags for searching
-        text_content = re.sub(r"<[^>]+>", "", html_content)
+        # Use BeautifulSoup for robust HTML parsing
+        soup = BeautifulSoup(html_content, "html.parser")
+        # Remove script and style elements
+        for script in soup(["script", "style"]):
+            script.decompose()
+        text_content = soup.get_text(separator="\n")
 
         # Search in the content
+        # Use escaped query for create_snippet to match search_in_content behavior
+        search_query = query if regex else re.escape(query)
         matches = search_in_content(
             text_content,
-            query,
+            search_query,
             case_sensitive=case_sensitive,
             regex=regex,
         )
@@ -114,9 +121,9 @@ def search_pages(
             # Extract title from page URL
             title = filter_module.extract_name_from_url(page_url)
 
-            # Create snippet
+            # Create snippet - use same query logic as search_in_content
             snippet = create_snippet(
-                text_content, query, context_lines=context_lines, case_sensitive=case_sensitive
+                text_content, search_query, context_lines=context_lines, case_sensitive=case_sensitive, regex=regex
             )
 
             results.append(
