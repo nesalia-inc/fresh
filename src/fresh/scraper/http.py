@@ -13,8 +13,6 @@ from typing import Any
 
 import httpx
 
-from ..exceptions import FetchError, NetworkError, TimeoutError, ValidationError
-
 DEFAULT_HEADERS = {
     "User-Agent": "fresh/0.1.0 (https://fresh.nesalia.com)",
 }

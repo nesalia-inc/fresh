@@ -1,7 +1,5 @@
 """Tests for fresh.exceptions module."""
 
-import pytest
-
 from fresh.exceptions import (
     AliasError,
     CacheError,
