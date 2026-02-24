@@ -21,8 +21,6 @@ class FreshError(Exception):
 class NetworkError(FreshError):
     """Network-related errors."""
 
-    pass
-
 
 class FetchError(NetworkError):
     """Failed to fetch a URL."""
@@ -53,46 +51,30 @@ class TimeoutError(NetworkError):
 class ValidationError(FreshError):
     """Input validation errors."""
 
-    pass
-
 
 class AliasError(FreshError):
     """Alias-related errors."""
-
-    pass
 
 
 class CacheError(FreshError):
     """Cache-related errors."""
 
-    pass
-
 
 class SitemapError(FreshError):
     """Sitemap parsing errors."""
-
-    pass
 
 
 class CrawlerError(FreshError):
     """Crawler-related errors."""
 
-    pass
-
 
 class FilterError(FreshError):
     """Filter-related errors."""
-
-    pass
 
 
 class ConfigError(FreshError):
     """Configuration-related errors."""
 
-    pass
-
 
 class CLIError(FreshError):
     """CLI-related errors."""
-
-    pass
