@@ -8,9 +8,11 @@ from pathlib import Path
 
 import typer
 from markdownify import markdownify as md
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from ..config import resolve_alias
 from ..scraper.http import fetch_with_retry, validate_url
+from ..ui import is_interactive, show_error_message
 
 app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
 
@@ -103,7 +105,17 @@ def get(
     if not no_cache:
         if verbose:
             typer.echo("Checking cache...")
-        content = get_cached_content(resolved_url)
+        elif is_interactive():
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                transient=True,
+            ) as progress:
+                progress.add_task("Checking cache...", total=None)
+                content = get_cached_content(resolved_url)
+        else:
+            content = get_cached_content(resolved_url)
+
         if content:
             if verbose:
                 typer.echo("✓ Found in cache")
@@ -114,9 +126,6 @@ def get(
             typer.echo(f"Would fetch: {resolved_url}")
             return
 
-        if verbose:
-            typer.echo(f"Fetching {resolved_url}...")
-
         # Prepare headers
         headers = {}
         if header:
@@ -126,18 +135,36 @@ def get(
             key, value = header.split(":", 1)
             headers[key.strip()] = value.strip()
 
-        # Fetch the page
-        response = fetch_with_retry(
-            resolved_url,
-            max_retries=retry,
-            return_response=True,
-            headers=headers,
-            follow_redirects=not no_follow,
-            timeout=timeout,
-        )
+        # Fetch the page with spinner in interactive mode
+        if verbose:
+            typer.echo(f"Fetching {resolved_url}...")
+        elif is_interactive():
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                transient=True,
+            ) as progress:
+                progress.add_task(f"Fetching {resolved_url}...", total=None)
+                response = fetch_with_retry(
+                    resolved_url,
+                    max_retries=retry,
+                    return_response=True,
+                    headers=headers,
+                    follow_redirects=not no_follow,
+                    timeout=timeout,
+                )
+        else:
+            response = fetch_with_retry(
+                resolved_url,
+                max_retries=retry,
+                return_response=True,
+                headers=headers,
+                follow_redirects=not no_follow,
+                timeout=timeout,
+            )
 
         if response is None:
-            typer.echo(f"Error: Failed to fetch {resolved_url}", err=True)
+            show_error_message(f"Failed to fetch {resolved_url}")
             raise typer.Exit(1)
 
         if hasattr(response, "text"):
@@ -151,15 +178,27 @@ def get(
         # Convert to Markdown
         if verbose:
             typer.echo("Converting to Markdown...")
-        content = html_to_markdown(html_content, skip_scripts=skip_scripts)
+        elif is_interactive():
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                transient=True,
+            ) as progress:
+                progress.add_task("Converting to Markdown...", total=None)
+                content = html_to_markdown(html_content, skip_scripts=skip_scripts)
+        else:
+            content = html_to_markdown(html_content, skip_scripts=skip_scripts)
 
         # Save to cache
         if not no_cache:
-            save_to_cache(resolved_url, content)
+            save_to_cache(resolved_url, content)  # type: ignore[arg-type]
             if verbose:
                 typer.echo("✓ Saved to cache")
 
     # Output the content
+    # At this point, content is guaranteed to be set (either from cache or fetched)
+    assert content is not None
+
     if output:
         output_path = Path(output)
         output_path.parent.mkdir(parents=True, exist_ok=True)

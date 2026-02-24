@@ -12,6 +12,7 @@ from importlib import metadata as importlib_metadata
 from ..config import resolve_alias
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import validate_url
+from ..ui import is_interactive, show_info_message
 
 # Type alias for entries
 Entry = dict[str, Any]
@@ -53,10 +54,38 @@ def list_urls(
     # Discover pages using sitemap or crawler
     discovered_urls: set[str] = set()
 
-    # Try sitemap first
-    sitemap_url = sitemap.discover_sitemap(resolved_url)
+    # Try sitemap first with spinner in interactive mode
+    if verbose:
+        typer.echo("Discovering sitemap...")
+    elif is_interactive():
+        from rich.progress import Progress, SpinnerColumn, TextColumn
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            transient=True,
+        ) as progress:
+            progress.add_task("Discovering sitemap...", total=None)
+            sitemap_url = sitemap.discover_sitemap(resolved_url)
+    else:
+        sitemap_url = sitemap.discover_sitemap(resolved_url)
+
     if sitemap_url:
-        xml_content = sitemap.fetch_with_retry(sitemap_url)
+        if verbose:
+            typer.echo(f"Found sitemap at {sitemap_url}")
+        elif is_interactive():
+            from rich.progress import Progress, SpinnerColumn, TextColumn
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                transient=True,
+            ) as progress:
+                progress.add_task(f"Parsing {sitemap_url}...", total=None)
+                xml_content = sitemap.fetch_with_retry(sitemap_url)
+        else:
+            xml_content = sitemap.fetch_with_retry(sitemap_url)
+
         if xml_content and isinstance(xml_content, str):
             urls = sitemap.parse_sitemap(xml_content)
             if urls:
@@ -66,7 +95,21 @@ def list_urls(
 
     # Fallback to crawler if no sitemap found
     if not discovered_urls:
-        discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
+        if verbose:
+            typer.echo("No sitemap found, using crawler...")
+        elif is_interactive():
+            from rich.progress import Progress, SpinnerColumn, TextColumn
+
+            show_info_message("No sitemap found, using crawler...")
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                transient=True,
+            ) as progress:
+                progress.add_task(f"Crawling pages (max {max_pages})...", total=None)
+                discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
+        else:
+            discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
 
     # Apply pattern filter if specified
     if pattern:
