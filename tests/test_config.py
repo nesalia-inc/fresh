@@ -17,7 +17,10 @@ def temp_config_dir(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = pathlib.Path(tmpdir)
         monkeypatch.setattr(config, "get_config_dir", lambda: tmp_path)
+        # Clear cache before and after each test
+        config.clear_alias_cache()
         yield tmp_path
+        config.clear_alias_cache()
 
 
 class TestLoadAliases:

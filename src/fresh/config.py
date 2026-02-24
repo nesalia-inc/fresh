@@ -9,6 +9,9 @@ import pathlib
 
 logger = logging.getLogger(__name__)
 
+# Cache for loaded aliases
+_aliases_cache: dict[str, str] | None = None
+
 
 # Built-in aliases for popular libraries
 BUILTIN_ALIASES: dict[str, str] = {
@@ -48,9 +51,16 @@ def load_aliases() -> dict[str, str]:
     """
     Load aliases from all sources with priority: Local > User > Global > Built-in.
 
+    Uses in-memory caching to avoid repeated file I/O.
+
     Returns:
         Dictionary of alias -> URL mappings
     """
+    global _aliases_cache
+
+    if _aliases_cache is not None:
+        return _aliases_cache
+
     aliases = BUILTIN_ALIASES.copy()
 
     # Load user aliases
@@ -64,7 +74,14 @@ def load_aliases() -> dict[str, str]:
         except (json.JSONDecodeError, IOError) as e:
             logger.warning(f"Failed to load user aliases from {user_path}: {e}")
 
+    _aliases_cache = aliases
     return aliases
+
+
+def clear_alias_cache() -> None:
+    """Clear the aliases cache. Call this after modifying aliases."""
+    global _aliases_cache
+    _aliases_cache = None
 
 
 def save_aliases(aliases: dict[str, str]) -> None:
@@ -101,6 +118,9 @@ def save_aliases(aliases: dict[str, str]) -> None:
 
     with open(user_path, "w", encoding="utf-8") as f:
         json.dump(existing, f, indent=2)
+
+    # Clear cache after saving
+    clear_alias_cache()
 
 
 def resolve_alias(alias_or_url: str) -> str:
