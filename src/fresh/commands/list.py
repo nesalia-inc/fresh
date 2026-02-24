@@ -79,6 +79,8 @@ def list_urls(
             if urls:
                 # Filter relevant URLs
                 filtered = [u for u in urls if filter_module.is_relevant_url(u)]
+                # Apply max_pages limit
+                filtered = filtered[:max_pages]
                 discovered_urls.update(filtered)
 
     # Fallback to crawler if no sitemap found
