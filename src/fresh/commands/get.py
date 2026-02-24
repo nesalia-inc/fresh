@@ -11,6 +11,7 @@ from markdownify import markdownify as md
 
 from ..config import resolve_alias
 from ..scraper.http import fetch_with_retry, validate_url
+from ..ui import is_interactive, show_error_message, show_success_message, spinner
 
 app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
 
@@ -103,19 +104,24 @@ def get(
     if not no_cache:
         if verbose:
             typer.echo("Checking cache...")
-        content = get_cached_content(resolved_url)
+            content = get_cached_content(resolved_url)
+        elif is_interactive():
+            with spinner("Checking cache..."):
+                content = get_cached_content(resolved_url)
+        else:
+            content = get_cached_content(resolved_url)
+
         if content:
             if verbose:
                 typer.echo("✓ Found in cache")
+            elif is_interactive():
+                show_success_message("Found in cache")
 
     # Fetch if not cached
     if content is None:
         if dry_run:
             typer.echo(f"Would fetch: {resolved_url}")
             return
-
-        if verbose:
-            typer.echo(f"Fetching {resolved_url}...")
 
         # Prepare headers
         headers = {}
@@ -126,18 +132,39 @@ def get(
             key, value = header.split(":", 1)
             headers[key.strip()] = value.strip()
 
-        # Fetch the page
-        response = fetch_with_retry(
-            resolved_url,
-            max_retries=retry,
-            return_response=True,
-            headers=headers,
-            follow_redirects=not no_follow,
-            timeout=timeout,
-        )
+        # Fetch the page with spinner in interactive mode
+        if verbose:
+            typer.echo(f"Fetching {resolved_url}...")
+            response = fetch_with_retry(
+                resolved_url,
+                max_retries=retry,
+                return_response=True,
+                headers=headers,
+                follow_redirects=not no_follow,
+                timeout=timeout,
+            )
+        elif is_interactive():
+            with spinner(f"Fetching {resolved_url}..."):
+                response = fetch_with_retry(
+                    resolved_url,
+                    max_retries=retry,
+                    return_response=True,
+                    headers=headers,
+                    follow_redirects=not no_follow,
+                    timeout=timeout,
+                )
+        else:
+            response = fetch_with_retry(
+                resolved_url,
+                max_retries=retry,
+                return_response=True,
+                headers=headers,
+                follow_redirects=not no_follow,
+                timeout=timeout,
+            )
 
         if response is None:
-            typer.echo(f"Error: Failed to fetch {resolved_url}", err=True)
+            show_error_message(f"Failed to fetch {resolved_url}")
             raise typer.Exit(1)
 
         if hasattr(response, "text"):
@@ -151,15 +178,23 @@ def get(
         # Convert to Markdown
         if verbose:
             typer.echo("Converting to Markdown...")
-        content = html_to_markdown(html_content, skip_scripts=skip_scripts)
+            content = html_to_markdown(html_content, skip_scripts=skip_scripts)
+        elif is_interactive():
+            with spinner("Converting to Markdown..."):
+                content = html_to_markdown(html_content, skip_scripts=skip_scripts)
+        else:
+            content = html_to_markdown(html_content, skip_scripts=skip_scripts)
 
         # Save to cache
         if not no_cache:
-            save_to_cache(resolved_url, content)
+            save_to_cache(resolved_url, content)  # type: ignore[arg-type]
             if verbose:
                 typer.echo("✓ Saved to cache")
 
     # Output the content
+    # At this point, content is guaranteed to be set (either from cache or fetched)
+    assert content is not None
+
     if output:
         output_path = Path(output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
