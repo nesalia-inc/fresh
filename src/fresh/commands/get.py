@@ -106,29 +106,49 @@ def _get_cache_files() -> list[tuple[Path, float]]:
     return files
 
 
+def _remove_expired_cache_entries() -> int:
+    """Remove expired cache entries based on TTL.
+
+    Returns:
+        Number of files deleted
+    """
+    cache_dir = get_cache_dir()
+    if not cache_dir.exists():
+        return 0
+
+    now = time.time()
+    ttl_seconds = CACHE_TTL_DAYS * 24 * 60 * 60
+    count = 0
+
+    for file in cache_dir.glob("*.md"):
+        if now - file.stat().st_mtime > ttl_seconds:
+            file.unlink()
+            count += 1
+    return count
+
+
 def _enforce_cache_limits() -> None:
     """Enforce cache size and TTL limits."""
     cache_dir = get_cache_dir()
     if not cache_dir.exists():
         return
 
-    now = time.time()
-    ttl_seconds = CACHE_TTL_DAYS * 24 * 60 * 60
-
     # Remove expired entries
-    for file in cache_dir.glob("*.md"):
-        if now - file.stat().st_mtime > ttl_seconds:
-            file.unlink()
+    _remove_expired_cache_entries()
 
-    # Enforce size limit (LRU eviction)
-    while _get_cache_size() > CACHE_MAX_SIZE_BYTES:
+    # Enforce size limit (LRU eviction) - calculate size once
+    total_size = _get_cache_size()
+    while total_size > CACHE_MAX_SIZE_BYTES:
         files = _get_cache_files()
         if not files:
             break
         # Sort by mtime (oldest first)
         files.sort(key=lambda x: x[1])
-        # Remove oldest file
-        files[0][0].unlink()
+        # Remove oldest file and update size
+        file_to_remove = files[0][0]
+        file_size = file_to_remove.stat().st_size
+        file_to_remove.unlink()
+        total_size -= file_size
 
 
 def get_cache_size_human() -> str:
@@ -165,19 +185,7 @@ def clean_expired_cache() -> int:
     Returns:
         Number of files deleted
     """
-    cache_dir = get_cache_dir()
-    if not cache_dir.exists():
-        return 0
-
-    now = time.time()
-    ttl_seconds = CACHE_TTL_DAYS * 24 * 60 * 60
-    count = 0
-
-    for file in cache_dir.glob("*.md"):
-        if now - file.stat().st_mtime > ttl_seconds:
-            file.unlink()
-            count += 1
-    return count
+    return _remove_expired_cache_entries()
 
 
 @app.command(name="get")
