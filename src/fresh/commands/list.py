@@ -10,6 +10,7 @@ import typer
 from importlib import metadata as importlib_metadata
 
 from ..config import resolve_alias
+from ..console import echo_error, echo_warning, print_summary, reset_console, set_verbose
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import validate_url
 from ..ui import is_interactive, show_info_message, show_success_message, spinner
@@ -35,6 +36,10 @@ def list_urls(
     all_pages: bool = typer.Option(False, "--all", help="Retrieve ALL pages without limits"),
 ) -> None:
     """List all documentation pages available on a website."""
+    # Initialize console with verbose mode
+    set_verbose(verbose)
+    reset_console()
+
     # Handle --all flag
     if all_pages:
         max_pages = ALL_PAGES_MAX_PAGES
@@ -48,17 +53,33 @@ def list_urls(
 
     # Validate URL
     if not validate_url(resolved_url):
-        typer.echo(f"Error: Invalid URL: {resolved_url}", err=True)
+        echo_error(
+            message=f"Invalid URL: {resolved_url}",
+            url=resolved_url,
+            code="INVALID_URL",
+            suggestions=[
+                "Check if the URL is correct",
+                "URL must start with http:// or https://",
+            ],
+        )
         raise typer.Exit(1)
 
     # Validate sort option
     if sort not in ("name", "path"):
-        typer.echo(f"Error: Invalid sort option '{sort}'. Must be 'name' or 'path'.", err=True)
+        echo_error(
+            message=f"Invalid sort option '{sort}'. Must be 'name' or 'path'.",
+            code="INVALID_SORT",
+            suggestions=["Use --sort name or --sort path"],
+        )
         raise typer.Exit(1)
 
     # Validate format option
     if format not in ("json", "yaml", "xml"):
-        typer.echo(f"Error: Invalid format '{format}'. Must be 'json', 'yaml', or 'xml'.", err=True)
+        echo_error(
+            message=f"Invalid format '{format}'. Must be 'json', 'yaml', or 'xml'.",
+            code="INVALID_FORMAT",
+            suggestions=["Use --format json, --format yaml, or --format xml"],
+        )
         raise typer.Exit(1)
 
     # Discover pages using sitemap or crawler
@@ -133,7 +154,14 @@ def list_urls(
 
     # Warn if no pages found
     if not entries:
-        typer.echo("Warning: No documentation pages found.", err=True)
+        echo_warning(
+            message="No documentation pages found",
+            suggestions=[
+                "Try with --depth 3 (current: " + str(depth) + ")",
+                "The site may not have a sitemap",
+                "Use --verbose to see what's happening",
+            ],
+        )
 
     # Output in requested format
     if verbose:
@@ -184,3 +212,6 @@ def list_urls(
             xml_string = ET.tostring(root, encoding="unicode")
             typer.echo('<?xml version="1.0" encoding="UTF-8"?>')
             typer.echo(xml_string)
+
+    # Print error/warning summary
+    print_summary()
