@@ -98,6 +98,7 @@ def list_urls(
     if not discovered_urls:
         if verbose:
             typer.echo("No sitemap found, using crawler...")
+            discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
         elif is_interactive():
             from rich.progress import Progress, SpinnerColumn, TextColumn
 
