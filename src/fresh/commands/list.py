@@ -12,7 +12,7 @@ from importlib import metadata as importlib_metadata
 from ..config import resolve_alias
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import validate_url
-from ..ui import is_interactive, show_info_message
+from ..ui import is_interactive, show_info_message, spinner
 
 # Type alias for entries
 Entry = dict[str, Any]
@@ -59,14 +59,7 @@ def list_urls(
         typer.echo("Discovering sitemap...")
         sitemap_url = sitemap.discover_sitemap(resolved_url)
     elif is_interactive():
-        from rich.progress import Progress, SpinnerColumn, TextColumn
-
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            transient=True,
-        ) as progress:
-            progress.add_task("Discovering sitemap...", total=None)
+        with spinner("Discovering sitemap..."):
             sitemap_url = sitemap.discover_sitemap(resolved_url)
     else:
         sitemap_url = sitemap.discover_sitemap(resolved_url)
@@ -75,14 +68,7 @@ def list_urls(
         if verbose:
             typer.echo(f"Found sitemap at {sitemap_url}")
         elif is_interactive():
-            from rich.progress import Progress, SpinnerColumn, TextColumn
-
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                transient=True,
-            ) as progress:
-                progress.add_task(f"Parsing {sitemap_url}...", total=None)
+            with spinner(f"Parsing {sitemap_url}..."):
                 xml_content = sitemap.fetch_with_retry(sitemap_url)
         else:
             xml_content = sitemap.fetch_with_retry(sitemap_url)
@@ -100,15 +86,8 @@ def list_urls(
             typer.echo("No sitemap found, using crawler...")
             discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
         elif is_interactive():
-            from rich.progress import Progress, SpinnerColumn, TextColumn
-
             show_info_message("No sitemap found, using crawler...")
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                transient=True,
-            ) as progress:
-                progress.add_task(f"Crawling pages (max {max_pages})...", total=None)
+            with spinner(f"Crawling pages (max {max_pages})..."):
                 discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
         else:
             discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)

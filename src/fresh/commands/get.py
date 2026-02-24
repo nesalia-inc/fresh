@@ -8,11 +8,10 @@ from pathlib import Path
 
 import typer
 from markdownify import markdownify as md
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from ..config import resolve_alias
 from ..scraper.http import fetch_with_retry, validate_url
-from ..ui import is_interactive, show_error_message
+from ..ui import is_interactive, show_error_message, spinner
 
 app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
 
@@ -105,13 +104,9 @@ def get(
     if not no_cache:
         if verbose:
             typer.echo("Checking cache...")
+            content = get_cached_content(resolved_url)
         elif is_interactive():
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                transient=True,
-            ) as progress:
-                progress.add_task("Checking cache...", total=None)
+            with spinner("Checking cache..."):
                 content = get_cached_content(resolved_url)
         else:
             content = get_cached_content(resolved_url)
@@ -147,12 +142,7 @@ def get(
                 timeout=timeout,
             )
         elif is_interactive():
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                transient=True,
-            ) as progress:
-                progress.add_task(f"Fetching {resolved_url}...", total=None)
+            with spinner(f"Fetching {resolved_url}..."):
                 response = fetch_with_retry(
                     resolved_url,
                     max_retries=retry,
@@ -188,12 +178,7 @@ def get(
             typer.echo("Converting to Markdown...")
             content = html_to_markdown(html_content, skip_scripts=skip_scripts)
         elif is_interactive():
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                transient=True,
-            ) as progress:
-                progress.add_task("Converting to Markdown...", total=None)
+            with spinner("Converting to Markdown..."):
                 content = html_to_markdown(html_content, skip_scripts=skip_scripts)
         else:
             content = html_to_markdown(html_content, skip_scripts=skip_scripts)
