@@ -218,7 +218,7 @@ class TestListCommand:
         )
 
         assert result.exit_code == 0
-        # Rich table output should contain these elements
-        assert "Documentation Pages" in result.output
+        # Rich table output should contain these elements (may be wrapped in CI)
+        assert "Documentation" in result.output and "Pages" in result.output
         assert "page1" in result.output
         assert "page2" in result.output

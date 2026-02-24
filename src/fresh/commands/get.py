@@ -186,6 +186,7 @@ def get(
         # Convert to Markdown
         if verbose:
             typer.echo("Converting to Markdown...")
+            content = html_to_markdown(html_content, skip_scripts=skip_scripts)
         elif is_interactive():
             with Progress(
                 SpinnerColumn(),
