@@ -79,8 +79,10 @@ def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
         hostname = parsed.hostname or ""
         # Handle IPv6 in netloc (e.g., http://[::1]/admin, http://[::1]:8080/admin, http://::1/admin)
         netloc = parsed.netloc
+        # Decode URL to catch encoded zone IDs (e.g., fe80::1%25eth0 -> fe80::1%eth0)
+        decoded_netloc = urllib.parse.unquote(netloc)
         # Block IPv6 with zone IDs (e.g., fe80::1%eth0) - security risk
-        if "%" in netloc:
+        if "%" in decoded_netloc:
             logger.warning(f"URL contains zone ID (potential security risk): {url}")
             return False
 
