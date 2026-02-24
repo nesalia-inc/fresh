@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from ..config import resolve_alias
+from ..console import echo_error, reset_console, set_verbose
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import fetch_with_retry, validate_url
 from ..scraper.searcher import (
@@ -155,6 +156,10 @@ def search(
     limit: int = typer.Option(20, "--limit", "-l", help="Maximum number of results to show"),
 ) -> None:
     """Search for content across documentation pages."""
+    # Initialize console with verbose mode
+    set_verbose(verbose)
+    reset_console()
+
     # Resolve alias to URL
     resolved_url = resolve_alias(url)
 
@@ -163,7 +168,15 @@ def search(
 
     # Validate URL
     if not validate_url(resolved_url):
-        typer.echo(f"Error: Invalid URL: {resolved_url}", err=True)
+        echo_error(
+            message=f"Invalid URL: {resolved_url}",
+            url=resolved_url,
+            code="INVALID_URL",
+            suggestions=[
+                "Check if the URL is correct",
+                "URL must start with http:// or https://",
+            ],
+        )
         raise typer.Exit(1)
 
     # Perform search with appropriate UI
@@ -189,7 +202,11 @@ def search(
         else:
             results = do_search()
     except Exception as e:  # noqa: BLE001
-        typer.echo(f"Error: Search error: {e}", err=True)
+        echo_error(
+            message=f"Search error: {e}",
+            code="SEARCH_ERROR",
+            suggestions=["Check if the URL is accessible", "Try with --verbose for more details"],
+        )
         raise typer.Exit(1)
 
     # Limit results
