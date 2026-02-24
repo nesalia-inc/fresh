@@ -217,3 +217,30 @@ class TestCacheFunctions:
             result = get_module.get_cached_content("https://nonexistent.com")
 
             assert result is None
+
+    @mock.patch("fresh.commands.get.get_cache_dir")
+    def test_get_cache_size_human(self, mock_cache_dir):
+        """Should return human-readable cache size."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_cache_dir.return_value = Path(tmpdir)
+
+            # Create some test files
+            (Path(tmpdir) / "test1.md").write_text("x" * 1024)
+            (Path(tmpdir) / "test2.md").write_text("x" * 2048)
+
+            size = get_module.get_cache_size_human()
+            assert "KB" in size
+
+    @mock.patch("fresh.commands.get.get_cache_dir")
+    def test_clear_cache(self, mock_cache_dir):
+        """Should clear all cache files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_cache_dir.return_value = Path(tmpdir)
+
+            # Create some test files
+            (Path(tmpdir) / "test1.md").write_text("content1")
+            (Path(tmpdir) / "test2.md").write_text("content2")
+
+            count = get_module.clear_cache()
+            assert count == 2
+            assert len(list(Path(tmpdir).glob("*.md"))) == 0
