@@ -8,6 +8,7 @@ from .commands.alias import alias_app
 from .commands.get import get
 from .commands.list import list_urls
 from .commands.search import search
+from .commands.update import update
 
 app = typer.Typer(help="fresh - A CLI application")
 
@@ -15,6 +16,7 @@ app = typer.Typer(help="fresh - A CLI application")
 app.command(name="list")(list_urls)
 app.command(name="get")(get)
 app.command(name="search")(search)
+app.command(name="update")(update)
 app.add_typer(alias_app, name="alias")
 
 
