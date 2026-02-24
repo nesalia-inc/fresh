@@ -130,6 +130,10 @@ def get(
                 typer.echo("Error: Header must be in format 'Key: Value'", err=True)
                 raise typer.Exit(1)
             key, value = header.split(":", 1)
+            # Validate header value to prevent HTTP header injection
+            if re.search(r"[\r\n]", value):
+                typer.echo("Error: Header value must not contain newline characters", err=True)
+                raise typer.Exit(1)
             headers[key.strip()] = value.strip()
 
         # Fetch the page with spinner in interactive mode
