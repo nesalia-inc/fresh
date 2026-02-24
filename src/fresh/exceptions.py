@@ -6,10 +6,16 @@ from __future__ import annotations
 class FreshError(Exception):
     """Base exception for all fresh errors."""
 
+    code: str | None
+    message: str
+
     def __init__(self, message: str, code: str | None = None):
         super().__init__(message)
         self.code = code
         self.message = message
+
+    def __str__(self) -> str:
+        return self.message
 
 
 class NetworkError(FreshError):
@@ -21,6 +27,9 @@ class NetworkError(FreshError):
 class FetchError(NetworkError):
     """Failed to fetch a URL."""
 
+    url: str
+    reason: str
+
     def __init__(self, url: str, reason: str):
         self.url = url
         self.reason = reason
@@ -29,6 +38,9 @@ class FetchError(NetworkError):
 
 class TimeoutError(NetworkError):
     """Request timeout."""
+
+    url: str
+    timeout: float
 
     def __init__(self, url: str, timeout: float):
         self.url = url
