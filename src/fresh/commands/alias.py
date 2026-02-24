@@ -82,7 +82,7 @@ def add(
     """Add a new alias."""
     # Validate URL
     if not url.startswith(("http://", "https://")):
-        typer.echo(f"Error: URL must start with http:// or https://", err=True)
+        typer.echo("Error: URL must start with http:// or https://", err=True)
         raise typer.Exit(1)
 
     # Check if it's a built-in alias

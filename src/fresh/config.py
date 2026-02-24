@@ -5,9 +5,7 @@ from __future__ import annotations
 import json
 import os
 import pathlib
-from typing import Any
 
-import typer
 
 # Built-in aliases for popular libraries
 BUILTIN_ALIASES: dict[str, str] = {
