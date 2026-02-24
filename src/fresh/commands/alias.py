@@ -81,6 +81,19 @@ def add(
     url: str = typer.Argument(..., help="Documentation URL"),
 ) -> None:
     """Add a new alias."""
+    # Validate alias name
+    if not alias:
+        typer.echo("Error: Alias name cannot be empty", err=True)
+        raise typer.Exit(1)
+
+    if len(alias) > 50:
+        typer.echo("Error: Alias name must be 50 characters or less", err=True)
+        raise typer.Exit(1)
+
+    if not alias.replace("-", "_").replace("_", "").isalnum():
+        typer.echo("Error: Alias name can only contain letters, numbers, hyphens, and underscores", err=True)
+        raise typer.Exit(1)
+
     # Validate URL using the same validation as other commands
     if not validate_url(url):
         typer.echo(f"Error: Invalid URL: {url}", err=True)

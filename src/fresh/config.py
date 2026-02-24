@@ -71,13 +71,22 @@ def save_aliases(aliases: dict[str, str]) -> None:
     """
     Save aliases to user config file.
 
+    Only saves user-defined aliases (filters out built-in aliases).
+
     Args:
-        aliases: Dictionary of alias -> URL mappings
+        aliases: Dictionary of alias -> URL mappings (all aliases)
     """
     config_dir = get_config_dir()
     config_dir.mkdir(parents=True, exist_ok=True)
 
     user_path = get_user_aliases_path()
+
+    # Filter out built-in aliases - only save user-defined ones
+    user_only_aliases = {
+        alias: url
+        for alias, url in aliases.items()
+        if alias not in BUILTIN_ALIASES or BUILTIN_ALIASES.get(alias) != url
+    }
 
     # Load existing data to preserve other settings
     existing = {}
@@ -88,7 +97,7 @@ def save_aliases(aliases: dict[str, str]) -> None:
         except (json.JSONDecodeError, IOError) as e:
             logger.warning(f"Failed to load existing config from {user_path}, starting fresh: {e}")
 
-    existing["aliases"] = aliases
+    existing["aliases"] = user_only_aliases
 
     with open(user_path, "w", encoding="utf-8") as f:
         json.dump(existing, f, indent=2)
