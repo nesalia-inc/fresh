@@ -13,6 +13,7 @@ from ..config import (
     save_aliases,
     search_aliases,
 )
+from ..scraper.http import validate_url
 
 alias_app = typer.Typer(help="Manage library aliases")
 
@@ -80,9 +81,9 @@ def add(
     url: str = typer.Argument(..., help="Documentation URL"),
 ) -> None:
     """Add a new alias."""
-    # Validate URL
-    if not url.startswith(("http://", "https://")):
-        typer.echo("Error: URL must start with http:// or https://", err=True)
+    # Validate URL using the same validation as other commands
+    if not validate_url(url):
+        typer.echo(f"Error: Invalid URL: {url}", err=True)
         raise typer.Exit(1)
 
     # Check if it's a built-in alias

@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import pathlib
+
+logger = logging.getLogger(__name__)
 
 
 # Built-in aliases for popular libraries
@@ -25,16 +28,6 @@ BUILTIN_ALIASES: dict[str, str] = {
     "vite": "https://vite.dev/guide",
     "remix": "https://remix.run/docs",
 }
-
-# Version information for popular libraries
-BUILTIN_VERSIONS: dict[str, list[str]] = {
-    "nextjs": ["13", "14", "15"],
-    "react": ["18", "19"],
-    "vue": ["2", "3"],
-    "django": ["4.2", "5.0", "5.1"],
-    "python": ["3.11", "3.12", "3.13"],
-}
-
 
 def get_config_dir() -> pathlib.Path:
     """Get the user configuration directory."""
@@ -68,8 +61,8 @@ def load_aliases() -> dict[str, str]:
                 data = json.load(f)
                 if "aliases" in data:
                     aliases.update(data["aliases"])
-        except (json.JSONDecodeError, IOError):
-            pass
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Failed to load user aliases from {user_path}: {e}")
 
     return aliases
 
@@ -92,8 +85,8 @@ def save_aliases(aliases: dict[str, str]) -> None:
         try:
             with open(user_path, "r", encoding="utf-8") as f:
                 existing = json.load(f)
-        except (json.JSONDecodeError, IOError):
-            pass
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Failed to load existing config from {user_path}, starting fresh: {e}")
 
     existing["aliases"] = aliases
 
