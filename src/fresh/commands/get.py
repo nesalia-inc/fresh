@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import time
 from pathlib import Path
 
 import typer
@@ -14,6 +15,10 @@ from ..scraper.http import fetch_with_retry, validate_url
 from ..ui import is_interactive, show_error_message, show_success_message, spinner
 
 app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
+
+# Cache settings
+CACHE_MAX_SIZE_BYTES = 1024 * 1024 * 1024  # 1GB
+CACHE_TTL_DAYS = 30
 
 
 def html_to_markdown(html: str, skip_scripts: bool = False) -> str:
@@ -69,9 +74,118 @@ def save_to_cache(url: str, content: str) -> None:
         url: The URL the content was fetched from
         content: The Markdown content to cache
     """
+    # Enforce cache limits before saving
+    _enforce_cache_limits()
+
     url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
     cache_file = get_cache_dir() / f"{url_hash}.md"
     cache_file.write_text(content, encoding="utf-8")
+
+
+def _get_cache_size() -> int:
+    """Get total cache size in bytes."""
+    total = 0
+    cache_dir = get_cache_dir()
+    if cache_dir.exists():
+        for file in cache_dir.glob("*.md"):
+            total += file.stat().st_size
+    return total
+
+
+def _get_cache_files() -> list[tuple[Path, float]]:
+    """Get list of cache files with their modification times.
+
+    Returns:
+        List of (file_path, mtime) tuples
+    """
+    cache_dir = get_cache_dir()
+    files = []
+    if cache_dir.exists():
+        for file in cache_dir.glob("*.md"):
+            files.append((file, file.stat().st_mtime))
+    return files
+
+
+def _remove_expired_cache_entries() -> int:
+    """Remove expired cache entries based on TTL.
+
+    Returns:
+        Number of files deleted
+    """
+    cache_dir = get_cache_dir()
+    if not cache_dir.exists():
+        return 0
+
+    now = time.time()
+    ttl_seconds = CACHE_TTL_DAYS * 24 * 60 * 60
+    count = 0
+
+    for file in cache_dir.glob("*.md"):
+        if now - file.stat().st_mtime > ttl_seconds:
+            file.unlink()
+            count += 1
+    return count
+
+
+def _enforce_cache_limits() -> None:
+    """Enforce cache size and TTL limits."""
+    cache_dir = get_cache_dir()
+    if not cache_dir.exists():
+        return
+
+    # Remove expired entries
+    _remove_expired_cache_entries()
+
+    # Enforce size limit (LRU eviction) - calculate size once
+    total_size = _get_cache_size()
+    while total_size > CACHE_MAX_SIZE_BYTES:
+        files = _get_cache_files()
+        if not files:
+            break
+        # Sort by mtime (oldest first)
+        files.sort(key=lambda x: x[1])
+        # Remove oldest file and update size
+        file_to_remove = files[0][0]
+        file_size = file_to_remove.stat().st_size
+        file_to_remove.unlink()
+        total_size -= file_size
+
+
+def get_cache_size_human() -> str:
+    """Get cache size in human-readable format."""
+    size = _get_cache_size()
+    if size < 1024:
+        return f"{size} B"
+    elif size < 1024 * 1024:
+        return f"{size / 1024:.1f} KB"
+    elif size < 1024 * 1024 * 1024:
+        return f"{size / (1024 * 1024):.1f} MB"
+    else:
+        return f"{size / (1024 * 1024 * 1024):.2f} GB"
+
+
+def clear_cache() -> int:
+    """Clear all cached content.
+
+    Returns:
+        Number of files deleted
+    """
+    cache_dir = get_cache_dir()
+    count = 0
+    if cache_dir.exists():
+        for file in cache_dir.glob("*.md"):
+            file.unlink()
+            count += 1
+    return count
+
+
+def clean_expired_cache() -> int:
+    """Remove expired cache entries.
+
+    Returns:
+        Number of files deleted
+    """
+    return _remove_expired_cache_entries()
 
 
 @app.command(name="get")

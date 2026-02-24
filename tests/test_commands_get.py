@@ -217,3 +217,54 @@ class TestCacheFunctions:
             result = get_module.get_cached_content("https://nonexistent.com")
 
             assert result is None
+
+    @mock.patch("fresh.commands.get.get_cache_dir")
+    def test_get_cache_size_human(self, mock_cache_dir):
+        """Should return human-readable cache size."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_cache_dir.return_value = Path(tmpdir)
+
+            # Create some test files
+            (Path(tmpdir) / "test1.md").write_text("x" * 1024)
+            (Path(tmpdir) / "test2.md").write_text("x" * 2048)
+
+            size = get_module.get_cache_size_human()
+            assert "KB" in size
+
+    @mock.patch("fresh.commands.get.get_cache_dir")
+    def test_clear_cache(self, mock_cache_dir):
+        """Should clear all cache files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_cache_dir.return_value = Path(tmpdir)
+
+            # Create some test files
+            (Path(tmpdir) / "test1.md").write_text("content1")
+            (Path(tmpdir) / "test2.md").write_text("content2")
+
+            count = get_module.clear_cache()
+            assert count == 2
+            assert len(list(Path(tmpdir).glob("*.md"))) == 0
+
+    @mock.patch("fresh.commands.get.get_cache_dir")
+    def test_enforce_cache_limits_removes_old_files(self, mock_cache_dir):
+        """Should remove expired cache files based on TTL."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_cache_dir.return_value = Path(tmpdir)
+            import time
+
+            # Create old file (30 days + 1 second ago)
+            old_file = Path(tmpdir) / "old.md"
+            old_file.write_text("old content")
+            old_time = time.time() - (31 * 24 * 60 * 60)
+            import os
+            os.utime(old_file, (old_time, old_time))
+
+            # Create new file
+            (Path(tmpdir) / "new.md").write_text("new content")
+
+            # Run enforce limits
+            get_module._enforce_cache_limits()
+
+            # Old file should be removed, new should remain
+            assert not old_file.exists()
+            assert (Path(tmpdir) / "new.md").exists()
