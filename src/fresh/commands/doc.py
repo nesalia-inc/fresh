@@ -41,9 +41,6 @@ Search for content across documentation pages.
 ### fresh alias
 Manage library aliases for quick access.
 
-### fresh update
-Check for and install updates to fresh.
-
 ### fresh doc
 Show this documentation or detailed help for a specific command.
 
@@ -60,9 +57,6 @@ fresh search "virtual environment" https://docs.python.org/3/
 
 # Add an alias
 fresh alias add python https://docs.python.org/3/
-
-# Check for updates
-fresh update --check
 
 # Show help for a specific command
 fresh doc get
@@ -96,7 +90,6 @@ List all documentation pages available on a website.
     --sort TEXT           Sort results by name or path (default: name)
     -f, --format TEXT     Output format: json, yaml, xml (default: json)
     -c, --count           Show only total count
-    --all                 Retrieve ALL pages without limits
 
 ## Examples
 
@@ -108,9 +101,6 @@ fresh list https://docs.python.org/3/ --pattern "*/faq/*"
 
 # Get count only
 fresh list https://docs.python.org/3/ --count
-
-# List all pages (no limit)
-fresh list https://docs.python.org/3/ --all
 """,
         "get": """
 # fresh get
@@ -215,34 +205,12 @@ fresh alias remove python
 
 # Search aliases
 fresh alias search python
-""",
-        "update": """
-# fresh update
-
-Check for and install updates to fresh.
-
-## Usage
-
-    fresh update [OPTIONS]
-
-## Options
-
-    --check    Only check for updates without installing
-    -y, --yes  Automatically confirm updates
-
-## Examples
-
-# Check for updates
-fresh update --check
-
-# Update to latest version
-fresh update
-""",
+"""
     }
 
     if command in docs:
         typer.echo(docs[command])
     else:
         typer.echo(f"Error: Unknown command '{command}'", err=True)
-        typer.echo("Available commands: list, get, search, alias, update")
+        typer.echo("Available commands: list, get, search, alias, doc")
         raise typer.Exit(1)
