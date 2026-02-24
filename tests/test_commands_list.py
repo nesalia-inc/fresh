@@ -52,6 +52,36 @@ class TestListCommand:
         mock_crawl.assert_not_called()
 
     @mock.patch("fresh.commands.list.crawler.crawl")
+    @mock.patch("fresh.commands.list.sitemap.fetch_with_retry")
+    @mock.patch("fresh.commands.list.sitemap.parse_sitemap")
+    @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
+    def test_list_sitemap_respects_max_pages(
+        self, mock_discover, mock_parse, mock_fetch, mock_crawl
+    ):
+        """Should apply max-pages limit to sitemap results."""
+        mock_discover.return_value = "https://example.com/sitemap.xml"
+        mock_fetch.return_value = """<?xml version="1.0"?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+            <url><loc>https://example.com/docs/page1</loc></url>
+            <url><loc>https://example.com/docs/page2</loc></url>
+            <url><loc>https://example.com/docs/page3</loc></url>
+        </urlset>"""
+        mock_parse.return_value = [
+            "https://example.com/docs/page1",
+            "https://example.com/docs/page2",
+            "https://example.com/docs/page3",
+        ]
+
+        result = runner.invoke(app, ["list", "https://example.com", "--max-pages", "2"])
+
+        assert result.exit_code == 0
+        # Should only have 2 pages due to max-pages limit
+        assert "page1" in result.output
+        assert "page2" in result.output
+        # page3 should not be in output
+        assert "page3" not in result.output
+
+    @mock.patch("fresh.commands.list.crawler.crawl")
     @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
     def test_list_count_option(self, mock_discover, mock_crawl):
         """Should return only count with --count option."""
