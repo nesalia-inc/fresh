@@ -171,17 +171,19 @@ def expand_brace_pattern(pattern: str) -> list[str]:
         List of expanded patterns
     """
     brace_pattern = re.compile(r"\{([^}]+)\}")
-    matches = brace_pattern.findall(pattern)
+    match = brace_pattern.search(pattern)
 
-    if not matches:
+    if not match:
         return [pattern]
 
+    # Only process the first brace group, let recursion handle others
+    brace_content = match.group(1)
+    options = [opt.strip() for opt in brace_content.split(",")]
+
     expansions = []
-    for match in matches:
-        options = [opt.strip() for opt in match.split(",")]
-        for option in options:
-            expanded = pattern.replace("{" + match + "}", option, 1)
-            expansions.extend(expand_brace_pattern(expanded))
+    for option in options:
+        expanded = pattern.replace("{" + brace_content + "}", option, 1)
+        expansions.extend(expand_brace_pattern(expanded))
 
     return expansions
 
@@ -209,7 +211,11 @@ def filter_by_pattern(urls: Sequence[str], pattern: str) -> list[str]:
 
     # Handle brace expansion {a,b,c}
     if "{" in pattern and "}" in pattern:
+        # Limit expansions to prevent catastrophic expansion
         expanded_patterns = expand_brace_pattern(pattern)
+        if len(expanded_patterns) > 1000:
+            logger.warning(f"Too many pattern expansions ({len(expanded_patterns)}), limiting to 1000")
+            expanded_patterns = expanded_patterns[:1000]
         results = []
         for exp_pattern in expanded_patterns:
             results.extend(filter_by_pattern(urls, exp_pattern))
