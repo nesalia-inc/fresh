@@ -12,7 +12,7 @@ from rich.table import Table
 from ..config import resolve_alias
 from ..console import echo_error, print_summary, reset_console, set_verbose
 from ..scraper import crawler, filter as filter_module, sitemap
-from ..scraper.http import fetch_with_retry, validate_url
+from ..scraper.http import fetch_binary_aware, validate_url
 from ..scraper.searcher import (
     SearchResult,
     create_snippet,
@@ -91,7 +91,7 @@ def search_pages(
             typer.echo(f"  [{i + 1}/{len(pages_to_search)}] Searching {page_url}")
 
         # Fetch the page
-        response = fetch_with_retry(page_url, max_retries=2)
+        response = fetch_binary_aware(page_url, max_retries=2)
         if not response:
             continue
 

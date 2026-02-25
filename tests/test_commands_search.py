@@ -94,7 +94,7 @@ class TestSearcher:
 class TestSearchCommand:
     """Tests for the search command."""
 
-    @mock.patch("fresh.commands.search.fetch_with_retry")
+    @mock.patch("fresh.commands.search.fetch_binary_aware")
     @mock.patch("fresh.commands.search.sitemap.discover_sitemap")
     def test_search_no_sitemap_uses_crawler(self, mock_sitemap, mock_fetch):
         """Should use crawler when no sitemap found."""
@@ -109,7 +109,7 @@ class TestSearchCommand:
         # Should complete without error even if no results
         assert result.exit_code in [0, 1]
 
-    @mock.patch("fresh.commands.search.fetch_with_retry")
+    @mock.patch("fresh.commands.search.fetch_binary_aware")
     @mock.patch("fresh.commands.search.sitemap.discover_sitemap")
     def test_search_with_results(self, mock_sitemap, mock_fetch):
         """Should return results when matches found."""
@@ -126,7 +126,7 @@ class TestSearchCommand:
         # Should find results
         assert "test" in result.output.lower() or result.exit_code == 0
 
-    @mock.patch("fresh.commands.search.fetch_with_retry")
+    @mock.patch("fresh.commands.search.fetch_binary_aware")
     @mock.patch("fresh.commands.search.sitemap.discover_sitemap")
     def test_search_invalid_url(self, mock_sitemap, mock_fetch):
         """Should fail with invalid URL."""
@@ -135,7 +135,7 @@ class TestSearchCommand:
         assert result.exit_code == 1
         assert "Invalid" in result.output or "Error" in result.output
 
-    @mock.patch("fresh.commands.search.fetch_with_retry")
+    @mock.patch("fresh.commands.search.fetch_binary_aware")
     @mock.patch("fresh.commands.search.sitemap.discover_sitemap")
     def test_search_regex_option(self, mock_sitemap, mock_fetch):
         """Should support regex option."""
@@ -152,7 +152,7 @@ class TestSearchCommand:
         # Should handle regex without crashing
         assert result.exit_code in [0, 1]
 
-    @mock.patch("fresh.commands.search.fetch_with_retry")
+    @mock.patch("fresh.commands.search.fetch_binary_aware")
     @mock.patch("fresh.commands.search.sitemap.discover_sitemap")
     def test_search_case_sensitive_option(self, mock_sitemap, mock_fetch):
         """Should support case-sensitive option."""
