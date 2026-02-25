@@ -13,6 +13,8 @@ from typing import Any
 
 import httpx
 
+from ..exceptions import ValidationError
+
 
 DEFAULT_HEADERS = {
     "User-Agent": "fresh/0.1.0 (https://fresh.nesalia.com)",
@@ -278,71 +280,77 @@ def _validate_url_internal(
     Raises:
         ValidationError: If URL is invalid and raise_on_error is True
     """
+    error_msg = None
+
     # Check URL length to prevent DoS
     if len(url) > MAX_URL_LENGTH:
-        logger.warning(f"URL too long: {len(url)} characters (max {MAX_URL_LENGTH})")
+        error_msg = f"URL too long: {len(url)} characters (max {MAX_URL_LENGTH})"
+
+    if error_msg is None:
+        try:
+            parsed = urllib.parse.urlparse(url)
+
+            # Only allow http and https schemes
+            if parsed.scheme not in ("http", "https"):
+                error_msg = f"URL scheme not allowed: {parsed.scheme}"
+            elif allowed_domains:
+                hostname = parsed.hostname or ""
+                if hostname not in allowed_domains:
+                    error_msg = f"Domain not in allowed list: {hostname}"
+
+        except Exception as e:
+            error_msg = f"Failed to parse URL: {e}"
+
+    if error_msg:
+        logger.warning(error_msg)
+        if raise_on_error:
+            raise ValidationError(error_msg, code="INVALID_URL")
         return False
 
+    # Extended validation for security
     try:
         parsed = urllib.parse.urlparse(url)
 
-        # Only allow http and https schemes
-        if parsed.scheme not in ("http", "https"):
-            logger.warning(f"URL scheme not allowed: {parsed.scheme}")
-            return False
-
-        # Check allowed domains if specified (extract hostname without port)
+        # Check allowed domains if specified
         hostname = parsed.hostname or ""
         if allowed_domains and hostname not in allowed_domains:
-            logger.warning(f"Domain not in allowed list: {hostname}")
+            if raise_on_error:
+                raise ValidationError(f"Domain not in allowed list: {hostname}", code="INVALID_DOMAIN")
             return False
 
         # Block localhost and private IPs
-        hostname = parsed.hostname or ""
-        # Handle IPv6 in netloc (e.g., http://[::1]/admin, http://[::1]:8080/admin, http://::1/admin)
         netloc = parsed.netloc
-        # Decode URL to catch encoded zone IDs (e.g., fe80::1%25eth0 -> fe80::1%eth0)
         decoded_netloc = urllib.parse.unquote(netloc)
-        # Block IPv6 with zone IDs (e.g., fe80::1%eth0) - security risk
         if "%" in decoded_netloc:
-            logger.warning(f"URL contains zone ID (potential security risk): {url}")
+            error_msg = "URL contains zone ID (potential security risk)"
+            logger.warning(error_msg)
+            if raise_on_error:
+                raise ValidationError(error_msg, code="INVALID_URL")
             return False
 
+        # Extract hostname for further checks
         if not hostname and netloc:
-            # Check if it's IPv6 (contains ::)
             if "::" in netloc:
-                # Could be IPv6 - try to parse it
                 try:
-                    # Extract IPv6 part (before any port)
                     ipv6_part = netloc.split(":")[0]
                     if ipv6_part.startswith("["):
-                        ipv6_part = ipv6_part[1:-1]  # Remove brackets
+                        ipv6_part = ipv6_part[1:-1]
                     elif ipv6_part == "":
-                        # Full IPv6 like ::1
                         ipv6_part = netloc.rstrip("/").split("/")[0]
                     ipaddress.ip_address(ipv6_part)
                     hostname = ipv6_part
                 except ValueError:
                     pass
             elif netloc.startswith("[") and "]" in netloc:
-                # IPv6 with brackets
                 bracket_end = netloc.index("]")
                 hostname = netloc[1:bracket_end]
             else:
-                # Regular host:port
                 if ":" in netloc:
                     hostname = netloc.split(":")[0]
                 else:
                     hostname = netloc
-        blocked_hosts = [
-            "localhost",
-            "127.0.0.1",
-            "0.0.0.0",
-            "::",
-            "::1",  # IPv6 loopback
-        ]
 
-        # Check for private/reserved IP ranges (includes IPv6 private ranges)
+        blocked_hosts = ["localhost", "127.0.0.1", "0.0.0.0", "::", "::1"]
         is_private_ip = _is_private_ip(hostname) if hostname else False
         is_localhost = (
             hostname in blocked_hosts
@@ -350,12 +358,20 @@ def _validate_url_internal(
             or is_private_ip
         )
         if is_localhost:
-            logger.warning(f"Blocked localhost or private URL: {url}")
+            error_msg = "Blocked localhost or private URL"
+            logger.warning(error_msg)
+            if raise_on_error:
+                raise ValidationError(error_msg, code="INVALID_URL")
             return False
 
         return True
+    except ValidationError:
+        raise
     except Exception as e:
-        logger.warning(f"Failed to parse URL: {e}")
+        error_msg = f"Failed to parse URL: {e}"
+        logger.warning(error_msg)
+        if raise_on_error:
+            raise ValidationError(error_msg, code="INVALID_URL")
         return False
 
 
