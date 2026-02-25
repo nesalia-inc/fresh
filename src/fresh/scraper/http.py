@@ -404,25 +404,41 @@ def fetch_with_retry(
             return response.text
         except httpx.TimeoutException as e:
             # Shorter retries for timeouts
+            actual_url = url
+            try:
+                if e.request is not None:
+                    # Get the actual URL that was requested (after any redirects)
+                    actual_url = str(e.request.url)
+            except (AttributeError, RuntimeError):
+                pass  # Use original url if we can't get the actual URL
             if attempt < max_retries - 1:
                 wait_time = backoff * (2**attempt) * 0.5
                 logger.warning(
-                    f"Timeout on attempt {attempt + 1}/{max_retries} for {url}. "
+                    f"Timeout on attempt {attempt + 1}/{max_retries} for {actual_url}. "
                     f"Retrying in {wait_time}s: {e}",
                 )
                 time.sleep(wait_time)
             else:
-                logger.error(f"All {max_retries} timeout attempts failed for {url}: {e}")
+                logger.error(f"All {max_retries} timeout attempts failed for {actual_url}: {e}")
         except httpx.HTTPError as e:
+            # Get the actual URL that was requested (after any redirects)
+            actual_url = url
+            try:
+                if hasattr(e, "response") and e.response is not None:
+                    actual_url = str(e.response.url)
+                elif e.request is not None:
+                    actual_url = str(e.request.url)
+            except (AttributeError, RuntimeError):
+                pass  # Use original url if we can't get the actual URL
             if attempt < max_retries - 1:
                 wait_time = backoff * (2**attempt)
                 logger.warning(
-                    f"Attempt {attempt + 1}/{max_retries} failed for {url}. "
+                    f"Attempt {attempt + 1}/{max_retries} failed for {actual_url}. "
                     f"Retrying in {wait_time}s: {e}",
                 )
                 time.sleep(wait_time)
             else:
-                logger.error(f"All {max_retries} attempts failed for {url}: {e}")
+                logger.error(f"All {max_retries} attempts failed for {actual_url}: {e}")
 
     return None
 
