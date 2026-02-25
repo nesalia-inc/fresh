@@ -9,24 +9,32 @@ from fresh.scraper import crawler as crawler_module
 class TestFetchPage:
     """Tests for fetch_page function."""
 
-    @mock.patch("fresh.scraper.crawler.fetch_with_retry")
+    @mock.patch("fresh.scraper.crawler.fetch_binary_aware")
     def test_successful_fetch(self, mock_fetch):
         """Should return HTML content on success."""
         mock_fetch.return_value = "<html>Content</html>"
 
-        result = crawler_module.fetch_page("https://example.com")
+        result = crawler_module.fetch_page("https://example.com/page.html")
 
         assert result == "<html>Content</html>"
-        mock_fetch.assert_called_once_with("https://example.com")
+        mock_fetch.assert_called_once_with("https://example.com/page.html", skip_binary=True)
 
-    @mock.patch("fresh.scraper.crawler.fetch_with_retry")
+    @mock.patch("fresh.scraper.crawler.fetch_binary_aware")
     def test_failed_fetch(self, mock_fetch):
         """Should return None on failure."""
         mock_fetch.return_value = None
 
-        result = crawler_module.fetch_page("https://example.com")
+        result = crawler_module.fetch_page("https://example.com/page.html")
 
         assert result is None
+
+    @mock.patch("fresh.scraper.crawler.fetch_binary_aware")
+    def test_skips_binary_urls(self, mock_fetch):
+        """Should skip binary URLs without making HTTP request."""
+        result = crawler_module.fetch_page("https://example.com/image.png")
+
+        assert result is None
+        mock_fetch.assert_not_called()
 
 
 class TestExtractLinks:
