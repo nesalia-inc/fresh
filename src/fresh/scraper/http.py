@@ -340,11 +340,12 @@ def is_allowed_by_robots(url: str, user_agent: str = "*", domain: str | None = N
                 it will be extracted from the URL.
 
     Returns:
-        True if the URL is allowed, False if disallowed
+        True if the URL is allowed, False if disallowed.
+        When robots.txt returns 404 (does not exist), returns True (allows all access).
     """
     parsed = urllib.parse.urlparse(url)
     # Use provided domain or extract from URL
-    domain = domain or parsed.netloc
+    robots_domain = domain or parsed.netloc
     path = parsed.path or "/"
 
     disallowed_paths: set[str] = set()
@@ -362,8 +363,8 @@ def is_allowed_by_robots(url: str, user_agent: str = "*", domain: str | None = N
         now = time.time()
 
         # Check cache
-        if domain in _robots_cache:
-            cache_time, cached_disallowed, cached_allowed = _robots_cache[domain]
+        if robots_domain in _robots_cache:
+            cache_time, cached_disallowed, cached_allowed = _robots_cache[robots_domain]
             if now - cache_time < ROBOTS_CACHE_TTL:
                 # Check allowed first (takes precedence)
                 for pattern in cached_allowed:
@@ -377,10 +378,10 @@ def is_allowed_by_robots(url: str, user_agent: str = "*", domain: str | None = N
                         return False
                 return True
             # Cache expired, remove it
-            del _robots_cache[domain]
+            del _robots_cache[robots_domain]
 
     # Fetch and parse robots.txt
-    base_url = f"{parsed.scheme}://{domain}"
+    base_url = f"{parsed.scheme}://{robots_domain}"
     robots_content = fetch_robots_txt(base_url)
 
     if robots_content and isinstance(robots_content, str):
@@ -420,7 +421,7 @@ def is_allowed_by_robots(url: str, user_agent: str = "*", domain: str | None = N
 
     # Cache the results
     with _robots_cache_lock:
-        _robots_cache[domain] = (now, disallowed_paths, allowed_paths)
+        _robots_cache[robots_domain] = (now, disallowed_paths, allowed_paths)
 
     # Check if path is explicitly allowed (Allow takes precedence)
     for pattern in allowed_paths:
