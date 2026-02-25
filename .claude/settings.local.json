@@ -30,7 +30,32 @@
       "Bash(git tag:*)",
       "Bash(python -c:*)",
       "Bash(pip install:*)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(gh issue close:*)",
+      "Bash(git checkout:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(for:*)",
+      "Bash(do echo:*)",
+      "Bash(done)",
+      "Bash(gh run rerun:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr checkout:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)",
+      "Bash(gh label create:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(pip show:*)",
+      "Bash(do gh pr merge:*)",
+      "Bash(fresh list:*)",
+      "Bash(fresh get:*)",
+      "Bash(fresh search \"virtual environment\" https://docs.python.org/3/)",
+      "Bash(fresh alias list:*)",
+      "Bash(del:*)",
+      "Bash(fresh search:*)",
+      "Bash(fresh sync:*)"
     ]
   }
 }
