@@ -15,7 +15,7 @@ from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
 from ..config import resolve_alias
 from ..console import print_summary, reset_console, set_verbose
 from ..scraper import crawler, filter as filter_module, sitemap
-from ..scraper.http import fetch_with_retry, is_allowed_by_robots, validate_url
+from ..scraper.http import fetch_binary_aware, is_binary_url, is_allowed_by_robots, validate_url
 from ..ui import is_interactive, show_success_message, spinner
 
 app = typer.Typer(help="Download entire documentation for offline use.")
@@ -44,6 +44,24 @@ def _save_metadata(sync_dir: Path, base_url: str, page_count: int) -> None:
     }
     metadata_file = sync_dir / "_sync.json"
     metadata_file.write_text(json.dumps(metadata, indent=2))
+
+
+def _fetch_page_for_sync(page_url: str) -> str | None:
+    """
+    Fetch a page for sync, skipping binary content.
+
+    Args:
+        page_url: The URL to fetch
+
+    Returns:
+        HTML content or None if failed/binary
+    """
+    # Skip binary URLs
+    if is_binary_url(page_url):
+        return None
+
+    # Use binary-aware fetch
+    return fetch_binary_aware(page_url, skip_binary=True)
 
 
 @app.command(name="sync")
@@ -167,7 +185,7 @@ def sync(
 
             # Fetch the page
             try:
-                response = fetch_with_retry(page_url)
+                response = _fetch_page_for_sync(page_url)
                 if response and isinstance(response, str):
                     parsed = urlparse(page_url)
                     path = parsed.path.lstrip("/")
@@ -209,7 +227,7 @@ def sync(
 
                 # Fetch the page
                 try:
-                    response = fetch_with_retry(page_url)
+                    response = _fetch_page_for_sync(page_url)
                     if response and isinstance(response, str):
                         parsed = urlparse(page_url)
                         path = parsed.path.lstrip("/")
@@ -245,7 +263,7 @@ def sync(
 
             # Fetch the page
             try:
-                response = fetch_with_retry(page_url)
+                response = _fetch_page_for_sync(page_url)
                 if response and isinstance(response, str):
                     parsed = urlparse(page_url)
                     path = parsed.path.lstrip("/")

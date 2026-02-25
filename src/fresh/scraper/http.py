@@ -21,6 +21,183 @@ DEFAULT_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 
 logger = logging.getLogger(__name__)
 
+# Binary file extensions to skip
+BINARY_EXTENSIONS = frozenset([
+    # Archive formats
+    ".bz2", ".gz", ".zip", ".tar", ".7z", ".rar", ".xz",
+    # Image formats
+    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".avif",
+    # Video/audio
+    ".mp4", ".webm", ".avi", ".mov", ".mp3", ".wav", ".ogg", ".flac",
+    # Document formats
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+    # Font formats
+    ".ttf", ".otf", ".woff", ".woff2", ".eot",
+    # Other binary formats
+    ".bin", ".exe", ".dll", ".so", ".dylib",
+])
+
+# Binary magic bytes signatures
+BINARY_MAGIC_BYTES = [
+    (b"BZh", "bzip2"),           # bzip2 compressed
+    (b"\x1f\x8b", "gzip"),       # gzip compressed
+    (b"PK\x03\x04", "zip"),      # zip archive
+    (b"PK\x05\x06", "zip"),      # zip archive (empty)
+    (b"PK\x07\x08", "zip"),      # zip archive (spanned)
+    (b"\x89PNG", "png"),         # PNG image
+    (b"\xff\xd8\xff", "jpeg"),   # JPEG image
+    (b"GIF87a", "gif"),          # GIF87a
+    (b"GIF89a", "gif"),          # GIF89a
+    (b"RIFF", "webp"),           # RIFF (WebP starts with RIFF....webp)
+    (b"\x00\x00\x01\x00", "ico"), # ICO icon
+    (b"%PDF", "pdf"),            # PDF document
+    (b"\xca\xfe\xba\xbe", "java"), # Java/Mach-O class
+    (b"MZ", "exe"),              # Windows executable
+    (b"\x7fELF", "elf"),         # ELF executable
+]
+
+
+def is_binary_url(url: str) -> bool:
+    """
+    Check if a URL likely points to a binary file based on its path.
+
+    Args:
+        url: The URL to check
+
+    Returns:
+        True if the URL appears to point to a binary file
+    """
+    parsed = urllib.parse.urlparse(url)
+    path = parsed.path.lower()
+
+    # Check file extension
+    for ext in BINARY_EXTENSIONS:
+        if path.endswith(ext):
+            return True
+
+    return False
+
+
+def is_binary_content(content: bytes | str, content_type: str | None = None) -> bool:
+    """
+    Check if content appears to be binary.
+
+    This function checks:
+    1. Content-Type header (if provided)
+    2. File extension in the URL (if content is from a URL)
+    3. Binary magic bytes in the content
+
+    Args:
+        content: The content to check (bytes or str)
+        content_type: Optional Content-Type header value
+
+    Returns:
+        True if the content appears to be binary, False otherwise
+    """
+    # Check Content-Type header first
+    if content_type:
+        content_type_lower = content_type.lower()
+        # Only allow text/html content types
+        if not content_type_lower.startswith("text/html"):
+            # Allow other text types that might be useful
+            allowed_text_types = [
+                "text/",
+                "application/xhtml",
+                "application/xml",
+                "application/json",
+            ]
+            is_allowed_text = any(
+                content_type_lower.startswith(t) for t in allowed_text_types
+            )
+            if not is_allowed_text:
+                logger.debug(f"Skipping binary content based on Content-Type: {content_type}")
+                return True
+
+    # Convert string to bytes if needed
+    if isinstance(content, str):
+        try:
+            content_bytes = content.encode("utf-8")
+        except UnicodeEncodeError:
+            # If we can't encode as UTF-8, it's likely binary
+            return True
+    else:
+        content_bytes = content
+
+    # Check for binary magic bytes
+    # Only check the first 8 bytes (enough for all magic signatures)
+    header = content_bytes[:8] if len(content_bytes) >= 8 else content_bytes
+
+    for magic, fmt in BINARY_MAGIC_BYTES:
+        if header.startswith(magic):
+            logger.debug(f"Skipping binary content: detected {fmt} magic bytes")
+            return True
+
+    # Check for null bytes in the content (strong indicator of binary)
+    # Sample the content - check first 1KB and also random positions
+    sample_size = min(1024, len(content_bytes))
+    if b"\x00" in content_bytes[:sample_size]:
+        # Additional check: count null bytes ratio
+        null_count = content_bytes[:sample_size].count(b"\x00")
+        if null_count > sample_size * 0.1:  # More than 10% null bytes
+            logger.debug("Skipping binary content: high ratio of null bytes")
+            return True
+
+    return False
+
+
+def fetch_binary_aware(
+    url: str,
+    allowed_domains: list[str] | None = None,
+    skip_binary: bool = True,
+    **kwargs: Any,
+) -> str | None:
+    """
+    Fetch a URL with binary content detection.
+
+    This function wraps fetch_with_retry and optionally skips binary content
+    based on Content-Type header or magic bytes detection.
+
+    Args:
+        url: The URL to fetch
+        allowed_domains: Optional list of allowed domains
+        skip_binary: If True, skip binary content (default: True)
+        **kwargs: Additional arguments to pass to httpx.Client.get
+
+    Returns:
+        Response text or None on failure/binary content
+    """
+    if skip_binary and is_binary_url(url):
+        logger.debug(f"Skipping binary URL: {url}")
+        return None
+
+    # Fetch with return_response=True so we can check Content-Type
+    response = fetch_with_retry(
+        url,
+        allowed_domains=allowed_domains,
+        return_response=True,
+        **kwargs,
+    )
+
+    if response is None:
+        return None
+
+    # Type check: response should be httpx.Response when return_response=True
+    if not isinstance(response, httpx.Response):
+        return None
+
+    # Check Content-Type header
+    content_type = response.headers.get("Content-Type", "")
+    if skip_binary and is_binary_content(response.content, content_type):
+        logger.debug(f"Skipping binary content from: {url}")
+        return None
+
+    # Return text content
+    try:
+        return response.text
+    except Exception as e:
+        logger.warning(f"Failed to decode content from {url}: {e}")
+        return None
+
 _client: httpx.Client | None = None
 _client_lock: threading.Lock = threading.Lock()
 

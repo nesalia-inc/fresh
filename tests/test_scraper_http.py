@@ -520,3 +520,224 @@ class TestResetFunction:
         http_module.reset()
 
         assert len(http_module._robots_cache) == 0
+
+
+class TestIsBinaryUrl:
+    """Tests for is_binary_url function."""
+
+    def test_png_image(self):
+        """PNG images should be detected as binary."""
+        assert http_module.is_binary_url("https://example.com/image.png")
+
+    def test_jpg_image(self):
+        """JPG images should be detected as binary."""
+        assert http_module.is_binary_url("https://example.com/photo.jpg")
+
+    def test_jpeg_image(self):
+        """JPEG images should be detected as binary."""
+        assert http_module.is_binary_url("https://example.com/photo.jpeg")
+
+    def test_gif_image(self):
+        """GIF images should be detected as binary."""
+        assert http_module.is_binary_url("https://example.com/animation.gif")
+
+    def test_pdf_document(self):
+        """PDF documents should be detected as binary."""
+        assert http_module.is_binary_url("https://example.com/document.pdf")
+
+    def test_zip_archive(self):
+        """ZIP archives should be detected as binary."""
+        assert http_module.is_binary_url("https://example.com/archive.zip")
+
+    def test_gz_compressed(self):
+        """GZ compressed files should be detected as binary."""
+        assert http_module.is_binary_url("https://example.com/data.gz")
+
+    def test_bz2_compressed(self):
+        """BZ2 compressed files should be detected as binary."""
+        assert http_module.is_binary_url("https://example.com/data.bz2")
+
+    def test_mp4_video(self):
+        """MP4 videos should be detected as binary."""
+        assert http_module.is_binary_url("https://example.com/video.mp4")
+
+    def test_mp3_audio(self):
+        """MP3 audio should be detected as binary."""
+        assert http_module.is_binary_url("https://example.com/audio.mp3")
+
+    def test_svg_image(self):
+        """SVG images are actually text/XML."""
+        assert not http_module.is_binary_url("https://example.com/image.svg")
+
+    def test_html_page(self):
+        """HTML pages should not be detected as binary."""
+        assert not http_module.is_binary_url("https://example.com/page.html")
+        assert not http_module.is_binary_url("https://example.com/page.htm")
+
+    def test_text_file(self):
+        """Text files should not be detected as binary."""
+        assert not http_module.is_binary_url("https://example.com/file.txt")
+
+    def test_json_file(self):
+        """JSON files should not be detected as binary."""
+        assert not http_module.is_binary_url("https://example.com/data.json")
+
+    def test_css_file(self):
+        """CSS files should not be detected as binary."""
+        assert not http_module.is_binary_url("https://example.com/style.css")
+
+    def test_js_file(self):
+        """JavaScript files should not be detected as binary."""
+        assert not http_module.is_binary_url("https://example.com/script.js")
+
+    def test_case_insensitive(self):
+        """Extension check should be case insensitive."""
+        assert http_module.is_binary_url("https://example.com/image.PNG")
+        assert http_module.is_binary_url("https://example.com/image.JPG")
+        assert http_module.is_binary_url("https://example.com/document.PDF")
+
+
+class TestIsBinaryContent:
+    """Tests for is_binary_content function."""
+
+    def test_html_content_type(self):
+        """HTML content type should not be binary."""
+        assert not http_module.is_binary_content(b"<html></html>", "text/html")
+
+    def test_text_content_type(self):
+        """Text content type should not be binary."""
+        assert not http_module.is_binary_content(b"plain text", "text/plain")
+
+    def test_json_content_type(self):
+        """JSON content type should not be binary."""
+        assert not http_module.is_binary_content(b'{"key": "value"}', "application/json")
+
+    def test_image_content_type(self):
+        """Image content type should be binary."""
+        assert http_module.is_binary_content(b"\x89PNG...", "image/png")
+
+    def test_pdf_content_type(self):
+        """PDF content type should be binary."""
+        assert http_module.is_binary_content(b"%PDF-1.4", "application/pdf")
+
+    def test_application_octet_stream(self):
+        """Application/octet-stream should be binary."""
+        assert http_module.is_binary_content(b"\x00\x01\x02", "application/octet-stream")
+
+    def test_png_magic_bytes(self):
+        """PNG magic bytes should be detected as binary."""
+        assert http_module.is_binary_content(b"\x89PNG\r\n\x1a\n\x00\x00\x00")
+
+    def test_jpeg_magic_bytes(self):
+        """JPEG magic bytes should be detected as binary."""
+        assert http_module.is_binary_content(b"\xff\xd8\xff\xe0\x00\x10JFIF")
+
+    def test_gzip_magic_bytes(self):
+        """GZIP magic bytes should be detected as binary."""
+        assert http_module.is_binary_content(b"\x1f\x8b\x08\x00\x00\x00\x00\x00")
+
+    def test_bzip2_magic_bytes(self):
+        """BZIP2 magic bytes should be detected as binary."""
+        assert http_module.is_binary_content(b"BZh91AY&SY\x00\x00\x00")
+
+    def test_zip_magic_bytes(self):
+        """ZIP magic bytes should be detected as binary."""
+        assert http_module.is_binary_content(b"PK\x03\x04\x14\x00\x00\x00")
+
+    def test_pdf_magic_bytes(self):
+        """PDF magic bytes should be detected as binary."""
+        assert http_module.is_binary_content(b"%PDF-1.4 test content")
+
+    def test_null_bytes_in_content(self):
+        """Content with many null bytes should be detected as binary."""
+        # Create content with more than 10% null bytes
+        binary_content = b"\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03"
+        assert http_module.is_binary_content(binary_content)
+
+    def test_html_with_null_char(self):
+        """HTML with occasional null char should not be binary."""
+        # Small number of null bytes should be ok
+        html = b"<html>\x00<body>Test</body></html>"
+        assert not http_module.is_binary_content(html)
+
+    def test_string_content(self):
+        """String content should work."""
+        assert not http_module.is_binary_content("<html><body>Test</body></html>")
+
+    def test_unicode_string(self):
+        """Unicode string content should not be binary."""
+        assert not http_module.is_binary_content("<html><body>Hello 世界</body></html>")
+
+    def test_no_content_type_with_html(self):
+        """HTML without content type should not be binary."""
+        assert not http_module.is_binary_content(b"<html><body>Test</body></html>")
+
+
+class TestFetchBinaryAware:
+    """Tests for fetch_binary_aware function."""
+
+    def setup_method(self):
+        """Reset the HTTP client before each test."""
+        http_module.reset()
+
+    @mock.patch("fresh.scraper.http.fetch_with_retry")
+    def test_skips_binary_url(self, mock_fetch):
+        """Should skip binary URLs without making request."""
+        result = http_module.fetch_binary_aware("https://example.com/image.png")
+        assert result is None
+        mock_fetch.assert_not_called()
+
+    @mock.patch("fresh.scraper.http.fetch_with_retry")
+    def test_fetches_html_url(self, mock_fetch):
+        """Should fetch HTML URLs normally."""
+        mock_fetch.return_value = mock.MagicMock(
+            spec=httpx.Response,
+            status_code=200,
+            text="<html>Test</html>",
+            headers={"Content-Type": "text/html"},
+        )
+
+        _result = http_module.fetch_binary_aware("https://example.com/page.html")
+
+        assert mock_fetch.called
+
+    @mock.patch("fresh.scraper.http.fetch_with_retry")
+    def test_skips_binary_content_type(self, mock_fetch):
+        """Should skip content with binary content type."""
+        mock_response = mock.MagicMock(
+            spec=httpx.Response,
+            status_code=200,
+            content=b"\x89PNG",
+            text="",
+            headers={"Content-Type": "image/png"},
+        )
+        mock_fetch.return_value = mock_response
+
+        result = http_module.fetch_binary_aware("https://example.com/image.png")
+
+        assert result is None
+
+    @mock.patch("fresh.scraper.http.fetch_with_retry")
+    def test_returns_html_content(self, mock_fetch):
+        """Should return HTML content."""
+        mock_response = mock.MagicMock(
+            spec=httpx.Response,
+            status_code=200,
+            content=b"<html><body>Test</body></html>",
+            text="<html><body>Test</body></html>",
+            headers={"Content-Type": "text/html"},
+        )
+        mock_fetch.return_value = mock_response
+
+        result = http_module.fetch_binary_aware("https://example.com/page.html")
+
+        assert result == "<html><body>Test</body></html>"
+
+    @mock.patch("fresh.scraper.http.fetch_with_retry")
+    def test_returns_none_on_failure(self, mock_fetch):
+        """Should return None when fetch fails."""
+        mock_fetch.return_value = None
+
+        result = http_module.fetch_binary_aware("https://example.com/page.html")
+
+        assert result is None
