@@ -1,6 +1,6 @@
 [project]
 name = "fresh-docs"
-version = "1.2.1"
+version = "1.2.2"
 description = "CLI to get the latest and freshest documentation from any website in Markdown format"
 readme = "README.md"
 requires-python = ">=3.12"
