@@ -160,17 +160,93 @@ def deduplicate(
     return result
 
 
+def detect_url_pattern(url: str) -> str | None:
+    """
+    Detect if a URL contains a pattern (glob, regex, brace expansion).
+
+    Args:
+        url: The URL to check
+
+    Returns:
+        Pattern type: "glob", "glob_recursive", "regex", "brace", or None
+    """
+    # Check for regex pattern (pattern starts with re: after protocol/domain)
+    # Pattern format: https://example.com/re:/path or just re:/path
+    if "re:/" in url or url.startswith("re:"):
+        return "regex"
+
+    # Check for brace expansion {a,b,c}
+    if "{" in url and "}" in url:
+        return "brace"
+
+    # Check for recursive glob **
+    if "**" in url:
+        return "glob_recursive"
+
+    # Check for simple glob *
+    if "*" in url:
+        return "glob"
+
+    return None
+
+
+def expand_brace_pattern(pattern: str) -> list[str]:
+    """
+    Expand brace patterns like {page1,page2,page3}.
+
+    Args:
+        pattern: Pattern with brace expansion
+
+    Returns:
+        List of expanded patterns
+    """
+    import re
+
+    brace_pattern = re.compile(r"\{([^}]+)\}")
+    matches = brace_pattern.findall(pattern)
+
+    if not matches:
+        return [pattern]
+
+    expansions = []
+    for match in matches:
+        options = [opt.strip() for opt in match.split(",")]
+        for option in options:
+            expanded = pattern.replace("{" + match + "}", option, 1)
+            expansions.extend(expand_brace_pattern(expanded))
+
+    return expansions
+
+
 def filter_by_pattern(urls: Sequence[str], pattern: str) -> list[str]:
     """
-    Filter URLs by a glob-style pattern.
+    Filter URLs by a pattern (glob, regex, brace expansion).
 
     Args:
         urls: List of URLs to filter
-        pattern: Glob pattern (e.g., "/docs/*", "/api/**")
+        pattern: Pattern to match (glob, regex with re: prefix, or brace expansion)
 
     Returns:
         URLs matching the pattern
     """
+    # Handle regex pattern (prefixed with re:)
+    if pattern.startswith("re:"):
+        regex_str = pattern[3:]  # Remove re: prefix
+        try:
+            compiled = re.compile(regex_str, re.IGNORECASE)
+        except re.error as e:
+            logger.warning(f"Invalid regex pattern: {e}")
+            return []
+        return [url for url in urls if compiled.search(url)]
+
+    # Handle brace expansion {a,b,c}
+    if "{" in pattern and "}" in pattern:
+        expanded_patterns = expand_brace_pattern(pattern)
+        results = []
+        for exp_pattern in expanded_patterns:
+            results.extend(filter_by_pattern(urls, exp_pattern))
+        return list(set(results))  # Remove duplicates
+
     # Convert glob to regex
     # Limit pattern length to prevent catastrophic backtracking
     if len(pattern) > 200:
