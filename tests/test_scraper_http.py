@@ -341,6 +341,49 @@ Allow: /
         result = http_module.is_allowed_by_robots("https://example.com/private")
         assert result is True
 
+    @mock.patch("fresh.scraper.http.fetch_robots_txt")
+    def test_is_allowed_by_robots_with_domain_param(self, mock_fetch):
+        """Should use provided domain for robots.txt lookup."""
+        robots_content = """User-agent: *
+Disallow: /admin
+"""
+        mock_fetch.return_value = robots_content
+        # Use domain parameter - should check robots.txt at provided domain
+        result = http_module.is_allowed_by_robots(
+            "https://docs.example.com/page",
+            domain="www.example.com"
+        )
+        # Should check www.example.com/robots.txt which disallows /admin
+        # But the path is /page, not /admin, so it should be allowed
+        assert result is True
+        # Verify it was called with the correct domain
+        mock_fetch.assert_called_once_with("https://www.example.com")
+
+    @mock.patch("fresh.scraper.http.fetch_robots_txt")
+    def test_is_allowed_by_robots_domain_param_disallow(self, mock_fetch):
+        """Should disallow paths when using domain parameter."""
+        robots_content = """User-agent: *
+Disallow: /private/
+"""
+        mock_fetch.return_value = robots_content
+        result = http_module.is_allowed_by_robots(
+            "https://docs.example.com/private/page",
+            domain="www.example.com"
+        )
+        # Should check www.example.com/robots.txt which disallows /private/
+        assert result is False
+        mock_fetch.assert_called_once_with("https://www.example.com")
+
+    @mock.patch("fresh.scraper.http.fetch_robots_txt")
+    def test_is_allowed_by_robots_404_returns_true(self, mock_fetch):
+        """When robots.txt returns 404, should allow access (standard behavior)."""
+        mock_fetch.return_value = None  # 404 or not found
+        result = http_module.is_allowed_by_robots(
+            "https://example.com/page",
+            domain="www.example.com"
+        )
+        assert result is True
+
     def test_matches_robots_pattern_simple(self):
         """Simple pattern matching (prefix-based)."""
         assert http_module._matches_robots_pattern("/admin", "/admin")
