@@ -268,3 +268,124 @@ class TestCacheFunctions:
             # Old file should be removed, new should remain
             assert not old_file.exists()
             assert (Path(tmpdir) / "new.md").exists()
+
+
+class TestLocalFirstFunctions:
+    """Tests for local-first functionality."""
+
+    def test_url_to_sync_path_basic(self):
+        """Should convert URL to sync path correctly."""
+        path = get_module.url_to_sync_path("https://example.com/docs/page.html")
+
+        assert path is not None
+        assert "example_com" in str(path)
+        assert "pages" in str(path)
+        # The path uses URL encoding (quote) so slashes become %2F
+        assert "docs%2Fpage.html" in str(path)
+
+    def test_url_to_sync_path_index(self):
+        """Should handle index paths correctly."""
+        path = get_module.url_to_sync_path("https://example.com/docs/")
+
+        assert path is not None
+        assert "index.html" in str(path)
+
+    def test_url_to_sync_path_no_path(self):
+        """Should handle root URL correctly."""
+        path = get_module.url_to_sync_path("https://example.com")
+
+        assert path is not None
+        assert "index.html" in str(path)
+
+    def test_local_content_exists(self):
+        """Should return True when local content exists."""
+        # Create a temporary sync directory structure
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sync_dir = Path(tmpdir)
+            pages_dir = sync_dir / "example_com" / "pages"
+            pages_dir.mkdir(parents=True, exist_ok=True)
+            # Note: sync uses quote() which encodes slashes
+            test_file = pages_dir / "docs%2Fpage.html"
+            test_file.write_text("<html><body>Test</body></html>")
+
+            with mock.patch.object(get_module, "DEFAULT_SYNC_DIR", sync_dir):
+                result = get_module.local_content_exists("https://example.com/docs/page.html")
+                assert result is True
+
+    def test_local_content_exists_not_found(self):
+        """Should return False when local content does not exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sync_dir = Path(tmpdir)
+            with mock.patch.object(get_module, "DEFAULT_SYNC_DIR", sync_dir):
+                result = get_module.local_content_exists("https://example.com/nonexistent/page.html")
+                assert result is False
+
+    def test_get_local_content(self):
+        """Should retrieve local content correctly."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sync_dir = Path(tmpdir)
+            pages_dir = sync_dir / "example_com" / "pages"
+            pages_dir.mkdir(parents=True, exist_ok=True)
+            # Note: sync uses quote() which encodes slashes
+            test_file = pages_dir / "docs%2Fpage.html"
+            test_file.write_text("<html><body>Test Content</body></html>")
+
+            with mock.patch.object(get_module, "DEFAULT_SYNC_DIR", sync_dir):
+                result = get_module.get_local_content("https://example.com/docs/page.html")
+                assert result == "<html><body>Test Content</body></html>"
+
+    def test_get_local_content_not_found(self):
+        """Should return None when local content does not exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sync_dir = Path(tmpdir)
+            with mock.patch.object(get_module, "DEFAULT_SYNC_DIR", sync_dir):
+                result = get_module.get_local_content("https://example.com/nonexistent/page.html")
+                assert result is None
+
+
+class TestLocalFirstCommand:
+    """Tests for local-first command options."""
+
+    @mock.patch("fresh.commands.get.get_local_content")
+    @mock.patch("fresh.commands.get.local_content_exists")
+    def test_get_local_flag(self, mock_exists, mock_local_content):
+        """Should use local content when --local is specified."""
+        mock_exists.return_value = True
+        mock_local_content.return_value = "<html><body>Local</body></html>"
+
+        result = runner.invoke(app, ["get", "https://example.com/docs", "--local"])
+
+        assert result.exit_code == 0
+        assert "Local" in result.output
+
+    @mock.patch("fresh.commands.get.local_content_exists")
+    def test_get_local_flag_no_content(self, mock_exists):
+        """Should error when --local is specified but no local content exists."""
+        mock_exists.return_value = False
+
+        result = runner.invoke(app, ["get", "https://example.com/docs", "--local"])
+
+        assert result.exit_code == 1
+
+    def test_get_local_remote_conflict(self):
+        """Should error when both --local and --remote are specified."""
+        result = runner.invoke(app, ["get", "https://example.com/docs", "--local", "--remote"])
+
+        assert result.exit_code == 1
+
+    @mock.patch("fresh.commands.get.get_cached_content")
+    @mock.patch("fresh.commands.get.fetch_with_retry")
+    @mock.patch("fresh.commands.get.html_to_markdown")
+    def test_get_remote_flag(self, mock_markdown, mock_fetch, mock_cache):
+        """Should skip local check when --remote is specified and fetch remotely."""
+        mock_cache.return_value = None
+        mock_response = mock.MagicMock()
+        mock_response.text = "<html><body>Remote</body></html>"
+        mock_fetch.return_value = mock_response
+        mock_markdown.return_value = "# Remote"
+
+        result = runner.invoke(app, ["get", "https://example.com/docs", "--remote"])
+
+        assert result.exit_code == 0
+        # Remote should be fetched (cache was checked but returned None)
+        mock_fetch.assert_called_once()

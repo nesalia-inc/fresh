@@ -86,6 +86,7 @@ def list_urls(
     discovered_urls: set[str] = set()
 
     # Try sitemap first with spinner in interactive mode
+    sitemap_url: str | None = None
     if verbose:
         typer.echo("Discovering sitemap...")
         sitemap_url = sitemap.discover_sitemap(resolved_url)
@@ -114,16 +115,23 @@ def list_urls(
                 filtered = filtered[:max_pages]
                 discovered_urls.update(filtered)
 
-    # Fallback to crawler if no sitemap found
+    # Fallback to crawler if no sitemap found or sitemap yielded no results
     if not discovered_urls:
-        if verbose:
-            typer.echo("No sitemap found, using crawler...")
-            discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
-        elif is_interactive():
-            show_info_message("No sitemap found, using crawler...")
-            with spinner(f"Crawling pages (max {max_pages})..."):
+        # Only show "No sitemap found" message if no sitemap URL was discovered at all
+        if not sitemap_url:
+            if verbose:
+                typer.echo("No sitemap found, using crawler...")
+                discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
+            elif is_interactive():
+                show_info_message("No sitemap found, using crawler...")
+                with spinner(f"Crawling pages (max {max_pages})..."):
+                    discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
+            else:
                 discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
         else:
+            # Sitemap was found but yielded no results, still use crawler silently
+            if verbose:
+                typer.echo("Sitemap found but no relevant URLs, using crawler...")
             discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
 
     # Apply pattern filter if specified
