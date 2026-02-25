@@ -143,10 +143,61 @@ def search_pages(
     return results
 
 
+def search_multiple_libraries(
+    query: str,
+    base_urls: list[str],
+    max_pages: int = 50,
+    depth: int = 3,
+    case_sensitive: bool = False,
+    regex: bool = False,
+    context_lines: int = 1,
+    verbose: bool = False,
+    result_limit: int | None = None,
+) -> dict[str, list[SearchResult]]:
+    """
+    Search for a query across multiple documentation libraries.
+
+    Args:
+        query: The search query
+        base_urls: List of base URLs to search
+        max_pages: Maximum number of pages to search per library
+        depth: Maximum crawl depth
+        case_sensitive: Whether to do case-sensitive search
+        regex: Whether to treat query as regex
+        context_lines: Number of lines of context around matches
+        verbose: Whether to show verbose output
+        result_limit: Early termination when this many results found
+
+    Returns:
+        Dictionary mapping library URLs to their search results
+    """
+    results_by_library: dict[str, list[SearchResult]] = {}
+
+    for base_url in base_urls:
+        if verbose:
+            typer.echo(f"\nSearching {base_url}...")
+
+        results = search_pages(
+            base_url=base_url,
+            query=query,
+            max_pages=max_pages,
+            depth=depth,
+            case_sensitive=case_sensitive,
+            regex=regex,
+            context_lines=context_lines,
+            verbose=verbose,
+            result_limit=result_limit,
+        )
+
+        results_by_library[base_url] = results
+
+    return results_by_library
+
+
 @app.command()
 def search(
     query: str = typer.Argument(..., help="The search query"),
-    url: str = typer.Argument(..., help="The URL or alias of the documentation website"),
+    url: list[str] = typer.Argument(None, help="The URL or alias of the documentation website(s)"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Use verbose output"),
     max_pages: int = typer.Option(50, "--max-pages", help="Maximum number of pages to search"),
     depth: int = typer.Option(3, "--depth", "-d", help="Maximum crawl depth"),
@@ -156,30 +207,81 @@ def search(
     limit: int = typer.Option(20, "--limit", "-l", help="Maximum number of results to show"),
 ) -> None:
     """Search for content across documentation pages."""
+    # Handle no URL provided - show help
+    if not url:
+        echo_error(
+            message="No URL provided",
+            code="NO_URL",
+            suggestions=["Provide at least one URL to search"],
+        )
+        raise typer.Exit(1)
+
     # Initialize console with verbose mode
     set_verbose(verbose)
     reset_console()
 
-    # Resolve alias to URL
-    resolved_url = resolve_alias(url)
+    # Resolve and validate all URLs
+    resolved_urls: list[str] = []
+    for u in url:
+        resolved = resolve_alias(u)
+        if not validate_url(resolved):
+            echo_error(
+                message=f"Invalid URL: {resolved}",
+                url=resolved,
+                code="INVALID_URL",
+                suggestions=[
+                    "Check if the URL is correct",
+                    "URL must start with http:// or https://",
+                ],
+            )
+            raise typer.Exit(1)
+        resolved_urls.append(resolved)
 
+    # Single URL or multiple URLs
+    if len(resolved_urls) == 1:
+        # Single library search
+        _search_single_library(
+            query=query,
+            resolved_url=resolved_urls[0],
+            verbose=verbose,
+            max_pages=max_pages,
+            depth=depth,
+            case_sensitive=case_sensitive,
+            regex=regex,
+            context=context,
+            limit=limit,
+        )
+    else:
+        # Multiple library search
+        _search_multiple_libraries(
+            query=query,
+            resolved_urls=resolved_urls,
+            verbose=verbose,
+            max_pages=max_pages,
+            depth=depth,
+            case_sensitive=case_sensitive,
+            regex=regex,
+            context=context,
+            limit=limit,
+        )
+
+
+def _search_single_library(
+    query: str,
+    resolved_url: str,
+    verbose: bool,
+    max_pages: int,
+    depth: int,
+    case_sensitive: bool,
+    regex: bool,
+    context: int,
+    limit: int,
+) -> None:
+    """Search a single library."""
     if verbose:
         typer.echo(f"Searching \"{query}\" on {resolved_url}...")
 
-    # Validate URL
-    if not validate_url(resolved_url):
-        echo_error(
-            message=f"Invalid URL: {resolved_url}",
-            url=resolved_url,
-            code="INVALID_URL",
-            suggestions=[
-                "Check if the URL is correct",
-                "URL must start with http:// or https://",
-            ],
-        )
-        raise typer.Exit(1)
-
-    # Perform search with appropriate UI
+    # Perform search
     def do_search() -> list[SearchResult]:
         return search_pages(
             resolved_url,
@@ -244,6 +346,96 @@ def search(
             }
             for r in results
         ]
+        typer.echo(json.dumps(output, indent=2))
+
+    # Print error/warning summary
+    print_summary()
+
+
+def _search_multiple_libraries(
+    query: str,
+    resolved_urls: list[str],
+    verbose: bool,
+    max_pages: int,
+    depth: int,
+    case_sensitive: bool,
+    regex: bool,
+    context: int,
+    limit: int,
+) -> None:
+    """Search across multiple libraries."""
+    if verbose:
+        typer.echo(f"Searching \"{query}\" on {len(resolved_urls)} libraries...")
+
+    # Perform multi-library search
+    try:
+        results_by_library: dict[str, list[SearchResult]] = {}
+        total_results = 0
+
+        for lib_url in resolved_urls:
+            if verbose:
+                typer.echo(f"\nSearching {lib_url}...")
+
+            results = search_pages(
+                lib_url,
+                query,
+                max_pages=max_pages,
+                depth=depth,
+                case_sensitive=case_sensitive,
+                regex=regex,
+                context_lines=context,
+                verbose=verbose,
+                result_limit=limit,
+            )
+            results_by_library[lib_url] = results[:limit]
+            total_results += len(results_by_library[lib_url])
+
+    except Exception as e:  # noqa: BLE001
+        echo_error(
+            message=f"Search error: {e}",
+            code="SEARCH_ERROR",
+            suggestions=["Check if the URLs are accessible", "Try with --verbose for more details"],
+        )
+        raise typer.Exit(1)
+
+    # Display results
+    if total_results == 0:
+        typer.echo("No results found.")
+        return
+
+    if verbose or is_interactive():
+        show_success_message(f"Found {total_results} results across {len(resolved_urls)} libraries")
+
+        # Create rich table grouped by library
+        for lib_url, results in results_by_library.items():
+            if not results:
+                continue
+
+            lib_name = lib_url.replace("https://", "").replace("http://", "").split("/")[0]
+            table = Table(title=f"Search Results - {lib_name}")
+            table.add_column("Page", style="cyan")
+            table.add_column("Snippet", style="green")
+
+            for result in results:
+                snippet_preview = result.snippet[:80].replace("\n", " ")
+                if len(result.snippet) > 80:
+                    snippet_preview += "..."
+                table.add_row(result.title, snippet_preview)
+
+            console.print(table)
+    else:
+        # JSON output for scripting
+        output = []
+        for lib_url, results in results_by_library.items():
+            lib_name = lib_url.replace("https://", "").replace("http://", "").split("/")[0]
+            for result in results:
+                output.append({
+                    "library": lib_name,
+                    "path": result.path,
+                    "title": result.title,
+                    "snippet": result.snippet,
+                    "url": result.url,
+                })
         typer.echo(json.dumps(output, indent=2))
 
     # Print error/warning summary
