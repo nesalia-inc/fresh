@@ -30,7 +30,7 @@ BINARY_EXTENSIONS = frozenset([
     # Video/audio
     ".mp4", ".webm", ".avi", ".mov", ".mp3", ".wav", ".ogg", ".flac",
     # Document formats
-    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".epub",
     # Font formats
     ".ttf", ".otf", ".woff", ".woff2", ".eot",
     # Other binary formats

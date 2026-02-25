@@ -16,7 +16,7 @@ from ..config import resolve_alias
 from ..console import print_summary, reset_console, set_verbose
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import fetch_binary_aware, is_binary_url, is_allowed_by_robots, validate_url
-from ..ui import is_interactive, show_success_message, spinner
+from ..ui import is_interactive, spinner
 
 app = typer.Typer(help="Download entire documentation for offline use.")
 
@@ -54,14 +54,45 @@ def _fetch_page_for_sync(page_url: str) -> str | None:
         page_url: The URL to fetch
 
     Returns:
-        HTML content or None if failed/binary
+        HTML content, None if binary/failed
     """
-    # Skip binary URLs
+    # Use binary-aware fetch
+    return fetch_binary_aware(page_url, skip_binary=True)
+
+
+def _save_page(page_url: str, pages_dir: Path) -> bool | None:
+    """
+    Fetch and save a single page to the sync directory.
+
+    Args:
+        page_url: The URL of the page to save
+        pages_dir: The directory to save pages to
+
+    Returns:
+        True if page was saved successfully, False if failed, None if skipped (binary)
+    """
+    # Check for binary URLs - skip but don't count as failure
     if is_binary_url(page_url):
         return None
 
-    # Use binary-aware fetch
-    return fetch_binary_aware(page_url, skip_binary=True)
+    response = _fetch_page_for_sync(page_url)
+    if not response or not isinstance(response, str):
+        return False
+
+    parsed = urlparse(page_url)
+    path = parsed.path.lstrip("/")
+    if not path or path.endswith("/"):
+        path = path + "index.html"
+
+    # Sanitize filename
+    filename = quote(path, safe="")
+    if len(filename) > 200:
+        filename = filename[:200]
+
+    page_file = pages_dir / filename
+    page_file.parent.mkdir(parents=True, exist_ok=True)
+    page_file.write_text(response, encoding="utf-8")
+    return True
 
 
 @app.command(name="sync")
@@ -128,12 +159,14 @@ def sync(
         sitemap_domain = sitemap_parsed.netloc
         if verbose:
             typer.echo(f"Using domain for robots.txt checks: {sitemap_domain}")
-        elif is_interactive():
-            show_success_message(f"Found sitemap at {sitemap_url}")
+
+        # Fetch sitemap content
+        if is_interactive() and not verbose:
             with spinner("Fetching sitemap..."):
                 xml_content = sitemap.fetch_with_retry(sitemap_url)
         else:
             xml_content = sitemap.fetch_with_retry(sitemap_url)
+
         if xml_content and isinstance(xml_content, str):
             urls = sitemap.parse_sitemap(xml_content)
             if urls:
@@ -168,9 +201,11 @@ def sync(
     # Fetch each page
     success_count = 0
     fail_count = 0
+    skipped_robots = 0
+    skipped_binary = 0
     total_pages = len(urls_to_sync)
 
-    # Create progress bar for interactive mode
+    # Process pages based on output mode
     if verbose:
         # Verbose mode: show detailed output for each page
         for i, page_url in enumerate(urls_to_sync):
@@ -178,33 +213,26 @@ def sync(
 
             # Check robots.txt before fetching (use sitemap domain if available)
             if not is_allowed_by_robots(page_url, domain=sitemap_domain):
-                if verbose:
-                    typer.echo(f"  Skipping (disallowed by robots.txt): {page_url}")
-                fail_count += 1
+                typer.echo(f"  Skipped (robots.txt): {page_url}")
+                skipped_robots += 1
                 continue
 
-            # Fetch the page
+            # Fetch and save the page
             try:
-                response = _fetch_page_for_sync(page_url)
-                if response and isinstance(response, str):
-                    parsed = urlparse(page_url)
-                    path = parsed.path.lstrip("/")
-                    if not path or path.endswith("/"):
-                        path = path + "index.html"
-
-                    # Sanitize filename
-                    filename = quote(path, safe="")
-                    if len(filename) > 200:
-                        filename = filename[:200]
-
-                    page_file = pages_dir / filename
-                    page_file.parent.mkdir(parents=True, exist_ok=True)
-                    page_file.write_text(response, encoding="utf-8")
+                result = _save_page(page_url, pages_dir)
+                if result is True:
                     success_count += 1
+                elif result is None:
+                    # Binary file - skipped
+                    skipped_binary += 1
+                    typer.echo(f"  Skipped (binary): {page_url}")
                 else:
                     fail_count += 1
-            except Exception:
+                    typer.echo(f"  Failed (empty response): {page_url}")
+            except Exception as e:
                 fail_count += 1
+                typer.echo(f"  Error: {page_url} - {e}")
+
     elif is_interactive():
         # Interactive mode: show progress bar
         with Progress(
@@ -219,30 +247,20 @@ def sync(
             )
 
             for page_url in urls_to_sync:
-                # Check robots.txt before fetching
-                if not is_allowed_by_robots(page_url):
-                    fail_count += 1
+                # Check robots.txt before fetching (use sitemap domain for consistency)
+                if not is_allowed_by_robots(page_url, domain=sitemap_domain):
+                    skipped_robots += 1
                     progress.advance(task)
                     continue
 
-                # Fetch the page
+                # Fetch and save the page
                 try:
-                    response = _fetch_page_for_sync(page_url)
-                    if response and isinstance(response, str):
-                        parsed = urlparse(page_url)
-                        path = parsed.path.lstrip("/")
-                        if not path or path.endswith("/"):
-                            path = path + "index.html"
-
-                        # Sanitize filename
-                        filename = quote(path, safe="")
-                        if len(filename) > 200:
-                            filename = filename[:200]
-
-                        page_file = pages_dir / filename
-                        page_file.parent.mkdir(parents=True, exist_ok=True)
-                        page_file.write_text(response, encoding="utf-8")
+                    result = _save_page(page_url, pages_dir)
+                    if result is True:
                         success_count += 1
+                    elif result is None:
+                        # Binary file - skipped
+                        skipped_binary += 1
                     else:
                         fail_count += 1
                 except Exception:
@@ -253,32 +271,23 @@ def sync(
                     description=f"Syncing pages ({success_count}/{total_pages})...",
                 )
                 progress.advance(task)
+
     else:
         # Non-interactive mode: simple progress without spinner
-        for i, page_url in enumerate(urls_to_sync):
-            # Check robots.txt before fetching
-            if not is_allowed_by_robots(page_url):
-                fail_count += 1
+        for page_url in urls_to_sync:
+            # Check robots.txt before fetching (use sitemap domain for consistency)
+            if not is_allowed_by_robots(page_url, domain=sitemap_domain):
+                skipped_robots += 1
                 continue
 
-            # Fetch the page
+            # Fetch and save the page
             try:
-                response = _fetch_page_for_sync(page_url)
-                if response and isinstance(response, str):
-                    parsed = urlparse(page_url)
-                    path = parsed.path.lstrip("/")
-                    if not path or path.endswith("/"):
-                        path = path + "index.html"
-
-                    # Sanitize filename
-                    filename = quote(path, safe="")
-                    if len(filename) > 200:
-                        filename = filename[:200]
-
-                    page_file = pages_dir / filename
-                    page_file.parent.mkdir(parents=True, exist_ok=True)
-                    page_file.write_text(response, encoding="utf-8")
+                result = _save_page(page_url, pages_dir)
+                if result is True:
                     success_count += 1
+                elif result is None:
+                    # Binary file - skipped
+                    skipped_binary += 1
                 else:
                     fail_count += 1
             except Exception:
@@ -290,7 +299,12 @@ def sync(
     # Summary
     typer.echo("\nSync complete!")
     typer.echo(f"  Success: {success_count} pages")
-    typer.echo(f"  Failed: {fail_count} pages")
+    if skipped_binary > 0:
+        typer.echo(f"  Skipped (binary): {skipped_binary} pages")
+    if skipped_robots > 0:
+        typer.echo(f"  Skipped (robots.txt): {skipped_robots} pages")
+    if fail_count > 0:
+        typer.echo(f"  Failed: {fail_count} pages")
     typer.echo(f"  Saved to: {sync_dir}")
 
     # Print error/warning summary

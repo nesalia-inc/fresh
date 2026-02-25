@@ -631,6 +631,10 @@ class TestIsBinaryUrl:
         """MP3 audio should be detected as binary."""
         assert http_module.is_binary_url("https://example.com/audio.mp3")
 
+    def test_epub_document(self):
+        """EPUB documents should be detected as binary."""
+        assert http_module.is_binary_url("https://example.com/book.epub")
+
     def test_svg_image(self):
         """SVG images are actually text/XML."""
         assert not http_module.is_binary_url("https://example.com/image.svg")
