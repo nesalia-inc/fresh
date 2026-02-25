@@ -121,7 +121,7 @@ def sync(
             typer.echo("No sitemap found, using crawler...")
             discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
         elif is_interactive():
-            with spinner("Crawling pages (max {max_pages})..."):
+            with spinner(f"Crawling pages (max {max_pages})..."):
                 discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
         else:
             discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
