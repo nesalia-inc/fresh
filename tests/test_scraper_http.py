@@ -137,6 +137,72 @@ class TestFetchWithRetry:
 
         assert result is None
 
+    @mock.patch("fresh.scraper.http.get_client")
+    @mock.patch("fresh.scraper.http.logger")
+    def test_error_message_shows_actual_url_after_redirect(self, mock_logger, mock_get_client):
+        """Error message should show actual URL after redirect, not original URL."""
+        # Use string URL (like real httpx.URL does)
+        actual_url = "https://www.example.com/robots.txt"
+
+        # Create a mock request with a URL that reflects a redirect
+        mock_request = mock.MagicMock()
+        mock_request.url = actual_url
+
+        # Create a mock response for the HTTPStatusError
+        mock_response = mock.MagicMock(spec=httpx.Response)
+        mock_response.status_code = 404
+        mock_response.url = actual_url
+
+        # Create HTTPStatusError with the mock request and response
+        mock_client = mock.MagicMock()
+        mock_client.get.side_effect = httpx.HTTPStatusError(
+            "Not Found",
+            request=mock_request,
+            response=mock_response,
+        )
+        mock_get_client.return_value = mock_client
+
+        result = http_module.fetch_with_retry(
+            "https://example.com/robots.txt",
+            max_retries=1,
+            backoff=0.01,
+        )
+
+        assert result is None
+        # The error message should contain the actual URL (with www), not the original URL
+        error_call = mock_logger.error.call_args[0][0]
+        assert "https://www.example.com/robots.txt" in error_call
+        assert "https://example.com/robots.txt" not in error_call
+
+    @mock.patch("fresh.scraper.http.get_client")
+    @mock.patch("fresh.scraper.http.logger")
+    def test_timeout_error_shows_actual_url(self, mock_logger, mock_get_client):
+        """Timeout error message should show actual URL that was requested."""
+        # Use string URL (like real httpx.URL does)
+        actual_url = "https://www.example.com/page"
+
+        # Create a mock request with a URL
+        mock_request = mock.MagicMock()
+        mock_request.url = actual_url
+
+        mock_client = mock.MagicMock()
+        mock_client.get.side_effect = httpx.TimeoutException(
+            "Timeout",
+            request=mock_request,
+        )
+        mock_get_client.return_value = mock_client
+
+        result = http_module.fetch_with_retry(
+            "https://example.com/page",
+            max_retries=1,
+            backoff=0.01,
+        )
+
+        assert result is None
+        # The error message should contain the actual URL
+        error_call = mock_logger.error.call_args[0][0]
+        assert "https://www.example.com/page" in error_call
+
 
 class TestHTTPClient:
     """Tests for HTTPClient class."""
