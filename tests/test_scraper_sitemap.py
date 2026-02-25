@@ -205,3 +205,46 @@ class TestNormalizeUrls:
         result = sitemap_module.normalize_urls(urls, "https://example.com/")
 
         assert result[0] == "https://example.com/page"
+
+    def test_url_encoded_tilde_decoded(self):
+        """URL-encoded characters like %7E (tilde) should be decoded."""
+        # %7E is the URL-encoded form of ~
+        urls = ["https://docs.rs/clap/%7E2.9"]
+        result = sitemap_module.normalize_urls(urls, "https://base.com")
+
+        assert result[0] == "https://docs.rs/clap/~2.9"
+
+    def test_url_encoded_spaces_decoded(self):
+        """URL-encoded spaces (%20) should be decoded."""
+        urls = ["https://example.com/my%20page"]
+        result = sitemap_module.normalize_urls(urls, "https://base.com")
+
+        assert result[0] == "https://example.com/my page"
+
+    def test_url_encoded_special_chars_decoded(self):
+        """Various URL-encoded special characters should be decoded."""
+        # %3A = :, %2F = /, %3F = ?, %3D = =
+        urls = [
+            "https://example.com/path%20with%20spaces",
+            "https://example.com/file%23hash",
+            "https://example.com/query%3Ftest%3Dvalue",
+        ]
+        result = sitemap_module.normalize_urls(urls, "https://base.com")
+
+        assert result[0] == "https://example.com/path with spaces"
+        assert result[1] == "https://example.com/file#hash"
+        assert result[2] == "https://example.com/query?test=value"
+
+    def test_url_encoded_in_relative_paths(self):
+        """URL-encoded characters in relative paths should be decoded."""
+        urls = ["/docs/%7Euser/"]
+        result = sitemap_module.normalize_urls(urls, "https://example.com")
+
+        assert result[0] == "https://example.com/docs/~user/"
+
+    def test_url_encoded_preserves_query_and_fragment(self):
+        """Query strings and fragments should be preserved while decoding path."""
+        urls = ["https://example.com/page%201?id=1#section"]
+        result = sitemap_module.normalize_urls(urls, "https://base.com")
+
+        assert result[0] == "https://example.com/page 1?id=1#section"
