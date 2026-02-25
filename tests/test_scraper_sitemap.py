@@ -161,12 +161,21 @@ class TestNormalizeUrls:
         assert result[1] == "https://example.com/api/users"
 
     def test_relative_paths_appended(self):
-        """Relative paths should be appended to base."""
+        """Relative paths should be appended to base directory (with trailing slash)."""
         urls = ["page1", "page2"]
-        result = sitemap_module.normalize_urls(urls, "https://example.com/docs")
+        result = sitemap_module.normalize_urls(urls, "https://example.com/docs/")
 
         assert result[0] == "https://example.com/docs/page1"
         assert result[1] == "https://example.com/docs/page2"
+
+    def test_relative_paths_file_base_url(self):
+        """Relative paths resolved against file URL should not append to filename."""
+        # This is the bug from issue #61: when base URL is a file (like download.html),
+        # relative paths should be resolved to the directory, not appended to the filename
+        urls = ["genindex.html"]
+        result = sitemap_module.normalize_urls(urls, "https://docs.python.org/3/download.html")
+
+        assert result[0] == "https://docs.python.org/3/genindex.html"
 
     def test_protocol_relative_urls(self):
         """Protocol-relative URLs should be made absolute."""
