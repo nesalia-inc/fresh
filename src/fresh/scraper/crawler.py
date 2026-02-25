@@ -9,7 +9,7 @@ import urllib.parse
 
 from bs4 import BeautifulSoup
 
-from .http import fetch_with_retry, fetch_binary_aware, is_binary_url, is_allowed_by_robots, validate_url
+from .http import fetch_binary_aware, is_binary_url, is_allowed_by_robots, validate_url
 from .sitemap import normalize_urls
 
 logger = logging.getLogger(__name__)
