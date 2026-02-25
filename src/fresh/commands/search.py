@@ -30,6 +30,45 @@ console = Console()
 logger = logging.getLogger(__name__)
 
 
+def discover_documentation_urls(
+    base_url: str,
+    max_pages: int = 50,
+    verbose: bool = False,
+) -> list[str]:
+    """
+    Discover documentation URLs using sitemap or crawler.
+
+    Args:
+        base_url: The base URL of the documentation
+        max_pages: Maximum number of pages to discover
+        verbose: Whether to show verbose output
+
+    Returns:
+        List of discovered URLs
+    """
+    discovered_urls: set[str] = set()
+
+    # Try sitemap first
+    sitemap_url = sitemap.discover_sitemap(base_url)
+    if sitemap_url:
+        if verbose:
+            typer.echo(f"Found sitemap at {sitemap_url}")
+        xml_content = sitemap.fetch_with_retry(sitemap_url)
+        if xml_content and isinstance(xml_content, str):
+            urls = sitemap.parse_sitemap(xml_content)
+            if urls:
+                filtered = [u for u in urls if filter_module.is_relevant_url(u)]
+                discovered_urls.update(filtered)
+
+    # Fallback to crawler if no sitemap or no URLs found
+    if not discovered_urls:
+        if verbose:
+            typer.echo("No sitemap found, using crawler...")
+        discovered_urls = crawler.crawl(base_url, max_pages=max_pages, max_depth=3)
+
+    return list(discovered_urls)[:max_pages]
+
+
 def extract_words_for_suggestions(
     base_url: str,
     max_pages: int = 20,
@@ -48,24 +87,8 @@ def extract_words_for_suggestions(
     """
     words: set[str] = set()
 
-    # Try sitemap first
-    sitemap_url = sitemap.discover_sitemap(base_url)
-    if sitemap_url:
-        if verbose:
-            typer.echo(f"Found sitemap at {sitemap_url}")
-        xml_content = sitemap.fetch_with_retry(sitemap_url)
-        if xml_content and isinstance(xml_content, str):
-            urls = sitemap.parse_sitemap(xml_content)
-            if urls:
-                filtered = [u for u in urls if filter_module.is_relevant_url(u)]
-                urls_to_check = filtered[:max_pages]
-            else:
-                urls_to_check = []
-    else:
-        # Fallback to crawler
-        if verbose:
-            typer.echo("No sitemap found, using crawler...")
-        urls_to_check = list(crawler.crawl(base_url, max_pages=max_pages, max_depth=2))
+    # Use shared URL discovery helper
+    urls_to_check = discover_documentation_urls(base_url, max_pages, verbose)
 
     # Extract words from pages
     for page_url in urls_to_check[:max_pages]:
@@ -162,31 +185,11 @@ def search_pages(
     """
     results: list[SearchResult] = []
 
-    # Discover pages using sitemap or crawler
-    discovered_urls: set[str] = set()
-
+    # Discover pages using shared helper
     if verbose:
         typer.echo("Discovering pages...")
 
-    sitemap_url = sitemap.discover_sitemap(base_url)
-    if sitemap_url:
-        if verbose:
-            typer.echo(f"Found sitemap at {sitemap_url}")
-        xml_content = sitemap.fetch_with_retry(sitemap_url)
-        if xml_content and isinstance(xml_content, str):
-            urls = sitemap.parse_sitemap(xml_content)
-            if urls:
-                filtered = [u for u in urls if filter_module.is_relevant_url(u)]
-                discovered_urls.update(filtered)
-
-    # Fallback to crawler if no sitemap
-    if not discovered_urls:
-        if verbose:
-            typer.echo("No sitemap found, using crawler...")
-        discovered_urls = crawler.crawl(base_url, max_pages=max_pages, max_depth=depth)
-
-    # Limit pages to search
-    pages_to_search = list(discovered_urls)[:max_pages]
+    pages_to_search = discover_documentation_urls(base_url, max_pages, verbose)
 
     if verbose:
         typer.echo(f"Searching {len(pages_to_search)} pages...")
