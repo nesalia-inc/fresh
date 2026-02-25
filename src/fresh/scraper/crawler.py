@@ -9,7 +9,7 @@ import urllib.parse
 
 from bs4 import BeautifulSoup
 
-from .http import fetch_with_retry, is_allowed_by_robots, validate_url
+from .http import fetch_with_retry, fetch_binary_aware, is_binary_url, is_allowed_by_robots, validate_url
 from .sitemap import normalize_urls
 
 logger = logging.getLogger(__name__)
@@ -103,7 +103,12 @@ def fetch_page(url: str) -> str | None:
     Returns:
         HTML content or None on failure
     """
-    result = fetch_with_retry(url)
+    # Skip binary URLs (images, archives, etc.)
+    if is_binary_url(url):
+        logger.debug(f"Skipping binary URL: {url}")
+        return None
+
+    result = fetch_binary_aware(url, skip_binary=True)
     if isinstance(result, str):
         return result
     return None
