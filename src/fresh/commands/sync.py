@@ -90,6 +90,9 @@ def sync(
     # Discover pages
     discovered_urls: set[str] = set()
 
+    # Extract domain from sitemap for consistent robots.txt checking
+    sitemap_domain: str | None = None
+
     if verbose:
         typer.echo("Discovering pages...")
         sitemap_url = sitemap.discover_sitemap(resolved_url)
@@ -102,13 +105,17 @@ def sync(
     if sitemap_url:
         if verbose:
             typer.echo(f"Found sitemap at {sitemap_url}")
+        # Extract domain from sitemap URL for consistent robots.txt checks
+        sitemap_parsed = urlparse(sitemap_url)
+        sitemap_domain = sitemap_parsed.netloc
+        if verbose:
+            typer.echo(f"Using domain for robots.txt checks: {sitemap_domain}")
         elif is_interactive():
             show_success_message(f"Found sitemap at {sitemap_url}")
             with spinner("Fetching sitemap..."):
                 xml_content = sitemap.fetch_with_retry(sitemap_url)
         else:
             xml_content = sitemap.fetch_with_retry(sitemap_url)
-
         if xml_content and isinstance(xml_content, str):
             urls = sitemap.parse_sitemap(xml_content)
             if urls:
@@ -151,9 +158,10 @@ def sync(
         for i, page_url in enumerate(urls_to_sync):
             typer.echo(f"[{i + 1}/{total_pages}] Syncing: {page_url}")
 
-            # Check robots.txt before fetching
-            if not is_allowed_by_robots(page_url):
-                typer.echo(f"  Skipping (disallowed by robots.txt): {page_url}")
+            # Check robots.txt before fetching (use sitemap domain if available)
+            if not is_allowed_by_robots(page_url, domain=sitemap_domain):
+                if verbose:
+                    typer.echo(f"  Skipping (disallowed by robots.txt): {page_url}")
                 fail_count += 1
                 continue
 
