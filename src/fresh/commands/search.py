@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 
 import typer
@@ -26,6 +27,8 @@ from ..ui import is_interactive, show_success_message, spinner
 app = typer.Typer(help="Search for content across documentation pages.")
 console = Console()
 
+logger = logging.getLogger(__name__)
+
 
 def extract_words_for_suggestions(
     base_url: str,
@@ -43,8 +46,6 @@ def extract_words_for_suggestions(
     Returns:
         List of words found in documentation
     """
-    import re
-
     words: set[str] = set()
 
     # Try sitemap first
@@ -126,9 +127,9 @@ def show_suggestions(query: str, base_url: str, verbose: bool = False) -> None:
                 typer.echo(f"  - {suggestion}")
 
             typer.echo(f"\nSearch with: fresh search \"{suggestions[0][0]}\" {base_url}")
-    except Exception:
-        # Don't fail if suggestions fail
-        pass
+    except Exception as e:
+        # Log but don't fail if suggestions fail
+        logger.debug(f"Could not generate suggestions: {e}")
 
 
 def search_pages(
