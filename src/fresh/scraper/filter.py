@@ -160,36 +160,6 @@ def deduplicate(
     return result
 
 
-def detect_url_pattern(url: str) -> str | None:
-    """
-    Detect if a URL contains a pattern (glob, regex, brace expansion).
-
-    Args:
-        url: The URL to check
-
-    Returns:
-        Pattern type: "glob", "glob_recursive", "regex", "brace", or None
-    """
-    # Check for regex pattern (pattern starts with re: after protocol/domain)
-    # Pattern format: https://example.com/re:/path or just re:/path
-    if "re:/" in url or url.startswith("re:"):
-        return "regex"
-
-    # Check for brace expansion {a,b,c}
-    if "{" in url and "}" in url:
-        return "brace"
-
-    # Check for recursive glob **
-    if "**" in url:
-        return "glob_recursive"
-
-    # Check for simple glob *
-    if "*" in url:
-        return "glob"
-
-    return None
-
-
 def expand_brace_pattern(pattern: str) -> list[str]:
     """
     Expand brace patterns like {page1,page2,page3}.
@@ -200,8 +170,6 @@ def expand_brace_pattern(pattern: str) -> list[str]:
     Returns:
         List of expanded patterns
     """
-    import re
-
     brace_pattern = re.compile(r"\{([^}]+)\}")
     matches = brace_pattern.findall(pattern)
 
