@@ -6,6 +6,7 @@ import hashlib
 import re
 import time
 from pathlib import Path
+from urllib.parse import urlparse, quote
 
 import typer
 from markdownify import markdownify as md
@@ -20,6 +21,76 @@ app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
 # Cache settings
 CACHE_MAX_SIZE_BYTES = 1024 * 1024 * 1024  # 1GB
 CACHE_TTL_DAYS = 30
+
+# Default sync directory
+DEFAULT_SYNC_DIR = Path.home() / ".fresh" / "docs"
+
+
+def get_sync_dir() -> Path:
+    """Get the default sync directory.
+
+    Returns:
+        Path to the sync directory
+    """
+    return DEFAULT_SYNC_DIR
+
+
+def url_to_sync_path(url: str) -> Path | None:
+    """Convert a URL to its potential sync file path.
+
+    Args:
+        url: The URL to convert
+
+    Returns:
+        The potential path in the sync directory, or None if the URL cannot be mapped
+    """
+    parsed = urlparse(url)
+    domain = parsed.netloc.replace(":", "_").replace(".", "_")
+    path = parsed.path.lstrip("/")
+
+    if not path or path.endswith("/"):
+        path = path + "index.html"
+
+    # Sanitize filename
+    filename = quote(path, safe="")
+    if len(filename) > 200:
+        filename = filename[:200]
+
+    sync_dir = DEFAULT_SYNC_DIR / domain / "pages"
+    file_path = sync_dir / filename
+
+    return file_path
+
+
+def get_local_content(url: str) -> str | None:
+    """Get locally synced content for a URL.
+
+    Args:
+        url: The URL to get local content for
+
+    Returns:
+        Local HTML content or None if not available locally
+    """
+    sync_path = url_to_sync_path(url)
+    if sync_path and sync_path.exists():
+        try:
+            return sync_path.read_text(encoding="utf-8")
+        except (OSError, IOError):
+            return None
+    return None
+
+
+def local_content_exists(url: str) -> bool:
+    """Check if local synced content exists for a URL.
+
+    Args:
+        url: The URL to check
+
+    Returns:
+        True if local content exists, False otherwise
+    """
+    sync_path = url_to_sync_path(url)
+    return sync_path is not None and sync_path.exists()
 
 
 def html_to_markdown(html: str, skip_scripts: bool = False) -> str:
@@ -201,8 +272,24 @@ def get(
     output: str | None = typer.Option(None, "--output", "-o", help="Write output to file"),
     retry: int = typer.Option(3, "--retry", "-r", help="Number of retry attempts"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be fetched without downloading"),
+    local: bool = typer.Option(False, "--local", "--offline", help="Use only local synced content (no network requests)"),
+    remote: bool = typer.Option(False, "--remote", help="Force remote fetching (skip local content check)"),
 ) -> None:
-    """Fetch a documentation page and convert it to Markdown."""
+    """Fetch a documentation page and convert it to Markdown.
+
+    By default, the command uses a local-first strategy: it checks for locally
+    synced content first, then falls back to remote fetching. Use --local to
+    use only local content, or --remote to force remote fetching.
+    """
+    # Validate mutually exclusive options
+    if local and remote:
+        echo_error(
+            message="Cannot use both --local and --remote flags",
+            code="CONFLICTING_OPTIONS",
+            suggestions=["Use either --local or --remote, not both"],
+        )
+        raise typer.Exit(1)
+
     # Initialize console with verbose mode
     set_verbose(verbose)
     reset_console()
@@ -226,26 +313,67 @@ def get(
         )
         raise typer.Exit(1)
 
-    # Check cache first (unless --no-cache is specified)
+    # Determine fetch strategy
+    # --local: only use local synced content
+    # --remote: only use remote (skip local check)
+    # default (local-first): try local first, then remote
+    use_local_only = local
+    skip_local = remote
+
+    # Check local synced content first (unless --remote is specified)
     content: str | None = None
-    if not no_cache:
-        if verbose:
-            typer.echo("Checking cache...")
-            content = get_cached_content(resolved_url)
-        elif is_interactive():
-            with spinner("Checking cache..."):
-                content = get_cached_content(resolved_url)
-        else:
-            content = get_cached_content(resolved_url)
+    html_content: str | None = None
 
-        if content:
+    if not skip_local:
+        if local_content_exists(resolved_url):
             if verbose:
-                typer.echo("✓ Found in cache")
+                typer.echo("Found local synced content...")
             elif is_interactive():
-                show_success_message("Found in cache")
+                with spinner("Loading local content..."):
+                    html_content = get_local_content(resolved_url)
+            else:
+                html_content = get_local_content(resolved_url)
 
-    # Fetch if not cached
-    if content is None:
+            if html_content:
+                if verbose:
+                    typer.echo("Using local content")
+                elif is_interactive():
+                    show_success_message("Using local content")
+                content = html_to_markdown(html_content, skip_scripts=skip_scripts)
+
+    # If --local was specified but no local content found, error out
+    if use_local_only and content is None:
+        echo_error(
+            message="Local content not found. Run 'fresh sync' first to download documentation.",
+            url=resolved_url,
+            code="LOCAL_NOT_FOUND",
+            suggestions=[
+                "Use 'fresh sync <url>' to download documentation for offline use",
+                "Use --remote to fetch from the network instead",
+            ],
+        )
+        raise typer.Exit(1)
+
+    # If no local content found (or --remote specified), try cache and remote
+    if content is None and not use_local_only:
+        # Check cache (unless --no-cache is specified)
+        if not no_cache:
+            if verbose:
+                typer.echo("Checking cache...")
+            elif is_interactive():
+                with spinner("Checking cache..."):
+                    content = get_cached_content(resolved_url)
+            else:
+                content = get_cached_content(resolved_url)
+
+            if content:
+                if verbose:
+                    typer.echo("Found in cache")
+                elif is_interactive():
+                    show_success_message("Found in cache")
+
+    # Fetch if not cached and not using local-only mode
+    if content is None and not use_local_only:
         if dry_run:
             typer.echo(f"Would fetch: {resolved_url}")
             return
