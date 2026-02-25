@@ -330,18 +330,22 @@ def _cleanup_robots_cache() -> None:
             del _robots_cache[domain]
 
 
-def is_allowed_by_robots(url: str, user_agent: str = "*") -> bool:
+def is_allowed_by_robots(url: str, user_agent: str = "*", domain: str | None = None) -> bool:
     """Check if a URL is allowed by robots.txt.
 
     Args:
         url: The URL to check
         user_agent: The user agent to check against (default: *)
+        domain: The domain to use for robots.txt lookup. If not provided,
+                it will be extracted from the URL.
 
     Returns:
-        True if the URL is allowed, False if disallowed
+        True if the URL is allowed, False if disallowed.
+        When robots.txt returns 404 (does not exist), returns True (allows all access).
     """
     parsed = urllib.parse.urlparse(url)
-    domain = parsed.netloc
+    # Use provided domain or extract from URL
+    domain = domain or parsed.netloc
     path = parsed.path or "/"
 
     disallowed_paths: set[str] = set()
