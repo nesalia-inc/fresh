@@ -13,6 +13,7 @@ from typing import Any
 
 import httpx
 
+
 DEFAULT_HEADERS = {
     "User-Agent": "fresh/0.1.0 (https://fresh.nesalia.com)",
 }
@@ -242,6 +243,40 @@ def validate_url(url: str, allowed_domains: list[str] | None = None) -> bool:
 
     Returns:
         True if URL is valid, False otherwise
+    """
+    return _validate_url_internal(url, allowed_domains, raise_on_error=False)
+
+
+def require_valid_url(url: str, allowed_domains: list[str] | None = None) -> None:
+    """
+    Validate URL and raise ValidationError if invalid.
+
+    Args:
+        url: The URL to validate
+        allowed_domains: Optional list of allowed domains
+
+    Raises:
+        ValidationError: If URL is invalid
+    """
+    _validate_url_internal(url, allowed_domains, raise_on_error=True)
+
+
+def _validate_url_internal(
+    url: str, allowed_domains: list[str] | None, raise_on_error: bool
+) -> bool:
+    """
+    Internal URL validation with optional exception raising.
+
+    Args:
+        url: The URL to validate
+        allowed_domains: Optional list of allowed domains
+        raise_on_error: If True, raise ValidationError instead of returning False
+
+    Returns:
+        True if URL is valid, False otherwise
+
+    Raises:
+        ValidationError: If URL is invalid and raise_on_error is True
     """
     # Check URL length to prevent DoS
     if len(url) > MAX_URL_LENGTH:
