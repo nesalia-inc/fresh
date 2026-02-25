@@ -763,7 +763,7 @@ class TestFetchBinaryAware:
             headers={"Content-Type": "text/html"},
         )
 
-        result = http_module.fetch_binary_aware("https://example.com/page.html")
+        _result = http_module.fetch_binary_aware("https://example.com/page.html")
 
         assert mock_fetch.called
 

@@ -15,7 +15,7 @@ from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
 from ..config import resolve_alias
 from ..console import print_summary, reset_console, set_verbose
 from ..scraper import crawler, filter as filter_module, sitemap
-from ..scraper.http import fetch_binary_aware, fetch_with_retry, is_binary_url, is_allowed_by_robots, validate_url
+from ..scraper.http import fetch_binary_aware, is_binary_url, is_allowed_by_robots, validate_url
 from ..ui import is_interactive, show_success_message, spinner
 
 app = typer.Typer(help="Download entire documentation for offline use.")
