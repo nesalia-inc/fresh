@@ -127,6 +127,7 @@ def list_urls(
                 with spinner(f"Crawling pages (max {max_pages})..."):
                     discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
             else:
+                typer.echo("Tip: Use 'fresh sync <URL>' to directly download pages without sitemap discovery.")
                 discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
         else:
             # Sitemap was found but yielded no results, still use crawler silently
