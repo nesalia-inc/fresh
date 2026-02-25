@@ -10,10 +10,13 @@ from pathlib import Path
 from urllib.parse import urlparse, quote
 
 import typer
+from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
 
 from ..config import resolve_alias
+from ..console import echo_error, print_summary, reset_console, set_verbose
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import fetch_with_retry, is_allowed_by_robots, validate_url
+from ..ui import is_interactive, show_success_message, spinner
 
 app = typer.Typer(help="Download entire documentation for offline use.")
 
@@ -56,6 +59,10 @@ def sync(
     pattern: str | None = typer.Option(None, "--pattern", "-p", help="Filter paths matching pattern"),
 ) -> None:
     """Download entire documentation for offline use."""
+    # Initialize console with verbose mode
+    set_verbose(verbose)
+    reset_console()
+
     # Resolve alias to URL
     resolved_url = resolve_alias(url)
 
@@ -85,12 +92,23 @@ def sync(
 
     if verbose:
         typer.echo("Discovering pages...")
+        sitemap_url = sitemap.discover_sitemap(resolved_url)
+    elif is_interactive():
+        with spinner("Discovering pages..."):
+            sitemap_url = sitemap.discover_sitemap(resolved_url)
+    else:
+        sitemap_url = sitemap.discover_sitemap(resolved_url)
 
-    sitemap_url = sitemap.discover_sitemap(resolved_url)
     if sitemap_url:
         if verbose:
             typer.echo(f"Found sitemap at {sitemap_url}")
-        xml_content = sitemap.fetch_with_retry(sitemap_url)
+        elif is_interactive():
+            show_success_message(f"Found sitemap at {sitemap_url}")
+            with spinner("Fetching sitemap..."):
+                xml_content = sitemap.fetch_with_retry(sitemap_url)
+        else:
+            xml_content = sitemap.fetch_with_retry(sitemap_url)
+
         if xml_content and isinstance(xml_content, str):
             urls = sitemap.parse_sitemap(xml_content)
             if urls:
@@ -101,7 +119,12 @@ def sync(
     if not discovered_urls:
         if verbose:
             typer.echo("No sitemap found, using crawler...")
-        discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
+            discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
+        elif is_interactive():
+            with spinner("Crawling pages (max {max_pages})..."):
+                discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
+        else:
+            discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
 
     # Apply pattern filter if specified
     if pattern:
@@ -120,40 +143,120 @@ def sync(
     # Fetch each page
     success_count = 0
     fail_count = 0
+    total_pages = len(urls_to_sync)
 
-    for i, page_url in enumerate(urls_to_sync):
-        if verbose:
-            typer.echo(f"[{i + 1}/{len(urls_to_sync)}] Syncing: {page_url}")
+    # Create progress bar for interactive mode
+    if verbose:
+        # Verbose mode: show detailed output for each page
+        for i, page_url in enumerate(urls_to_sync):
+            typer.echo(f"[{i + 1}/{total_pages}] Syncing: {page_url}")
 
-        # Check robots.txt before fetching
-        if not is_allowed_by_robots(page_url):
-            if verbose:
+            # Check robots.txt before fetching
+            if not is_allowed_by_robots(page_url):
                 typer.echo(f"  Skipping (disallowed by robots.txt): {page_url}")
-            fail_count += 1
-            continue
-
-        # Fetch the page
-        try:
-            response = fetch_with_retry(page_url)
-            if response and isinstance(response, str):
-                parsed = urlparse(page_url)
-                path = parsed.path.lstrip("/")
-                if not path or path.endswith("/"):
-                    path = path + "index.html"
-
-                # Sanitize filename
-                filename = quote(path, safe="")
-                if len(filename) > 200:
-                    filename = filename[:200]
-
-                page_file = pages_dir / filename
-                page_file.parent.mkdir(parents=True, exist_ok=True)
-                page_file.write_text(response, encoding="utf-8")
-                success_count += 1
-            else:
                 fail_count += 1
-        except Exception:
-            fail_count += 1
+                continue
+
+            # Fetch the page
+            try:
+                response = fetch_with_retry(page_url)
+                if response and isinstance(response, str):
+                    parsed = urlparse(page_url)
+                    path = parsed.path.lstrip("/")
+                    if not path or path.endswith("/"):
+                        path = path + "index.html"
+
+                    # Sanitize filename
+                    filename = quote(path, safe="")
+                    if len(filename) > 200:
+                        filename = filename[:200]
+
+                    page_file = pages_dir / filename
+                    page_file.parent.mkdir(parents=True, exist_ok=True)
+                    page_file.write_text(response, encoding="utf-8")
+                    success_count += 1
+                else:
+                    fail_count += 1
+            except Exception:
+                fail_count += 1
+    elif is_interactive():
+        # Interactive mode: show progress bar
+        with Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeRemainingColumn(),
+        ) as progress:
+            task = progress.add_task(
+                f"Syncing pages ({success_count}/{total_pages})...",
+                total=total_pages,
+            )
+
+            for page_url in urls_to_sync:
+                # Check robots.txt before fetching
+                if not is_allowed_by_robots(page_url):
+                    fail_count += 1
+                    progress.advance(task)
+                    continue
+
+                # Fetch the page
+                try:
+                    response = fetch_with_retry(page_url)
+                    if response and isinstance(response, str):
+                        parsed = urlparse(page_url)
+                        path = parsed.path.lstrip("/")
+                        if not path or path.endswith("/"):
+                            path = path + "index.html"
+
+                        # Sanitize filename
+                        filename = quote(path, safe="")
+                        if len(filename) > 200:
+                            filename = filename[:200]
+
+                        page_file = pages_dir / filename
+                        page_file.parent.mkdir(parents=True, exist_ok=True)
+                        page_file.write_text(response, encoding="utf-8")
+                        success_count += 1
+                    else:
+                        fail_count += 1
+                except Exception:
+                    fail_count += 1
+
+                progress.update(
+                    task,
+                    description=f"Syncing pages ({success_count}/{total_pages})...",
+                )
+                progress.advance(task)
+    else:
+        # Non-interactive mode: simple progress without spinner
+        for i, page_url in enumerate(urls_to_sync):
+            # Check robots.txt before fetching
+            if not is_allowed_by_robots(page_url):
+                fail_count += 1
+                continue
+
+            # Fetch the page
+            try:
+                response = fetch_with_retry(page_url)
+                if response and isinstance(response, str):
+                    parsed = urlparse(page_url)
+                    path = parsed.path.lstrip("/")
+                    if not path or path.endswith("/"):
+                        path = path + "index.html"
+
+                    # Sanitize filename
+                    filename = quote(path, safe="")
+                    if len(filename) > 200:
+                        filename = filename[:200]
+
+                    page_file = pages_dir / filename
+                    page_file.parent.mkdir(parents=True, exist_ok=True)
+                    page_file.write_text(response, encoding="utf-8")
+                    success_count += 1
+                else:
+                    fail_count += 1
+            except Exception:
+                fail_count += 1
 
     # Save metadata
     _save_metadata(sync_dir, resolved_url, success_count)
@@ -163,3 +266,6 @@ def sync(
     typer.echo(f"  Success: {success_count} pages")
     typer.echo(f"  Failed: {fail_count} pages")
     typer.echo(f"  Saved to: {sync_dir}")
+
+    # Print error/warning summary
+    print_summary()
