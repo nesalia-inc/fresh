@@ -155,7 +155,9 @@ def normalize_urls(urls: Sequence[str], base_url: str) -> list[str]:
     Returns:
         List of absolute URLs
     """
-    base = base_url.rstrip("/")
+    # Don't strip trailing slash - it's important for proper URL resolution
+    # especially for relative paths where the base is a directory
+    base = base_url
     normalized = []
 
     for url in urls:
@@ -180,7 +182,8 @@ def normalize_urls(urls: Sequence[str], base_url: str) -> list[str]:
             normalized.append(f"{parsed.scheme}://{parsed.netloc}{url}")
             continue
 
-        # Relative path
-        normalized.append(f"{base}/{url}")
+        # Relative path - use urljoin for proper resolution
+        # urljoin correctly handles cases where base is a file path vs directory
+        normalized.append(urllib.parse.urljoin(base, url))
 
     return normalized
