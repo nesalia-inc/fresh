@@ -516,7 +516,7 @@ def search_multiple_libraries(
 def search(
     query: str = typer.Argument(..., help="The search query"),
     url: list[str] = typer.Argument(None, help="The URL or alias of the documentation website(s)"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Use verbose output"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show verbose output (table format)"),
     max_pages: int = typer.Option(50, "--max-pages", help="Maximum number of pages to search"),
     depth: int = typer.Option(3, "--depth", "-d", help="Maximum crawl depth"),
     context: int = typer.Option(1, "--context", "-c", help="Number of context lines around matches"),
@@ -526,6 +526,8 @@ def search(
     local: bool = typer.Option(False, "--local", help="Search only in locally synced documentation"),
     remote: bool = typer.Option(False, "--remote", help="Search only in remote documentation (skip local)"),
     fresh: bool = typer.Option(False, "--fresh", help="Force fresh search (skip cache)"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output results as JSON"),
+    table_output: bool = typer.Option(False, "--table", "-t", help="Output results as table (verbose)"),
 ) -> None:
     """Search for content across documentation pages."""
     # Handle no URL provided - show help
@@ -583,6 +585,8 @@ def search(
             context=context,
             limit=limit,
             source=source,
+            json_output=json_output,
+            table_output=table_output,
         )
     else:
         # Multiple library search
@@ -597,6 +601,8 @@ def search(
             context=context,
             limit=limit,
             source=source,
+            json_output=json_output,
+            table_output=table_output,
         )
 
 
@@ -611,6 +617,8 @@ def _search_single_library(
     context: int,
     limit: int,
     source: str = "auto",
+    json_output: bool = False,
+    table_output: bool = False,
 ) -> None:
     """Search a single library."""
     if verbose:
@@ -656,7 +664,11 @@ def _search_single_library(
         show_suggestions(query, resolved_url, verbose)
         return
 
-    if verbose or is_interactive():
+    # Default to JSON output, use table only with --table or --verbose
+    show_table = table_output or verbose
+    show_json = json_output or not show_table
+
+    if show_table:
         show_success_message(f"Found {len(results)} results")
 
         # Create rich table
@@ -677,7 +689,8 @@ def _search_single_library(
             table.add_row(result.title, url_display, snippet_preview)
 
         console.print(table)
-    else:
+
+    if show_json:
         # JSON output for scripting
         output = [
             {
@@ -706,6 +719,8 @@ def _search_multiple_libraries(
     context: int,
     limit: int,
     source: str = "auto",
+    json_output: bool = False,
+    table_output: bool = False,
 ) -> None:
     """Search across multiple libraries."""
     if verbose:
@@ -751,7 +766,11 @@ def _search_multiple_libraries(
             show_suggestions(query, resolved_urls[0], verbose)
         return
 
-    if verbose or is_interactive():
+    # Default to JSON output, use table only with --table or --verbose
+    show_table = table_output or verbose
+    show_json = json_output or not show_table
+
+    if show_table:
         show_success_message(f"Found {total_results} results across {len(resolved_urls)} libraries")
 
         # Create rich table grouped by library
@@ -776,7 +795,8 @@ def _search_multiple_libraries(
                 table.add_row(result.title, url_display, snippet_preview)
 
             console.print(table)
-    else:
+
+    if show_json:
         # JSON output for scripting
         output = []
         for lib_url, results in results_by_library.items():
@@ -788,6 +808,7 @@ def _search_multiple_libraries(
                     "title": result.title,
                     "snippet": result.snippet,
                     "url": result.url,
+                    "source": result.source,
                 })
         typer.echo(json.dumps(output, indent=2))
 
