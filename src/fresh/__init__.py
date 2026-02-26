@@ -1,6 +1,6 @@
 """fresh - CLI application."""
 
-__version__ = "1.2.2"
+__version__ = "2.1.2"
 
 import typer
 
