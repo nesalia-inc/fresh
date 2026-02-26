@@ -307,3 +307,95 @@ class TestConstants:
         assert crawler_module.RATE_LIMIT_TTL > 0
         assert crawler_module.RATE_LIMIT_MAX_DOMAINS > 0
         assert crawler_module._RATE_LIMIT_CLEANUP_INTERVAL > 0
+
+
+class TestParallelFetchPage:
+    """Tests for parallel_fetch_page function."""
+
+    @mock.patch("fresh.scraper.crawler.fetch_binary_aware")
+    def test_successful_parallel_fetch(self, mock_fetch):
+        """Should return HTML content on success."""
+        mock_fetch.return_value = "<html>Content</html>"
+
+        result = crawler_module.parallel_fetch_page(
+            ("https://example.com/page.html", True, None)
+        )
+
+        assert result[0] == "https://example.com/page.html"
+        assert result[1] == "<html>Content</html>"
+        assert result[2] == []
+
+    @mock.patch("fresh.scraper.crawler.fetch_binary_aware")
+    def test_failed_parallel_fetch(self, mock_fetch):
+        """Should return None on failure."""
+        mock_fetch.return_value = None
+
+        result = crawler_module.parallel_fetch_page(
+            ("https://example.com/page.html", True, None)
+        )
+
+        assert result[0] == "https://example.com/page.html"
+        assert result[1] is None
+        assert result[2] == []
+
+    def test_invalid_url_returns_none(self):
+        """Should return None for invalid URL."""
+        result = crawler_module.parallel_fetch_page(
+            ("not-a-url", True, None)
+        )
+
+        assert result[1] is None
+
+
+class TestParallelCrawl:
+    """Tests for parallel_crawl function."""
+
+    @mock.patch("fresh.scraper.crawler.parallel_fetch_page")
+    def test_parallel_crawl_basic(self, mock_fetch):
+        """Should crawl pages in parallel."""
+        mock_fetch.side_effect = [
+            ("https://example.com/", "<html><a href='/page1'>Link</a></html>", ["/page1"]),
+            ("https://example.com/page1", "<html>Content</html>", []),
+        ]
+
+        result = crawler_module.parallel_crawl(
+            "https://example.com/",
+            max_pages=5,
+            max_depth=2,
+            max_workers=2,
+        )
+
+        assert len(result) >= 1
+        assert "https://example.com/" in result
+
+    @mock.patch("fresh.scraper.crawler.parallel_fetch_page")
+    def test_parallel_crawl_max_pages(self, mock_fetch):
+        """Should respect max_pages limit."""
+        mock_fetch.return_value = (
+            "https://example.com/page",
+            "<html><a href='/next'>Link</a></html>",
+            ["/next"],
+        )
+
+        result = crawler_module.parallel_crawl(
+            "https://example.com/",
+            max_pages=3,
+            max_depth=10,
+            max_workers=2,
+        )
+
+        assert len(result) <= 3
+
+    @mock.patch("fresh.scraper.crawler.parallel_fetch_page")
+    def test_parallel_crawl_empty_start(self, mock_fetch):
+        """Should handle empty start URL gracefully."""
+        mock_fetch.return_value = ("https://example.com/", None, [])
+
+        result = crawler_module.parallel_crawl(
+            "https://example.com/",
+            max_pages=5,
+            max_workers=2,
+        )
+
+        assert isinstance(result, set)
+

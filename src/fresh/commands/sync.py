@@ -15,6 +15,7 @@ from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
 from ..config import resolve_alias
 from ..console import print_summary, reset_console, set_verbose
 from ..scraper import crawler, filter as filter_module, sitemap
+from ..scraper.crawler import parallel_crawl
 from ..scraper.http import fetch_binary_aware, is_binary_url, is_allowed_by_robots, validate_url
 from ..ui import is_interactive, spinner
 
@@ -106,6 +107,7 @@ def sync(
     depth: int = typer.Option(3, "--depth", "-d", help="Maximum crawl depth"),
     force: bool = typer.Option(False, "--force", "-f", help="Force re-sync (delete existing files first)"),
     pattern: str | None = typer.Option(None, "--pattern", "-p", help="Filter paths matching pattern"),
+    workers: int = typer.Option(1, "--workers", "-w", help="Number of parallel workers (1 = sequential, >1 = parallel)"),
 ) -> None:
     """Download entire documentation for offline use."""
     # Initialize console with verbose mode
@@ -176,13 +178,29 @@ def sync(
     # Fallback to crawler if no sitemap
     if not discovered_urls:
         if verbose:
-            typer.echo("No sitemap found, using crawler...")
-            discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
-        elif is_interactive():
-            with spinner(f"Crawling pages (max {max_pages})..."):
+            mode = "parallel" if workers > 1 else "sequential"
+            typer.echo(f"No sitemap found, using {mode} crawler (workers={workers})...")
+            if workers > 1:
+                discovered_urls = parallel_crawl(
+                    resolved_url, max_pages=max_pages, max_depth=depth, max_workers=workers
+                )
+            else:
                 discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
+        elif is_interactive():
+            with spinner(f"Crawling pages (max {max_pages}, workers={workers})..."):
+                if workers > 1:
+                    discovered_urls = parallel_crawl(
+                        resolved_url, max_pages=max_pages, max_depth=depth, max_workers=workers
+                    )
+                else:
+                    discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
         else:
-            discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
+            if workers > 1:
+                discovered_urls = parallel_crawl(
+                    resolved_url, max_pages=max_pages, max_depth=depth, max_workers=workers
+                )
+            else:
+                discovered_urls = crawler.crawl(resolved_url, max_pages=max_pages, max_depth=depth)
 
     # Apply pattern filter if specified
     if pattern:

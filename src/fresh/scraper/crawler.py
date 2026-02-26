@@ -6,6 +6,7 @@ import logging
 import threading
 import time
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from bs4 import BeautifulSoup
 
@@ -286,9 +287,8 @@ def parallel_crawl(
     Returns:
         Set of unique URLs discovered
     """
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-
     visited: set[str] = set()
+    visited_lock = threading.Lock()
     urls_by_depth: dict[int, list[str]] = {0: [start_url]}
 
     for depth in range(max_depth + 1):
@@ -299,11 +299,12 @@ def parallel_crawl(
         next_urls: list[str] = []
 
         # Prepare args for parallel fetch
-        fetch_args = [
-            (url, respect_robots, allowed_domains)
-            for url in current_urls
-            if url not in visited
-        ]
+        with visited_lock:
+            fetch_args = [
+                (url, respect_robots, allowed_domains)
+                for url in current_urls
+                if url not in visited
+            ]
 
         if not fetch_args:
             continue
@@ -317,25 +318,30 @@ def parallel_crawl(
 
             for future in as_completed(futures):
                 url = futures[future]
-                if len(visited) >= max_pages:
-                    executor.shutdown(wait=False)
-                    break
-
-                if url in visited:
-                    continue
+                with visited_lock:
+                    if len(visited) >= max_pages:
+                        break
+                    if url in visited:
+                        continue
 
                 try:
                     result_url, html, links = future.result()
                     if html is not None:
-                        visited.add(result_url)
+                        with visited_lock:
+                            visited.add(result_url)
                         logger.debug(f"Parallel crawl (depth={depth}): {result_url}")
 
+                        with visited_lock:
+                            current_count = len(visited)
                         for link in links:
-                            if link not in visited and len(visited) < max_pages:
-                                next_urls.append(link)
+                            with visited_lock:
+                                if link not in visited and current_count < max_pages:
+                                    next_urls.append(link)
 
                         # Per-domain rate limiting
-                        if len(visited) < max_pages:
+                        with visited_lock:
+                            current_count = len(visited)
+                        if current_count < max_pages:
                             _rate_limit_per_domain(result_url, delay)
                 except Exception as e:
                     logger.debug(f"Error fetching {url}: {e}")

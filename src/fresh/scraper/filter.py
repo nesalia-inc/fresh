@@ -160,17 +160,67 @@ def deduplicate(
     return result
 
 
+def expand_brace_pattern(pattern: str) -> list[str]:
+    """
+    Expand brace patterns like {page1,page2,page3}.
+
+    Args:
+        pattern: Pattern with brace expansion
+
+    Returns:
+        List of expanded patterns
+    """
+    brace_pattern = re.compile(r"\{([^}]+)\}")
+    match = brace_pattern.search(pattern)
+
+    if not match:
+        return [pattern]
+
+    # Only process the first brace group, let recursion handle others
+    brace_content = match.group(1)
+    options = [opt.strip() for opt in brace_content.split(",")]
+
+    expansions = []
+    for option in options:
+        expanded = pattern.replace("{" + brace_content + "}", option, 1)
+        expansions.extend(expand_brace_pattern(expanded))
+
+    return expansions
+
+
 def filter_by_pattern(urls: Sequence[str], pattern: str) -> list[str]:
     """
-    Filter URLs by a glob-style pattern.
+    Filter URLs by a pattern (glob, regex, brace expansion).
 
     Args:
         urls: List of URLs to filter
-        pattern: Glob pattern (e.g., "/docs/*", "/api/**")
+        pattern: Pattern to match (glob, regex with re: prefix, or brace expansion)
 
     Returns:
         URLs matching the pattern
     """
+    # Handle regex pattern (prefixed with re:)
+    if pattern.startswith("re:"):
+        regex_str = pattern[3:]  # Remove re: prefix
+        try:
+            compiled = re.compile(regex_str, re.IGNORECASE)
+        except re.error as e:
+            logger.warning(f"Invalid regex pattern: {e}")
+            return []
+        return [url for url in urls if compiled.search(url)]
+
+    # Handle brace expansion {a,b,c}
+    if "{" in pattern and "}" in pattern:
+        # Limit expansions to prevent catastrophic expansion
+        expanded_patterns = expand_brace_pattern(pattern)
+        if len(expanded_patterns) > 1000:
+            logger.warning(f"Too many pattern expansions ({len(expanded_patterns)}), limiting to 1000")
+            expanded_patterns = expanded_patterns[:1000]
+        results = []
+        for exp_pattern in expanded_patterns:
+            results.extend(filter_by_pattern(urls, exp_pattern))
+        return list(set(results))  # Remove duplicates
+
     # Convert glob to regex
     # Limit pattern length to prevent catastrophic backtracking
     if len(pattern) > 200:
