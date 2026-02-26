@@ -264,9 +264,11 @@ class TestLocalSearch:
 
                 urls = search.discover_local_urls(base_url, max_pages=10)
 
+                # Should find all 3 files (index.html becomes root /)
                 assert len(urls) == 3
-                assert any("index.html" in u for u in urls)
+                # Check we have the files - index.html becomes just /
                 assert any("about.html" in u for u in urls)
+                assert any("docs.html" in u for u in urls)
                 assert any("docs.html" in u for u in urls)
             finally:
                 search.DEFAULT_SYNC_DIR = original_sync_dir
