@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from pathlib import Path
+import hashlib
 from urllib.parse import urlparse, quote
 
 from ..config import resolve_alias
@@ -52,8 +53,6 @@ def _url_to_local_path(url: str) -> Path | None:
     Returns:
         The potential path in the sync directory, or None if the URL cannot be mapped
     """
-    import hashlib
-
     parsed = urlparse(url)
     path = parsed.path.lstrip("/")
 
@@ -420,47 +419,11 @@ def search_pages(
         elif verbose and source == "local":
             typer.echo("No local content found")
 
-    # If no local results and auto mode, try remote
-    if not local_results and use_remote and source == "auto":
-        if verbose:
+    # Search remote if needed (auto mode with no local results, or remote-only mode)
+    if use_remote and (source == "remote" or (source == "auto" and not local_results)):
+        if source == "auto" and verbose:
             typer.echo("No local results, falling back to remote...")
 
-        # Discover pages using shared helper
-        if verbose:
-            typer.echo("Discovering pages...")
-
-        pages_to_search = discover_documentation_urls(base_url, max_pages, verbose)
-
-        if verbose:
-            typer.echo(f"Searching {len(pages_to_search)} pages...")
-
-        for i, page_url in enumerate(pages_to_search):
-            if verbose:
-                typer.echo(f"  [{i + 1}/{len(pages_to_search)}] Searching {page_url}")
-
-            # Use helper function to search page content
-            result = _search_page_content(
-                page_url, query, case_sensitive, regex, context_lines
-            )
-
-            if result:
-                title, snippet = result
-                remote_results.append(
-                    SearchResult(
-                        path=page_url.replace(base_url, ""),
-                        title=title,
-                        snippet=snippet,
-                        url=page_url,
-                        source="remote",
-                    )
-                )
-
-                # Early termination when result_limit is reached
-                if result_limit and len(remote_results) >= result_limit:
-                    break
-
-    # For remote-only mode (not auto)
-    elif use_remote and source == "remote":
         if verbose:
             typer.echo("Discovering pages...")
 
@@ -717,6 +680,7 @@ def _search_single_library(
                 "title": r.title,
                 "snippet": r.snippet,
                 "url": r.url,
+                "source": r.source,
             }
             for r in results
         ]

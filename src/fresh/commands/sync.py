@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -85,10 +86,12 @@ def _save_page(page_url: str, pages_dir: Path) -> bool | None:
     if not path or path.endswith("/"):
         path = path + "index.html"
 
-    # Sanitize filename
+    # Sanitize filename - use hash to avoid collisions from truncation
     filename = quote(path, safe="")
     if len(filename) > 200:
-        filename = filename[:200]
+        # Use hash prefix to ensure uniqueness after truncation
+        hash_suffix = hashlib.sha256(path.encode()).hexdigest()[:8]
+        filename = filename[:191] + "_" + hash_suffix + ".html"
 
     page_file = pages_dir / filename
     page_file.parent.mkdir(parents=True, exist_ok=True)
