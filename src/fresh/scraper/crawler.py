@@ -321,7 +321,6 @@ def parallel_crawl(
                 with visited_lock:
                     if len(visited) >= max_pages:
                         break
-
                     if url in visited:
                         continue
 

@@ -353,7 +353,6 @@ class TestParallelCrawl:
     @mock.patch("fresh.scraper.crawler.parallel_fetch_page")
     def test_parallel_crawl_basic(self, mock_fetch):
         """Should crawl pages in parallel."""
-        # Return HTML with links for first URL, None for others
         mock_fetch.side_effect = [
             ("https://example.com/", "<html><a href='/page1'>Link</a></html>", ["/page1"]),
             ("https://example.com/page1", "<html>Content</html>", []),
@@ -372,7 +371,6 @@ class TestParallelCrawl:
     @mock.patch("fresh.scraper.crawler.parallel_fetch_page")
     def test_parallel_crawl_max_pages(self, mock_fetch):
         """Should respect max_pages limit."""
-        # Return many pages but should stop at max_pages
         mock_fetch.return_value = (
             "https://example.com/page",
             "<html><a href='/next'>Link</a></html>",
@@ -399,6 +397,5 @@ class TestParallelCrawl:
             max_workers=2,
         )
 
-        # Should still return the visited set
         assert isinstance(result, set)
 
