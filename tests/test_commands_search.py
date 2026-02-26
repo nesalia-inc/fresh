@@ -1,6 +1,5 @@
 """Tests for search command."""
 
-import os
 import re
 import tempfile
 from pathlib import Path
@@ -283,7 +282,7 @@ class TestSearchSource:
         mock_discover.return_value = ["https://example.com/page.html"]
         mock_get_content.return_value = "<html>test content</html>"
 
-        results = search.search_pages(
+        search.search_pages(
             "https://example.com",
             "test",
             source="local",
@@ -300,7 +299,7 @@ class TestSearchSource:
         mock_discover.return_value = ["https://example.com/page.html"]
         mock_fetch.return_value = mock.MagicMock(text="<html>test content</html>")
 
-        results = search.search_pages(
+        search.search_pages(
             "https://example.com",
             "test",
             source="remote",
