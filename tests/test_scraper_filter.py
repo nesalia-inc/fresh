@@ -239,3 +239,65 @@ class TestFilterByPattern:
         ]
         result = filter_module.filter_by_pattern(urls, "/docs/*")
         assert len(result) == 0
+
+    def test_regex_pattern(self):
+        """Regex pattern with re: prefix."""
+        urls = [
+            "https://example.com/docs/v14/intro",
+            "https://example.com/docs/v15/intro",
+            "https://example.com/blog/post",
+        ]
+        result = filter_module.filter_by_pattern(urls, "re:/docs/v[0-9]+/")
+        assert len(result) == 2
+
+    def test_regex_invalid(self):
+        """Invalid regex should return empty list."""
+        urls = ["https://example.com/docs/page"]
+        result = filter_module.filter_by_pattern(urls, "re:/[invalid/")
+        assert len(result) == 0
+
+    def test_brace_expansion(self):
+        """Brace expansion pattern."""
+        urls = [
+            "https://example.com/docs/page",
+            "https://example.com/api/page",
+            "https://example.com/guide/page",
+            "https://example.com/blog/post",
+        ]
+        result = filter_module.filter_by_pattern(urls, "https://example.com/{docs,api,guide}/*")
+        assert len(result) == 3
+
+    def test_brace_expansion_nested(self):
+        """Nested brace expansion."""
+        urls = [
+            "https://example.com/docs/v1/page",
+            "https://example.com/docs/v2/page",
+            "https://example.com/api/v1/page",
+            "https://example.com/api/v2/page",
+        ]
+        result = filter_module.filter_by_pattern(urls, "https://example.com/{docs,api}/v[0-9]/*")
+        # Should match both docs and api with any version
+        assert len(result) >= 2
+
+
+class TestExpandBracePattern:
+    """Tests for expand_brace_pattern function."""
+
+    def test_simple_braces(self):
+        """Simple brace expansion."""
+        result = filter_module.expand_brace_pattern("https://example.com/{docs,api}/page")
+        assert len(result) == 2
+        assert "https://example.com/docs/page" in result
+        assert "https://example.com/api/page" in result
+
+    def test_no_braces(self):
+        """Pattern without braces returns single element."""
+        result = filter_module.expand_brace_pattern("https://example.com/page")
+        assert result == ["https://example.com/page"]
+
+    def test_multiple_braces(self):
+        """Multiple brace groups."""
+        result = filter_module.expand_brace_pattern("https://example.com/{docs,api}/{v1,v2}")
+        # Check unique results (may have duplicates due to recursion)
+        unique = list(set(result))
+        assert len(unique) == 4

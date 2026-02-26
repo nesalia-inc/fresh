@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
+import sys
 import time
 from pathlib import Path
 from urllib.parse import urlparse, quote
@@ -14,7 +16,6 @@ from markdownify import markdownify as md
 from ..config import resolve_alias
 from ..console import echo_error, print_summary, reset_console, set_verbose
 from ..scraper.http import fetch_with_retry, validate_url
-from ..ui import is_interactive, show_success_message, spinner
 
 app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
 
@@ -260,16 +261,215 @@ def clean_expired_cache() -> int:
     return _remove_expired_cache_entries()
 
 
+def read_urls_from_file(file_path: str) -> list[str]:
+    """Read URLs from a file.
+
+    Args:
+        file_path: Path to the file containing URLs (one per line)
+
+    Returns:
+        List of URLs
+    """
+    path = Path(file_path)
+    if not path.exists():
+        echo_error(
+            message=f"File not found: {file_path}",
+            code="FILE_NOT_FOUND",
+        )
+        raise typer.Exit(1)
+
+    content = path.read_text(encoding="utf-8")
+    urls = [line.strip() for line in content.splitlines() if line.strip() and not line.startswith("#")]
+    return urls
+
+
+def fetch_single_url(
+    url: str,
+    verbose: bool = False,
+    timeout: int = 30,
+    header: str | None = None,
+    no_follow: bool = False,
+    skip_scripts: bool = False,
+    no_cache: bool = False,
+    retry: int = 3,
+    dry_run: bool = False,
+    local: bool = False,
+    remote: bool = False,
+) -> dict | None:
+    """Fetch a single URL and return the result.
+
+    Args:
+        url: The URL to fetch
+        verbose: Use verbose output
+        timeout: Request timeout in seconds
+        header: Custom HTTP header
+        no_follow: Do not follow redirects
+        skip_scripts: Exclude JavaScript from output
+        no_cache: Bypass cache
+        retry: Number of retry attempts
+        dry_run: Show what would be fetched without downloading
+        local: Use only local synced content
+        remote: Force remote fetching
+
+    Returns:
+        Dictionary with url, content, success, error keys
+    """
+    # Resolve alias to URL
+    resolved_url = resolve_alias(url)
+
+    if verbose and resolved_url != url:
+        typer.echo(f"Resolved alias '{url}' to {resolved_url}")
+
+    # Validate URL
+    if not validate_url(resolved_url):
+        return {
+            "url": url,
+            "resolved_url": resolved_url,
+            "content": None,
+            "success": False,
+            "error": f"Invalid URL: {resolved_url}",
+        }
+
+    # Determine fetch strategy
+    use_local_only = local
+    skip_local = remote
+
+    content: str | None = None
+    html_content: str | None = None
+
+    # Check local synced content first
+    if not skip_local and local_content_exists(resolved_url):
+        if verbose:
+            typer.echo("Found local synced content...")
+        html_content = get_local_content(resolved_url)
+        if html_content:
+            if verbose:
+                typer.echo("Using local content")
+            content = html_to_markdown(html_content, skip_scripts=skip_scripts)
+
+    # If --local was specified but no local content found
+    if use_local_only and content is None:
+        return {
+            "url": url,
+            "resolved_url": resolved_url,
+            "content": None,
+            "success": False,
+            "error": "Local content not found. Run 'fresh sync' first.",
+        }
+
+    # Try cache if not local-only
+    if content is None and not use_local_only and not no_cache:
+        if verbose:
+            typer.echo("Checking cache...")
+        content = get_cached_content(resolved_url)
+        if content and verbose:
+            typer.echo("Found in cache")
+
+    # Fetch if not cached and not local-only
+    if content is None and not use_local_only:
+        if dry_run:
+            typer.echo(f"Would fetch: {resolved_url}")
+            return {
+                "url": url,
+                "resolved_url": resolved_url,
+                "content": None,
+                "success": True,
+                "dry_run": True,
+            }
+
+        # Prepare headers
+        headers = {}
+        if header:
+            if ":" not in header:
+                return {
+                    "url": url,
+                    "resolved_url": resolved_url,
+                    "content": None,
+                    "success": False,
+                    "error": "Header must be in format 'Key: Value'",
+                }
+            key, value = header.split(":", 1)
+            if re.search("[\r\n]", key) or re.search("[\r\n]", value):
+                return {
+                    "url": url,
+                    "resolved_url": resolved_url,
+                    "content": None,
+                    "success": False,
+                    "error": "Header must not contain newline characters",
+                }
+            headers[key.strip()] = value.strip()
+
+        if verbose:
+            typer.echo(f"Fetching {resolved_url}...")
+
+        response = fetch_with_retry(
+            resolved_url,
+            max_retries=retry,
+            return_response=True,
+            headers=headers,
+            follow_redirects=not no_follow,
+            timeout=timeout,
+        )
+
+        if response is None:
+            return {
+                "url": url,
+                "resolved_url": resolved_url,
+                "content": None,
+                "success": False,
+                "error": f"Failed to fetch page after {retry} attempts",
+            }
+
+        if hasattr(response, "text"):
+            html_content = response.text
+        else:
+            html_content = str(response)
+
+        if verbose:
+            typer.echo(f"✓ Fetched ({len(html_content)} bytes)")
+
+        # Convert to Markdown
+        if verbose:
+            typer.echo("Converting to Markdown...")
+        content = html_to_markdown(html_content, skip_scripts=skip_scripts)
+
+        # Save to cache
+        if not no_cache:
+            save_to_cache(resolved_url, content)
+            if verbose:
+                typer.echo("✓ Saved to cache")
+
+    if content is None:
+        return {
+            "url": url,
+            "resolved_url": resolved_url,
+            "content": None,
+            "success": False,
+            "error": "No content retrieved",
+        }
+
+    return {
+        "url": url,
+        "resolved_url": resolved_url,
+        "content": content,
+        "success": True,
+    }
+
+
 @app.command(name="get")
 def get(
-    url: str = typer.Argument(..., help="The URL or alias of the documentation page to fetch"),
+    url: list[str] = typer.Argument(None, help="The URL or alias of the documentation page to fetch"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Use verbose output"),
     timeout: int = typer.Option(30, "--timeout", "-t", help="Request timeout in seconds"),
     header: str | None = typer.Option(None, "--header", help="Custom HTTP header (format: 'Key: Value')"),
     no_follow: bool = typer.Option(False, "--no-follow", help="Do not follow redirects"),
     skip_scripts: bool = typer.Option(False, "--skip-scripts", help="Exclude JavaScript from output"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass cache"),
-    output: str | None = typer.Option(None, "--output", "-o", help="Write output to file"),
+    output: str | None = typer.Option(None, "--output", "-o", help="Write output to file (for single URL)"),
+    output_dir: Path | None = typer.Option(None, "--output-dir", help="Write each page to a separate file in directory"),
+    input_file: Path | None = typer.Option(None, "--input-file", "-i", help="Read URLs from file"),
+    stdin: bool = typer.Option(False, "--stdin", help="Read URLs from stdin"),
+    format: str = typer.Option("text", "--format", "-f", help="Output format: text, json"),
     retry: int = typer.Option(3, "--retry", "-r", help="Number of retry attempts"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be fetched without downloading"),
     local: bool = typer.Option(False, "--local", "--offline", help="Use only local synced content (no network requests)"),
@@ -290,206 +490,155 @@ def get(
         )
         raise typer.Exit(1)
 
+    if output and (output_dir or format == "json"):
+        echo_error(
+            message="Cannot use --output with --output-dir or --format",
+            code="CONFLICTING_OPTIONS",
+            suggestions=["Use either --output, --output-dir, or --format"],
+        )
+        raise typer.Exit(1)
+
     # Initialize console with verbose mode
     set_verbose(verbose)
     reset_console()
 
-    # Resolve alias to URL
-    resolved_url = resolve_alias(url)
+    # Collect URLs from all sources
+    urls_to_fetch: list[str] = []
 
-    if verbose and resolved_url != url:
-        typer.echo(f"Resolved alias '{url}' to {resolved_url}")
+    # From URL arguments
+    if url:
+        urls_to_fetch.extend(url)
 
-    # Validate URL
-    if not validate_url(resolved_url):
-        echo_error(
-            message=f"Invalid URL: {resolved_url}",
-            url=resolved_url,
-            code="INVALID_URL",
-            suggestions=[
-                "Check if the URL is correct",
-                "URL must start with http:// or https://",
-            ],
-        )
-        raise typer.Exit(1)
+    # From --input-file
+    if input_file:
+        file_urls = read_urls_from_file(str(input_file))
+        urls_to_fetch.extend(file_urls)
 
-    # Determine fetch strategy
-    # --local: only use local synced content
-    # --remote: only use remote (skip local check)
-    # default (local-first): try local first, then remote
-    use_local_only = local
-    skip_local = remote
-
-    # Check local synced content first (unless --remote is specified)
-    content: str | None = None
-    html_content: str | None = None
-
-    if not skip_local:
-        if local_content_exists(resolved_url):
-            if verbose:
-                typer.echo("Found local synced content...")
-            elif is_interactive():
-                with spinner("Loading local content..."):
-                    html_content = get_local_content(resolved_url)
-            else:
-                html_content = get_local_content(resolved_url)
-
-            if html_content:
-                if verbose:
-                    typer.echo("Using local content")
-                elif is_interactive():
-                    show_success_message("Using local content")
-                content = html_to_markdown(html_content, skip_scripts=skip_scripts)
-
-    # If --local was specified but no local content found, error out
-    if use_local_only and content is None:
-        echo_error(
-            message="Local content not found. Run 'fresh sync' first to download documentation.",
-            url=resolved_url,
-            code="LOCAL_NOT_FOUND",
-            suggestions=[
-                "Use 'fresh sync <url>' to download documentation for offline use",
-                "Use --remote to fetch from the network instead",
-            ],
-        )
-        raise typer.Exit(1)
-
-    # If no local content found (or --remote specified), try cache and remote
-    if content is None and not use_local_only:
-        # Check cache (unless --no-cache is specified)
-        if not no_cache:
-            if verbose:
-                typer.echo("Checking cache...")
-            elif is_interactive():
-                with spinner("Checking cache..."):
-                    content = get_cached_content(resolved_url)
-            else:
-                content = get_cached_content(resolved_url)
-
-            if content:
-                if verbose:
-                    typer.echo("Found in cache")
-                elif is_interactive():
-                    show_success_message("Found in cache")
-
-    # Fetch if not cached and not using local-only mode
-    if content is None and not use_local_only:
-        if dry_run:
-            typer.echo(f"Would fetch: {resolved_url}")
-            return
-
-        # Prepare headers
-        headers = {}
-        if header:
-            if ":" not in header:
-                echo_error(
-                    message="Header must be in format 'Key: Value'",
-                    code="INVALID_HEADER",
-                    suggestions=["Use format: --header 'Authorization: Bearer xxx'"],
-                )
-                raise typer.Exit(1)
-            key, value = header.split(":", 1)
-            # Validate header key and value to prevent HTTP header injection
-            if re.search("[\r\n]", key):
-                echo_error(
-                    message="Header key must not contain newline characters",
-                    code="HEADER_INJECTION",
-                    suggestions=["Remove newline characters from header key"],
-                )
-                raise typer.Exit(1)
-            if re.search("[\r\n]", value):
-                echo_error(
-                    message="Header value must not contain newline characters",
-                    code="HEADER_INJECTION",
-                    suggestions=["Remove newline characters from header value"],
-                )
-                raise typer.Exit(1)
-            headers[key.strip()] = value.strip()
-
-        # Fetch the page with spinner in interactive mode
-        if verbose:
-            typer.echo(f"Fetching {resolved_url}...")
-            response = fetch_with_retry(
-                resolved_url,
-                max_retries=retry,
-                return_response=True,
-                headers=headers,
-                follow_redirects=not no_follow,
-                timeout=timeout,
-            )
-        elif is_interactive():
-            with spinner(f"Fetching {resolved_url}..."):
-                response = fetch_with_retry(
-                    resolved_url,
-                    max_retries=retry,
-                    return_response=True,
-                    headers=headers,
-                    follow_redirects=not no_follow,
-                    timeout=timeout,
-                )
+    # From --stdin
+    if stdin:
+        if not sys.stdin.isatty():
+            stdin_content = sys.stdin.read()
+            stdin_urls = [line.strip() for line in stdin_content.splitlines() if line.strip()]
+            urls_to_fetch.extend(stdin_urls)
         else:
-            response = fetch_with_retry(
-                resolved_url,
-                max_retries=retry,
-                return_response=True,
-                headers=headers,
-                follow_redirects=not no_follow,
-                timeout=timeout,
-            )
-
-        if response is None:
             echo_error(
-                message=f"Failed to fetch page after {retry} attempts",
-                url=resolved_url,
-                code="FETCH_FAILED",
-                suggestions=[
-                    "Check if the URL is correct",
-                    "The server may be down",
-                    "Try with --verbose for more details",
-                    f"Try increasing timeout with --timeout {timeout + 30}",
-                ],
+                message="No input provided via stdin",
+                code="NO_STDIN",
+                suggestions=["Pipe URLs to the command: echo 'url' | fresh get --stdin"],
             )
             raise typer.Exit(1)
 
-        if hasattr(response, "text"):
-            html_content = response.text
-        else:
-            html_content = str(response)
+    # Validate we have URLs
+    if not urls_to_fetch:
+        echo_error(
+            message="No URL provided",
+            code="NO_URL",
+            suggestions=["Provide a URL as argument, use --input-file, or --stdin"],
+        )
+        raise typer.Exit(1)
+
+    # Fetch all URLs
+    results: list[dict] = []
+    for url_item in urls_to_fetch:
+        result = fetch_single_url(
+            url_item,
+            verbose=verbose,
+            timeout=timeout,
+            header=header,
+            no_follow=no_follow,
+            skip_scripts=skip_scripts,
+            no_cache=no_cache,
+            retry=retry,
+            dry_run=dry_run,
+            local=local,
+            remote=remote,
+        )
+        if result:
+            results.append(result)
+
+    # Handle output based on mode
+    if format == "json":
+        # JSON output for all results
+        output_data = [
+            {"url": r["url"], "content": r["content"], "success": r["success"], "error": r.get("error")}
+            for r in results
+        ]
+        typer.echo(json.dumps(output_data, indent=2))
+        return
+
+    if output_dir:
+        # Write each page to a separate file
+        output_dir.mkdir(parents=True, exist_ok=True)
+        success_count = 0
+        for result in results:
+            if result["success"] and result["content"]:
+                # Generate filename from URL
+                parsed = urlparse(result["resolved_url"])
+                path = parsed.path.lstrip("/")
+                if not path or path.endswith("/"):
+                    path = path + "index.md"
+                else:
+                    # Convert to .md extension
+                    if not path.endswith(".md"):
+                        path = path.rsplit(".", 1)[0] + ".md"
+
+                filename = quote(path, safe="")
+                if len(filename) > 200:
+                    filename = filename[:200]
+
+                file_path = output_dir / filename
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_path.write_text(result["content"], encoding="utf-8")
+                success_count += 1
+                if verbose:
+                    typer.echo(f"✓ Written to {file_path}")
 
         if verbose:
-            typer.echo(f"✓ Fetched ({len(html_content)} bytes)")
+            typer.echo(f"✓ Done ({success_count}/{len(results)} pages)")
+        return
 
-        # Convert to Markdown
-        if verbose:
-            typer.echo("Converting to Markdown...")
-            content = html_to_markdown(html_content, skip_scripts=skip_scripts)
-        elif is_interactive():
-            with spinner("Converting to Markdown..."):
-                content = html_to_markdown(html_content, skip_scripts=skip_scripts)
-        else:
-            content = html_to_markdown(html_content, skip_scripts=skip_scripts)
+    # Single URL with text output (legacy behavior)
+    if len(results) == 1:
+        result = results[0]
 
-        # Save to cache
-        if not no_cache:
-            save_to_cache(resolved_url, content)  # type: ignore[arg-type]
+        # Handle dry_run case
+        if result.get("dry_run"):
+            typer.echo(f"Would fetch: {result['resolved_url']}")
+            return
+
+        if not result["success"]:
+            echo_error(
+                message=result.get("error", "Failed to fetch page"),
+                url=result.get("resolved_url"),
+                code="FETCH_FAILED",
+            )
+            raise typer.Exit(1)
+        if result["content"]:
+            if output:
+                output_path = Path(output)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(result["content"], encoding="utf-8")
+                if verbose:
+                    typer.echo(f"✓ Written to {output}")
+            else:
+                typer.echo(result["content"])
             if verbose:
-                typer.echo("✓ Saved to cache")
-
-    # Output the content
-    # At this point, content is guaranteed to be set (either from cache or fetched)
-    assert content is not None
-
-    if output:
-        output_path = Path(output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(content, encoding="utf-8")
-        if verbose:
-            typer.echo(f"✓ Written to {output}")
+                typer.echo(f"✓ Done ({len(result['content'])} chars)")
+        else:
+            echo_error(
+                message="No content retrieved",
+                url=result.get("resolved_url"),
+                code="NO_CONTENT",
+            )
+            raise typer.Exit(1)
     else:
-        typer.echo(content)
-
-    if verbose:
-        typer.echo(f"✓ Done ({len(content)} chars)")
+        # Multiple URLs without special output option - show summary
+        success_count = sum(1 for r in results if r["success"])
+        typer.echo(f"Fetched {success_count}/{len(results)} pages successfully")
+        if verbose:
+            for result in results:
+                status = "✓" if result["success"] else "✗"
+                typer.echo(f"  {status} {result['url']}")
 
     # Print error/warning summary
     print_summary()
