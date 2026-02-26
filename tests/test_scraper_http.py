@@ -3,6 +3,7 @@
 from unittest import mock
 
 import httpx
+import pytest
 
 from fresh.scraper import http as http_module
 
@@ -356,6 +357,49 @@ class TestValidateUrl:
     def test_invalid_url_returns_false(self):
         """Invalid URLs should return False."""
         assert not http_module.validate_url("not-a-url")
+
+
+class TestRequireValidUrl:
+    """Tests for require_valid_url function."""
+
+    def test_valid_url_no_exception(self):
+        """Valid URLs should not raise exceptions."""
+        from fresh.exceptions import ValidationError
+
+        # Should not raise
+        http_module.require_valid_url("https://example.com/docs")
+        http_module.require_valid_url("http://example.com/docs")
+        http_module.require_valid_url("https://docs.example.com/api")
+
+    def test_invalid_url_raises_exception(self):
+        """Invalid URLs should raise ValidationError."""
+        from fresh.exceptions import ValidationError
+
+        with pytest.raises(ValidationError):
+            http_module.require_valid_url("file:///etc/passwd")
+
+        with pytest.raises(ValidationError):
+            http_module.require_valid_url("ftp://example.com/file")
+
+        with pytest.raises(ValidationError):
+            http_module.require_valid_url("http://localhost:8080")
+
+        with pytest.raises(ValidationError):
+            http_module.require_valid_url("http://127.0.0.1/admin")
+
+    def test_allowed_domains_validation(self):
+        """Should respect allowed_domains parameter."""
+        from fresh.exceptions import ValidationError
+
+        allowed = ["example.com", "docs.example.com"]
+
+        # Should not raise
+        http_module.require_valid_url("https://example.com/docs", allowed)
+        http_module.require_valid_url("https://docs.example.com/api", allowed)
+
+        # Should raise
+        with pytest.raises(ValidationError):
+            http_module.require_valid_url("https://evil.com/docs", allowed)
 
 
 class TestRobotsTxt:
