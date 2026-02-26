@@ -12,7 +12,7 @@ from .http import (
     fetch_robots_txt,
 )
 from .sitemap import discover_sitemap, parse_sitemap, normalize_urls
-from .crawler import fetch_page, extract_links, crawl
+from .crawler import fetch_page, extract_links, crawl, parallel_fetch_page, parallel_crawl
 from .filter import (
     is_relevant_url,
     extract_name_from_url,
@@ -39,6 +39,8 @@ __all__ = [
     "fetch_page",
     "extract_links",
     "crawl",
+    "parallel_fetch_page",
+    "parallel_crawl",
     # Filter
     "is_relevant_url",
     "extract_name_from_url",
