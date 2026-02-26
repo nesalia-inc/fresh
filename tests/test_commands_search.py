@@ -1,12 +1,16 @@
 """Tests for search command."""
 
+import os
 import re
+import tempfile
+from pathlib import Path
 from unittest import mock
 
 import pytest
 from typer.testing import CliRunner
 
 from fresh import app
+from fresh.commands import search
 
 runner = CliRunner()
 
@@ -175,3 +179,157 @@ class TestSearchCommand:
 
         # Should handle case-sensitive without crashing
         assert result.exit_code in [0, 1]
+
+
+class TestLocalSearch:
+    """Tests for local search functionality."""
+
+    def test_url_to_local_path(self):
+        """Should convert URL to local path correctly."""
+        # Save original DEFAULT_SYNC_DIR
+        original_sync_dir = search.DEFAULT_SYNC_DIR
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Override sync dir for testing
+            search.DEFAULT_SYNC_DIR = Path(tmpdir)
+
+            try:
+                url = "https://example.com/docs/api/index.html"
+                local_path = search._url_to_local_path(url)
+
+                assert local_path is not None
+                assert "example_com" in str(local_path)
+                assert "docs" in str(local_path)
+                assert "api" in str(local_path)
+                assert local_path.suffix == ".html"
+            finally:
+                search.DEFAULT_SYNC_DIR = original_sync_dir
+
+    def test_local_content_exists(self):
+        """Should check if local content exists."""
+        original_sync_dir = search.DEFAULT_SYNC_DIR
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            search.DEFAULT_SYNC_DIR = Path(tmpdir)
+
+            try:
+                # Create test file
+                url = "https://example.com/test.html"
+                local_path = search._url_to_local_path(url)
+                local_path.parent.mkdir(parents=True, exist_ok=True)
+                local_path.write_text("<html>test</html>")
+
+                assert search.local_content_exists(url) is True
+                assert search.local_content_exists("https://example.com/notexist.html") is False
+            finally:
+                search.DEFAULT_SYNC_DIR = original_sync_dir
+
+    def test_get_local_content(self):
+        """Should get local content."""
+        original_sync_dir = search.DEFAULT_SYNC_DIR
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            search.DEFAULT_SYNC_DIR = Path(tmpdir)
+
+            try:
+                url = "https://example.com/test.html"
+                local_path = search._url_to_local_path(url)
+                local_path.parent.mkdir(parents=True, exist_ok=True)
+                local_path.write_text("<html>test content</html>")
+
+                content = search.get_local_content(url)
+                assert content == "<html>test content</html>"
+
+                # Non-existent URL
+                assert search.get_local_content("https://example.com/notexist.html") is None
+            finally:
+                search.DEFAULT_SYNC_DIR = original_sync_dir
+
+    def test_discover_local_urls(self):
+        """Should discover URLs from local synced content."""
+        original_sync_dir = search.DEFAULT_SYNC_DIR
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            search.DEFAULT_SYNC_DIR = Path(tmpdir)
+
+            try:
+                base_url = "https://example.com"
+
+                # Create test files
+                sync_dir = search._get_sync_dir_for_url(base_url)
+                sync_dir.mkdir(parents=True, exist_ok=True)
+
+                (sync_dir / "index.html").write_text("<html>Home</html>")
+                (sync_dir / "about.html").write_text("<html>About</html>")
+                (sync_dir / "docs.html").write_text("<html>Docs</html>")
+
+                urls = search.discover_local_urls(base_url, max_pages=10)
+
+                assert len(urls) == 3
+                assert any("index.html" in u for u in urls)
+                assert any("about.html" in u for u in urls)
+                assert any("docs.html" in u for u in urls)
+            finally:
+                search.DEFAULT_SYNC_DIR = original_sync_dir
+
+
+class TestSearchSource:
+    """Tests for search source parameter."""
+
+    @mock.patch("fresh.commands.search.get_local_content")
+    @mock.patch("fresh.commands.search.discover_local_urls")
+    def test_search_local_only(self, mock_discover, mock_get_content):
+        """Should search only local content with source=local."""
+        mock_discover.return_value = ["https://example.com/page.html"]
+        mock_get_content.return_value = "<html>test content</html>"
+
+        results = search.search_pages(
+            "https://example.com",
+            "test",
+            source="local",
+            verbose=False,
+        )
+
+        # Should not call remote
+        mock_discover.assert_called_once()
+
+    @mock.patch("fresh.commands.search.fetch_binary_aware")
+    @mock.patch("fresh.commands.search.discover_documentation_urls")
+    def test_search_remote_only(self, mock_discover, mock_fetch):
+        """Should search only remote content with source=remote."""
+        mock_discover.return_value = ["https://example.com/page.html"]
+        mock_fetch.return_value = mock.MagicMock(text="<html>test content</html>")
+
+        results = search.search_pages(
+            "https://example.com",
+            "test",
+            source="remote",
+            verbose=False,
+        )
+
+        # Should call remote fetch
+        mock_fetch.assert_called()
+
+    def test_search_result_has_source(self):
+        """SearchResult should have source field."""
+        from fresh.scraper.searcher import SearchResult
+
+        result = SearchResult(
+            path="/test",
+            title="Test",
+            snippet="test snippet",
+            url="https://example.com/test",
+            source="local",
+        )
+
+        assert result.source == "local"
+
+        result2 = SearchResult(
+            path="/test2",
+            title="Test2",
+            snippet="test2 snippet",
+            url="https://example.com/test2",
+            source="remote",
+        )
+
+        assert result2.source == "remote"
