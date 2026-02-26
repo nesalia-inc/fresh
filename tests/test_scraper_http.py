@@ -364,8 +364,6 @@ class TestRequireValidUrl:
 
     def test_valid_url_no_exception(self):
         """Valid URLs should not raise exceptions."""
-        from fresh.exceptions import ValidationError
-
         # Should not raise
         http_module.require_valid_url("https://example.com/docs")
         http_module.require_valid_url("http://example.com/docs")
