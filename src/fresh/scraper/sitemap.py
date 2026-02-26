@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
+from ..exceptions import SitemapError
 from .http import fetch_with_retry, get_client, validate_url
 
 if TYPE_CHECKING:
@@ -142,6 +143,59 @@ def parse_sitemap(xml_content: str) -> list[str] | None:
                     urls.append(elem.text)
 
     return urls if urls else None
+
+
+def parse_sitemap_strict(xml_content: str) -> list[str]:
+    """
+    Parse XML content and raise SitemapError if parsing fails.
+
+    Args:
+        xml_content: The XML content of the sitemap
+
+    Returns:
+        List of URLs found in the sitemap
+
+    Raises:
+        SitemapError: If XML parsing fails
+    """
+    try:
+        root = ET.fromstring(xml_content)
+    except ET.ParseError as e:
+        raise SitemapError(f"Failed to parse XML: {e}", code="PARSE_ERROR") from e
+
+    # Common namespace URIs
+    namespaces = [
+        "",  # No namespace
+        "http://www.sitemaps.org/schemas/sitemap/0.9",
+        "http://www.google.com/schemas/sitemap/0.9",
+    ]
+
+    # Handle sitemap index (contains other sitemaps)
+    if root.tag.endswith("}sitemapindex") or root.tag == "sitemapindex":
+        urls = []
+        for ns in namespaces:
+            for sitemap in root.findall(f".//{{{ns}}}loc"):
+                if sitemap.text:
+                    urls.append(sitemap.text)
+        return urls
+
+    # Regular sitemap - extract URLs
+    urls = []
+    for ns in namespaces:
+        for loc in root.findall(f".//{{{ns}}}loc"):
+            if loc.text:
+                urls.append(loc.text)
+
+    # Also find in other namespace variations
+    for elem in root.iter():
+        if elem.tag.endswith("}loc") or elem.tag == "loc":
+            if elem.text:
+                urls.append(elem.text)
+
+    if not urls:
+        raise SitemapError("No URLs found in sitemap", code="EMPTY_SITEMAP")
+
+    return urls
 
 
 def normalize_urls(urls: Sequence[str], base_url: str) -> list[str]:
