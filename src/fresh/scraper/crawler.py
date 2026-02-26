@@ -6,6 +6,7 @@ import logging
 import threading
 import time
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from bs4 import BeautifulSoup
 
@@ -224,4 +225,133 @@ def crawl(
             break
 
     logger.info(f"Crawl complete: {len(visited)} pages discovered")
+    return visited
+
+
+def parallel_fetch_page(args: tuple[str, bool, list[str] | None]) -> tuple[str, str | None, list[str]]:
+    """
+    Fetch a single page (for parallel execution).
+
+    Args:
+        args: Tuple of (url, respect_robots, allowed_domains)
+
+    Returns:
+        Tuple of (url, html_content, links)
+    """
+    url, respect_robots, allowed_domains = args
+
+    # Validate URL
+    if not validate_url(url, allowed_domains):
+        return (url, None, [])
+
+    # Check robots.txt if enabled
+    if respect_robots and not is_allowed_by_robots(url):
+        return (url, None, [])
+
+    # Skip binary URLs
+    if is_binary_url(url):
+        return (url, None, [])
+
+    # Fetch the page
+    html = fetch_binary_aware(url)
+    if html is None:
+        return (url, None, [])
+
+    # Extract links
+    links = extract_links(html, url)
+
+    return (url, html, links)
+
+
+def parallel_crawl(
+    start_url: str,
+    max_pages: int = 100,
+    max_depth: int = 3,
+    delay: float = DEFAULT_DELAY,
+    respect_robots: bool = True,
+    allowed_domains: list[str] | None = None,
+    max_workers: int = 5,
+) -> set[str]:
+    """
+    BFS crawl with parallel page fetching.
+
+    Args:
+        start_url: The starting URL
+        max_pages: Maximum number of pages to fetch
+        max_depth: Maximum crawl depth
+        delay: Delay in seconds between requests (per domain)
+        respect_robots: Whether to respect robots.txt rules
+        allowed_domains: Optional list of allowed domains for validation
+        max_workers: Maximum number of parallel workers
+
+    Returns:
+        Set of unique URLs discovered
+    """
+    visited: set[str] = set()
+    visited_lock = threading.Lock()
+    urls_by_depth: dict[int, list[str]] = {0: [start_url]}
+
+    for depth in range(max_depth + 1):
+        if depth not in urls_by_depth:
+            break
+
+        current_urls = urls_by_depth[depth]
+        next_urls: list[str] = []
+
+        # Prepare args for parallel fetch
+        with visited_lock:
+            fetch_args = [
+                (url, respect_robots, allowed_domains)
+                for url in current_urls
+                if url not in visited
+            ]
+
+        if not fetch_args:
+            continue
+
+        # Process URLs in parallel
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(parallel_fetch_page, args): args[0]
+                for args in fetch_args
+            }
+
+            for future in as_completed(futures):
+                url = futures[future]
+                with visited_lock:
+                    if len(visited) >= max_pages:
+                        break
+
+                    if url in visited:
+                        continue
+
+                try:
+                    result_url, html, links = future.result()
+                    if html is not None:
+                        with visited_lock:
+                            visited.add(result_url)
+                        logger.debug(f"Parallel crawl (depth={depth}): {result_url}")
+
+                        with visited_lock:
+                            current_count = len(visited)
+                        for link in links:
+                            with visited_lock:
+                                if link not in visited and current_count < max_pages:
+                                    next_urls.append(link)
+
+                        # Per-domain rate limiting
+                        with visited_lock:
+                            current_count = len(visited)
+                        if current_count < max_pages:
+                            _rate_limit_per_domain(result_url, delay)
+                except Exception as e:
+                    logger.debug(f"Error fetching {url}: {e}")
+
+        if next_urls:
+            urls_by_depth[depth + 1] = next_urls
+
+        if len(visited) >= max_pages:
+            break
+
+    logger.info(f"Parallel crawl complete: {len(visited)} pages discovered")
     return visited
