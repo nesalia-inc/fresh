@@ -317,12 +317,11 @@ def parallel_crawl(
 
             for future in as_completed(futures):
                 url = futures[future]
-                if len(visited) >= max_pages:
-                    executor.shutdown(wait=False)
-                    break
-
-                if url in visited:
-                    continue
+                with visited_lock:
+                    if len(visited) >= max_pages:
+                        break
+                    if url in visited:
+                        continue
 
                 try:
                     result_url, html, links = future.result()
