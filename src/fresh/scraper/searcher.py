@@ -18,6 +18,7 @@ class SearchResult:
     title: str
     snippet: str
     url: str
+    source: str = "remote"  # "local" or "remote"
 
 
 def search_in_content(

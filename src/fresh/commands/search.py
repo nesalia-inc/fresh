@@ -272,6 +272,7 @@ def search_pages(
     context_lines: int = 1,
     verbose: bool = False,
     result_limit: int | None = None,
+    source: str = "auto",  # "auto", "local", "remote"
 ) -> list[SearchResult]:
     """
     Search for a query across documentation pages.
@@ -286,76 +287,198 @@ def search_pages(
         context_lines: Number of lines of context around matches
         verbose: Whether to show verbose output
         result_limit: Early termination when this many results found
+        source: Data source - "auto" (local-first), "local", or "remote"
 
     Returns:
         List of SearchResult objects
     """
     results: list[SearchResult] = []
 
-    # Discover pages using shared helper
-    if verbose:
-        typer.echo("Discovering pages...")
+    # Determine search strategy
+    use_local = source in ("local", "auto")
+    use_remote = source in ("remote", "auto")
 
-    pages_to_search = discover_documentation_urls(base_url, max_pages, verbose)
+    # Try local first if auto or local
+    local_results: list[SearchResult] = []
+    remote_results: list[SearchResult] = []
 
-    if verbose:
-        typer.echo(f"Searching {len(pages_to_search)} pages...")
-
-    # Search in each page
-    for i, page_url in enumerate(pages_to_search):
+    if use_local:
         if verbose:
-            typer.echo(f"  [{i + 1}/{len(pages_to_search)}] Searching {page_url}")
+            typer.echo("Checking for local content...")
 
-        # Fetch the page
-        response = fetch_binary_aware(page_url, max_retries=2)
-        if not response:
-            continue
+        local_urls = discover_local_urls(base_url, max_pages)
 
-        # Convert to markdown (simple extraction)
-        if hasattr(response, "text"):
-            html_content = response.text
-        else:
-            html_content = str(response)
+        if local_urls:
+            if verbose:
+                typer.echo(f"Found {len(local_urls)} local pages, searching...")
 
-        # Use BeautifulSoup for robust HTML parsing
-        soup = BeautifulSoup(html_content, "html.parser")
-        # Remove script and style elements
-        for script in soup(["script", "style"]):
-            script.decompose()
-        text_content = soup.get_text(separator="\n")
+            for page_url in local_urls:
+                # Get content from local
+                html_content = get_local_content(page_url)
+                if not html_content:
+                    continue
 
-        # Search in the content
-        # Use escaped query for create_snippet to match search_in_content behavior
-        search_query = query if regex else re.escape(query)
-        matches = search_in_content(
-            text_content,
-            search_query,
-            case_sensitive=case_sensitive,
-            regex=regex,
-        )
+                # Parse and search
+                soup = BeautifulSoup(html_content, "html.parser")
+                for script in soup(["script", "style"]):
+                    script.decompose()
+                text_content = soup.get_text(separator="\n")
 
-        if matches:
-            # Extract title from page URL
-            title = filter_module.extract_name_from_url(page_url)
-
-            # Create snippet - use same query logic as search_in_content
-            snippet = create_snippet(
-                text_content, search_query, context_lines=context_lines, case_sensitive=case_sensitive, regex=regex
-            )
-
-            results.append(
-                SearchResult(
-                    path=page_url.replace(base_url, ""),
-                    title=title,
-                    snippet=snippet,
-                    url=page_url,
+                search_query = query if regex else re.escape(query)
+                matches = search_in_content(
+                    text_content,
+                    search_query,
+                    case_sensitive=case_sensitive,
+                    regex=regex,
                 )
+
+                if matches:
+                    title = filter_module.extract_name_from_url(page_url)
+                    snippet = create_snippet(
+                        text_content, search_query, context_lines=context_lines, case_sensitive=case_sensitive, regex=regex
+                    )
+
+                    local_results.append(
+                        SearchResult(
+                            path=page_url.replace(base_url, ""),
+                            title=title,
+                            snippet=snippet,
+                            url=page_url,
+                            source="local",
+                        )
+                    )
+
+                    if result_limit and len(local_results) >= result_limit:
+                        return local_results[:result_limit]
+        elif verbose and source == "local":
+            typer.echo("No local content found")
+
+    # If no local results and auto mode, try remote
+    if not local_results and use_remote and source == "auto":
+        if verbose:
+            typer.echo("No local results, falling back to remote...")
+
+        # Discover pages using shared helper
+        if verbose:
+            typer.echo("Discovering pages...")
+
+        pages_to_search = discover_documentation_urls(base_url, max_pages, verbose)
+
+        if verbose:
+            typer.echo(f"Searching {len(pages_to_search)} pages...")
+
+        for i, page_url in enumerate(pages_to_search):
+            if verbose:
+                typer.echo(f"  [{i + 1}/{len(pages_to_search)}] Searching {page_url}")
+
+            # Fetch the page
+            response = fetch_binary_aware(page_url, max_retries=2)
+            if not response:
+                continue
+
+            # Convert to markdown (simple extraction)
+            if hasattr(response, "text"):
+                html_content = response.text
+            else:
+                html_content = str(response)
+
+            # Use BeautifulSoup for robust HTML parsing
+            soup = BeautifulSoup(html_content, "html.parser")
+            # Remove script and style elements
+            for script in soup(["script", "style"]):
+                script.decompose()
+            text_content = soup.get_text(separator="\n")
+
+            # Search in the content
+            # Use escaped query for create_snippet to match search_in_content behavior
+            search_query = query if regex else re.escape(query)
+            matches = search_in_content(
+                text_content,
+                search_query,
+                case_sensitive=case_sensitive,
+                regex=regex,
             )
 
-            # Early termination when result_limit is reached
-            if result_limit and len(results) >= result_limit:
-                break
+            if matches:
+                # Extract title from page URL
+                title = filter_module.extract_name_from_url(page_url)
 
+                # Create snippet - use same query logic as search_in_content
+                snippet = create_snippet(
+                    text_content, search_query, context_lines=context_lines, case_sensitive=case_sensitive, regex=regex
+                )
+
+                remote_results.append(
+                    SearchResult(
+                        path=page_url.replace(base_url, ""),
+                        title=title,
+                        snippet=snippet,
+                        url=page_url,
+                        source="remote",
+                    )
+                )
+
+                # Early termination when result_limit is reached
+                if result_limit and len(remote_results) >= result_limit:
+                    break
+
+    # For remote-only mode (not auto)
+    elif use_remote and source == "remote":
+        if verbose:
+            typer.echo("Discovering pages...")
+
+        pages_to_search = discover_documentation_urls(base_url, max_pages, verbose)
+
+        if verbose:
+            typer.echo(f"Searching {len(pages_to_search)} pages...")
+
+        for i, page_url in enumerate(pages_to_search):
+            if verbose:
+                typer.echo(f"  [{i + 1}/{len(pages_to_search)}] Searching {page_url}")
+
+            response = fetch_binary_aware(page_url, max_retries=2)
+            if not response:
+                continue
+
+            if hasattr(response, "text"):
+                html_content = response.text
+            else:
+                html_content = str(response)
+
+            soup = BeautifulSoup(html_content, "html.parser")
+            for script in soup(["script", "style"]):
+                script.decompose()
+            text_content = soup.get_text(separator="\n")
+
+            search_query = query if regex else re.escape(query)
+            matches = search_in_content(
+                text_content,
+                search_query,
+                case_sensitive=case_sensitive,
+                regex=regex,
+            )
+
+            if matches:
+                title = filter_module.extract_name_from_url(page_url)
+                snippet = create_snippet(
+                    text_content, search_query, context_lines=context_lines, case_sensitive=case_sensitive, regex=regex
+                )
+
+                remote_results.append(
+                    SearchResult(
+                        path=page_url.replace(base_url, ""),
+                        title=title,
+                        snippet=snippet,
+                        url=page_url,
+                        source="remote",
+                    )
+                )
+
+                if result_limit and len(remote_results) >= result_limit:
+                    break
+
+    # Combine results: local first, then remote
+    results = local_results + remote_results
     return results
 
 
@@ -421,6 +544,9 @@ def search(
     case_sensitive: bool = typer.Option(False, "--case-sensitive", help="Enable case-sensitive search"),
     regex: bool = typer.Option(False, "--regex", "-r", help="Treat query as regular expression"),
     limit: int = typer.Option(20, "--limit", "-l", help="Maximum number of results to show"),
+    local: bool = typer.Option(False, "--local", help="Search only in locally synced documentation"),
+    remote: bool = typer.Option(False, "--remote", help="Search only in remote documentation (skip local)"),
+    fresh: bool = typer.Option(False, "--fresh", help="Force fresh search (skip cache)"),
 ) -> None:
     """Search for content across documentation pages."""
     # Handle no URL provided - show help
@@ -453,6 +579,17 @@ def search(
             raise typer.Exit(1)
         resolved_urls.append(resolved)
 
+    # Determine source mode from options
+    if fresh:
+        # Fresh means force remote (skip local)
+        source = "remote"
+    elif local:
+        source = "local"
+    elif remote:
+        source = "remote"
+    else:
+        source = "auto"  # Local-first
+
     # Single URL or multiple URLs
     if len(resolved_urls) == 1:
         # Single library search
@@ -466,6 +603,7 @@ def search(
             regex=regex,
             context=context,
             limit=limit,
+            source=source,
         )
     else:
         # Multiple library search
@@ -479,6 +617,7 @@ def search(
             regex=regex,
             context=context,
             limit=limit,
+            source=source,
         )
 
 
@@ -492,6 +631,7 @@ def _search_single_library(
     regex: bool,
     context: int,
     limit: int,
+    source: str = "auto",
 ) -> None:
     """Search a single library."""
     if verbose:
@@ -509,6 +649,7 @@ def _search_single_library(
             context_lines=context,
             verbose=verbose,
             result_limit=limit,
+            source=source,
         )
 
     try:
@@ -579,6 +720,7 @@ def _search_multiple_libraries(
     regex: bool,
     context: int,
     limit: int,
+    source: str = "auto",
 ) -> None:
     """Search across multiple libraries."""
     if verbose:
@@ -603,6 +745,7 @@ def _search_multiple_libraries(
                 context_lines=context,
                 verbose=verbose,
                 result_limit=limit,
+                source=source,
             )
             results_by_library[lib_url] = results[:limit]
             total_results += len(results_by_library[lib_url])
