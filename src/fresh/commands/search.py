@@ -52,16 +52,20 @@ def _url_to_local_path(url: str) -> Path | None:
     Returns:
         The potential path in the sync directory, or None if the URL cannot be mapped
     """
+    import hashlib
+
     parsed = urlparse(url)
     path = parsed.path.lstrip("/")
 
     if not path or path.endswith("/"):
         path = path + "index.html"
 
-    # Sanitize filename
+    # Sanitize filename - use hash to avoid collisions from truncation
     filename = quote(path, safe="")
     if len(filename) > 200:
-        filename = filename[:200]
+        # Use hash prefix to ensure uniqueness after truncation
+        hash_suffix = hashlib.sha256(path.encode()).hexdigest()[:8]
+        filename = filename[:191] + "_" + hash_suffix + ".html"
 
     sync_dir = _get_sync_dir_for_url(url)
     file_path = sync_dir / filename
@@ -120,11 +124,18 @@ def discover_local_urls(base_url: str, max_pages: int = 50) -> list[str]:
         for file_path in sync_dir.rglob("*.html"):
             # Convert local path back to URL
             relative_path = file_path.relative_to(sync_dir)
-            path_str = "/" + str(relative_path)
+            path_str = str(relative_path)
 
-            # Handle index.html files
-            if file_path.stem == "index":
-                path_str = str(relative_path.parent) + "/"
+            # Handle index.html files - convert to directory path
+            if file_path.stem == "index" and path_str != "index.html":
+                # Remove index.html from path
+                path_str = path_str[:-11]  # Remove "index.html"
+                if path_str:
+                    path_str = "/" + path_str
+                else:
+                    path_str = "/"
+            else:
+                path_str = "/" + path_str
 
             full_url = f"{base_url.rstrip('/')}{path_str}"
             urls.append(full_url)
@@ -135,6 +146,62 @@ def discover_local_urls(base_url: str, max_pages: int = 50) -> list[str]:
         pass
 
     return urls[:max_pages]
+
+
+def _search_page_content(
+    page_url: str,
+    query: str,
+    case_sensitive: bool,
+    regex: bool,
+    context_lines: int,
+) -> tuple[str, str] | None:
+    """Search a single page's content for a query.
+
+    Args:
+        page_url: URL of the page
+        query: Search query
+        case_sensitive: Whether to do case-sensitive search
+        regex: Whether to treat query as regex
+        context_lines: Number of context lines around matches
+
+    Returns:
+        Tuple of (title, snippet) if matches found, None otherwise
+    """
+    # Fetch the page
+    response = fetch_binary_aware(page_url, max_retries=2)
+    if not response:
+        return None
+
+    # Convert to text content
+    if hasattr(response, "text"):
+        html_content = response.text
+    else:
+        html_content = str(response)
+
+    # Parse and extract text
+    soup = BeautifulSoup(html_content, "html.parser")
+    for script in soup(["script", "style"]):
+        script.decompose()
+    text_content = soup.get_text(separator="\n")
+
+    # Search in the content
+    matches = search_in_content(
+        text_content,
+        query,
+        case_sensitive=case_sensitive,
+        regex=regex,
+    )
+
+    if not matches:
+        return None
+
+    # Extract title and create snippet
+    title = filter_module.extract_name_from_url(page_url)
+    snippet = create_snippet(
+        text_content, query, context_lines=context_lines, case_sensitive=case_sensitive, regex=regex
+    )
+
+    return title, snippet
 
 
 def discover_documentation_urls(
@@ -324,7 +391,7 @@ def search_pages(
                     script.decompose()
                 text_content = soup.get_text(separator="\n")
 
-                search_query = query if regex else re.escape(query)
+                search_query = query
                 matches = search_in_content(
                     text_content,
                     search_query,
@@ -371,43 +438,13 @@ def search_pages(
             if verbose:
                 typer.echo(f"  [{i + 1}/{len(pages_to_search)}] Searching {page_url}")
 
-            # Fetch the page
-            response = fetch_binary_aware(page_url, max_retries=2)
-            if not response:
-                continue
-
-            # Convert to markdown (simple extraction)
-            if hasattr(response, "text"):
-                html_content = response.text
-            else:
-                html_content = str(response)
-
-            # Use BeautifulSoup for robust HTML parsing
-            soup = BeautifulSoup(html_content, "html.parser")
-            # Remove script and style elements
-            for script in soup(["script", "style"]):
-                script.decompose()
-            text_content = soup.get_text(separator="\n")
-
-            # Search in the content
-            # Use escaped query for create_snippet to match search_in_content behavior
-            search_query = query if regex else re.escape(query)
-            matches = search_in_content(
-                text_content,
-                search_query,
-                case_sensitive=case_sensitive,
-                regex=regex,
+            # Use helper function to search page content
+            result = _search_page_content(
+                page_url, query, case_sensitive, regex, context_lines
             )
 
-            if matches:
-                # Extract title from page URL
-                title = filter_module.extract_name_from_url(page_url)
-
-                # Create snippet - use same query logic as search_in_content
-                snippet = create_snippet(
-                    text_content, search_query, context_lines=context_lines, case_sensitive=case_sensitive, regex=regex
-                )
-
+            if result:
+                title, snippet = result
                 remote_results.append(
                     SearchResult(
                         path=page_url.replace(base_url, ""),
@@ -436,34 +473,13 @@ def search_pages(
             if verbose:
                 typer.echo(f"  [{i + 1}/{len(pages_to_search)}] Searching {page_url}")
 
-            response = fetch_binary_aware(page_url, max_retries=2)
-            if not response:
-                continue
-
-            if hasattr(response, "text"):
-                html_content = response.text
-            else:
-                html_content = str(response)
-
-            soup = BeautifulSoup(html_content, "html.parser")
-            for script in soup(["script", "style"]):
-                script.decompose()
-            text_content = soup.get_text(separator="\n")
-
-            search_query = query if regex else re.escape(query)
-            matches = search_in_content(
-                text_content,
-                search_query,
-                case_sensitive=case_sensitive,
-                regex=regex,
+            # Use helper function to search page content
+            result = _search_page_content(
+                page_url, query, case_sensitive, regex, context_lines
             )
 
-            if matches:
-                title = filter_module.extract_name_from_url(page_url)
-                snippet = create_snippet(
-                    text_content, search_query, context_lines=context_lines, case_sensitive=case_sensitive, regex=regex
-                )
-
+            if result:
+                title, snippet = result
                 remote_results.append(
                     SearchResult(
                         path=page_url.replace(base_url, ""),
