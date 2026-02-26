@@ -10,6 +10,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from pathlib import Path
+from urllib.parse import urlparse, quote
+
 from ..config import resolve_alias
 from ..console import echo_error, print_summary, reset_console, set_verbose
 from ..scraper import crawler, filter as filter_module, sitemap
@@ -28,6 +31,110 @@ app = typer.Typer(help="Search for content across documentation pages.")
 console = Console()
 
 logger = logging.getLogger(__name__)
+
+# Default sync directory (same as get.py)
+DEFAULT_SYNC_DIR = Path.home() / ".fresh" / "docs"
+
+
+def _get_sync_dir_for_url(url: str) -> Path:
+    """Get the sync directory for a URL's domain."""
+    parsed = urlparse(url)
+    domain = parsed.netloc.replace(":", "_").replace(".", "_")
+    return DEFAULT_SYNC_DIR / domain / "pages"
+
+
+def _url_to_local_path(url: str) -> Path | None:
+    """Convert a URL to its potential local file path.
+
+    Args:
+        url: The URL to convert
+
+    Returns:
+        The potential path in the sync directory, or None if the URL cannot be mapped
+    """
+    parsed = urlparse(url)
+    path = parsed.path.lstrip("/")
+
+    if not path or path.endswith("/"):
+        path = path + "index.html"
+
+    # Sanitize filename
+    filename = quote(path, safe="")
+    if len(filename) > 200:
+        filename = filename[:200]
+
+    sync_dir = _get_sync_dir_for_url(url)
+    file_path = sync_dir / filename
+
+    return file_path
+
+
+def get_local_content(url: str) -> str | None:
+    """Get locally synced content for a URL.
+
+    Args:
+        url: The URL to get local content for
+
+    Returns:
+        Local HTML content or None if not available locally
+    """
+    local_path = _url_to_local_path(url)
+    if local_path and local_path.exists():
+        try:
+            return local_path.read_text(encoding="utf-8")
+        except (OSError, IOError):
+            return None
+    return None
+
+
+def local_content_exists(url: str) -> bool:
+    """Check if local synced content exists for a URL.
+
+    Args:
+        url: The URL to check
+
+    Returns:
+        True if local content exists, False otherwise
+    """
+    local_path = _url_to_local_path(url)
+    return local_path is not None and local_path.exists()
+
+
+def discover_local_urls(base_url: str, max_pages: int = 50) -> list[str]:
+    """Discover documentation URLs from local synced content.
+
+    Args:
+        base_url: The base URL of the documentation
+        max_pages: Maximum number of pages to return
+
+    Returns:
+        List of discovered local URLs
+    """
+    sync_dir = _get_sync_dir_for_url(base_url)
+
+    if not sync_dir.exists():
+        return []
+
+    urls: list[str] = []
+    try:
+        for file_path in sync_dir.rglob("*.html"):
+            # Convert local path back to URL
+            relative_path = file_path.relative_to(sync_dir)
+            path_str = "/" + str(relative_path)
+
+            # Handle index.html files
+            if file_path.stem == "index":
+                path_str = str(relative_path.parent) + "/"
+
+            full_url = f"{base_url.rstrip('/')}{path_str}"
+            urls.append(full_url)
+
+            if len(urls) >= max_pages:
+                break
+    except OSError:
+        pass
+
+    return urls[:max_pages]
 
 
 def discover_documentation_urls(
