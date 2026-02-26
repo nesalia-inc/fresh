@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 
 import typer
@@ -16,6 +17,7 @@ from ..scraper.http import fetch_binary_aware, validate_url
 from ..scraper.searcher import (
     SearchResult,
     create_snippet,
+    find_fuzzy_suggestions,
     search_in_content,
 )
 from bs4 import BeautifulSoup
@@ -24,6 +26,133 @@ from ..ui import is_interactive, show_success_message, spinner
 
 app = typer.Typer(help="Search for content across documentation pages.")
 console = Console()
+
+logger = logging.getLogger(__name__)
+
+
+def discover_documentation_urls(
+    base_url: str,
+    max_pages: int = 50,
+    verbose: bool = False,
+) -> list[str]:
+    """
+    Discover documentation URLs using sitemap or crawler.
+
+    Args:
+        base_url: The base URL of the documentation
+        max_pages: Maximum number of pages to discover
+        verbose: Whether to show verbose output
+
+    Returns:
+        List of discovered URLs
+    """
+    discovered_urls: set[str] = set()
+
+    # Try sitemap first
+    sitemap_url = sitemap.discover_sitemap(base_url)
+    if sitemap_url:
+        if verbose:
+            typer.echo(f"Found sitemap at {sitemap_url}")
+        xml_content = sitemap.fetch_with_retry(sitemap_url)
+        if xml_content and isinstance(xml_content, str):
+            urls = sitemap.parse_sitemap(xml_content)
+            if urls:
+                filtered = [u for u in urls if filter_module.is_relevant_url(u)]
+                discovered_urls.update(filtered)
+
+    # Fallback to crawler if no sitemap or no URLs found
+    if not discovered_urls:
+        if verbose:
+            typer.echo("No sitemap found, using crawler...")
+        discovered_urls = crawler.crawl(base_url, max_pages=max_pages, max_depth=3)
+
+    return list(discovered_urls)[:max_pages]
+
+
+def extract_words_for_suggestions(
+    base_url: str,
+    max_pages: int = 20,
+    verbose: bool = False,
+) -> list[str]:
+    """
+    Extract words from documentation pages for suggestion engine.
+
+    Args:
+        base_url: The base URL of the documentation
+        max_pages: Number of pages to scan
+        verbose: Whether to show verbose output
+
+    Returns:
+        List of words found in documentation
+    """
+    words: set[str] = set()
+
+    # Use shared URL discovery helper
+    urls_to_check = discover_documentation_urls(base_url, max_pages, verbose)
+
+    # Extract words from pages
+    for page_url in urls_to_check[:max_pages]:
+        if verbose:
+            typer.echo(f"  Extracting words from {page_url}")
+
+        response = fetch_binary_aware(page_url, max_retries=1)
+        if not response:
+            continue
+
+        if hasattr(response, "text"):
+            html_content = response.text
+        else:
+            html_content = str(response)
+
+        # Parse HTML and extract text
+        soup = BeautifulSoup(html_content, "html.parser")
+        for script in soup(["script", "style"]):
+            script.decompose()
+        text = soup.get_text()
+
+        # Extract words (alphanumeric, 3+ chars)
+        found_words = re.findall(r"\b[a-zA-Z]{3,}\b", text.lower())
+        words.update(found_words)
+
+    # Filter out common words
+    common_words = {
+        "the", "and", "for", "are", "but", "not", "you", "all", "can", "had",
+        "her", "was", "one", "our", "out", "day", "get", "has", "him", "his",
+        "how", "its", "may", "now", "old", "see", "than", "that", "this", "with",
+        "have", "from", "they", "will", "would", "there", "their", "what", "been",
+        "when", "where", "which", "who", "whom", "these", "those", "being",
+        "also", "into", "more", "some", "such", "only", "over", "other", "after",
+        "first", "even", "back", "just", "about", "could", "because", "while",
+        "before", "between", "through", "during", "under", "again", "very",
+    }
+    return sorted(words - common_words)
+
+
+def show_suggestions(query: str, base_url: str, verbose: bool = False) -> None:
+    """
+    Show "Did you mean" suggestions when no results found.
+
+    Args:
+        query: The search query
+        base_url: The base URL that was searched
+        verbose: Whether to show verbose output
+    """
+    try:
+        words = extract_words_for_suggestions(base_url, max_pages=20, verbose=verbose)
+        if not words:
+            return
+
+        suggestions = find_fuzzy_suggestions(query, words, max_suggestions=5, max_distance=3)
+
+        if suggestions:
+            typer.echo("\nDid you mean?")
+            for suggestion, distance in suggestions:
+                typer.echo(f"  - {suggestion}")
+
+            typer.echo(f"\nSearch with: fresh search \"{suggestions[0][0]}\" {base_url}")
+    except Exception as e:
+        # Log but don't fail if suggestions fail
+        logger.debug(f"Could not generate suggestions: {e}")
 
 
 def search_pages(
@@ -56,31 +185,11 @@ def search_pages(
     """
     results: list[SearchResult] = []
 
-    # Discover pages using sitemap or crawler
-    discovered_urls: set[str] = set()
-
+    # Discover pages using shared helper
     if verbose:
         typer.echo("Discovering pages...")
 
-    sitemap_url = sitemap.discover_sitemap(base_url)
-    if sitemap_url:
-        if verbose:
-            typer.echo(f"Found sitemap at {sitemap_url}")
-        xml_content = sitemap.fetch_with_retry(sitemap_url)
-        if xml_content and isinstance(xml_content, str):
-            urls = sitemap.parse_sitemap(xml_content)
-            if urls:
-                filtered = [u for u in urls if filter_module.is_relevant_url(u)]
-                discovered_urls.update(filtered)
-
-    # Fallback to crawler if no sitemap
-    if not discovered_urls:
-        if verbose:
-            typer.echo("No sitemap found, using crawler...")
-        discovered_urls = crawler.crawl(base_url, max_pages=max_pages, max_depth=depth)
-
-    # Limit pages to search
-    pages_to_search = list(discovered_urls)[:max_pages]
+    pages_to_search = discover_documentation_urls(base_url, max_pages, verbose)
 
     if verbose:
         typer.echo(f"Searching {len(pages_to_search)} pages...")
@@ -317,6 +426,7 @@ def _search_single_library(
     # Display results
     if not results:
         typer.echo("No results found.")
+        show_suggestions(query, resolved_url, verbose)
         return
 
     if verbose or is_interactive():
@@ -401,6 +511,9 @@ def _search_multiple_libraries(
     # Display results
     if total_results == 0:
         typer.echo("No results found.")
+        # Show suggestions for the first library
+        if resolved_urls:
+            show_suggestions(query, resolved_urls[0], verbose)
         return
 
     if verbose or is_interactive():
