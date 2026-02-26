@@ -662,14 +662,19 @@ def _search_single_library(
         # Create rich table
         table = Table(title="Search Results")
         table.add_column("Page", style="cyan")
+        table.add_column("URL", style="dim")
         table.add_column("Snippet", style="green")
 
         for result in results:
             # Truncate snippet for table
-            snippet_preview = result.snippet[:100].replace("\n", " ")
-            if len(result.snippet) > 100:
+            snippet_preview = result.snippet[:80].replace("\n", " ")
+            if len(result.snippet) > 80:
                 snippet_preview += "..."
-            table.add_row(result.title, snippet_preview)
+            # Truncate URL for display
+            url_display = result.url
+            if len(url_display) > 50:
+                url_display = "..." + url_display[-47:]
+            table.add_row(result.title, url_display, snippet_preview)
 
         console.print(table)
     else:
@@ -757,13 +762,18 @@ def _search_multiple_libraries(
             lib_name = lib_url.replace("https://", "").replace("http://", "").split("/")[0]
             table = Table(title=f"Search Results - {lib_name}")
             table.add_column("Page", style="cyan")
+            table.add_column("URL", style="dim")
             table.add_column("Snippet", style="green")
 
             for result in results:
-                snippet_preview = result.snippet[:80].replace("\n", " ")
-                if len(result.snippet) > 80:
+                snippet_preview = result.snippet[:60].replace("\n", " ")
+                if len(result.snippet) > 60:
                     snippet_preview += "..."
-                table.add_row(result.title, snippet_preview)
+                # Truncate URL for display
+                url_display = result.url
+                if len(url_display) > 40:
+                    url_display = "..." + url_display[-37:]
+                table.add_row(result.title, url_display, snippet_preview)
 
             console.print(table)
     else:
