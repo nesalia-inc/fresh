@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse, quote
 
@@ -37,18 +37,82 @@ def _get_sync_dir(url: str, output_dir: Path | None) -> Path:
     return DEFAULT_SYNC_DIR / domain
 
 
+def get_sync_dir(url: str, output_dir: Path | None = None) -> Path:
+    """Get the sync directory for a URL (public version)."""
+    return _get_sync_dir(url, output_dir)
+
+
 def _save_metadata(sync_dir: Path, base_url: str, page_count: int) -> None:
     """Save sync metadata."""
     metadata = {
         "site": base_url,
-        "last_sync": datetime.now().isoformat(),
+        "last_sync": datetime.now(timezone.utc).isoformat(),
         "page_count": page_count,
     }
     metadata_file = sync_dir / "_sync.json"
     metadata_file.write_text(json.dumps(metadata, indent=2))
 
 
-def _fetch_page_for_sync(page_url: str) -> str | None:
+def get_sync_metadata(base_url: str) -> dict[str, str] | None:
+    """
+    Get sync metadata for a base URL.
+
+    Args:
+        base_url: The base URL of the documentation
+
+    Returns:
+        Dict with last_sync, page_count, or None if not synced
+    """
+    sync_dir = _get_sync_dir(base_url, None)
+    metadata_file = sync_dir / "_sync.json"
+    if not metadata_file.exists():
+        return None
+    try:
+        data: dict[str, str] = json.loads(metadata_file.read_text(encoding="utf-8"))
+        return data
+    except (json.JSONDecodeError, IOError):
+        return None
+
+
+def get_page_freshness(page_url: str, base_url: str) -> dict[str, str] | None:
+    """
+    Get freshness metadata for a synced page.
+
+    Args:
+        page_url: The full URL of the page
+        base_url: The base URL of the documentation
+
+    Returns:
+        Dict with synced_at, etag, last_modified, or None if not found
+    """
+    sync_dir = _get_sync_dir(base_url, None)
+    pages_dir = sync_dir / "pages"
+    if not pages_dir.exists():
+        return None
+
+    # Convert URL to filename
+    parsed = urlparse(page_url)
+    path = parsed.path.lstrip("/")
+    if not path or path.endswith("/"):
+        path = path + "index.html"
+
+    filename = quote(path, safe="")
+    if len(filename) > 200:
+        hash_suffix = hashlib.sha256(path.encode()).hexdigest()[:8]
+        filename = filename[:191] + "_" + hash_suffix + ".html"
+
+    metadata_file = pages_dir / f"{filename}.meta.json"
+    if not metadata_file.exists():
+        return None
+
+    try:
+        data: dict[str, str] = json.loads(metadata_file.read_text(encoding="utf-8"))
+        return data
+    except (json.JSONDecodeError, IOError):
+        return None
+
+
+def _fetch_page_for_sync(page_url: str) -> tuple[str | None, dict[str, str] | None]:
     """
     Fetch a page for sync, skipping binary content.
 
@@ -56,10 +120,30 @@ def _fetch_page_for_sync(page_url: str) -> str | None:
         page_url: The URL to fetch
 
     Returns:
-        HTML content, None if binary/failed
+        Tuple of (HTML content or None, headers dict or None)
     """
-    # Use binary-aware fetch
-    return fetch_binary_aware(page_url, skip_binary=True)
+    import httpx
+
+    # Use binary-aware fetch but also get headers
+    response = fetch_binary_aware(page_url, skip_binary=True)
+    if not response or not isinstance(response, str):
+        return None, None
+
+    # Get headers for freshness tracking
+    headers: dict[str, str] = {}
+    try:
+        client = httpx.Client(timeout=10.0)
+        resp = client.head(page_url, follow_redirects=True)
+        if resp.status_code == 200:
+            if etag := resp.headers.get("etag"):
+                headers["etag"] = etag
+            if last_modified := resp.headers.get("last-modified"):
+                headers["last-modified"] = last_modified
+        client.close()
+    except Exception:
+        pass
+
+    return response, headers if headers else None
 
 
 def _save_page(page_url: str, pages_dir: Path) -> bool | None:
@@ -77,7 +161,7 @@ def _save_page(page_url: str, pages_dir: Path) -> bool | None:
     if is_binary_url(page_url):
         return None
 
-    response = _fetch_page_for_sync(page_url)
+    response, headers = _fetch_page_for_sync(page_url)
     if not response or not isinstance(response, str):
         return False
 
@@ -96,6 +180,17 @@ def _save_page(page_url: str, pages_dir: Path) -> bool | None:
     page_file = pages_dir / filename
     page_file.parent.mkdir(parents=True, exist_ok=True)
     page_file.write_text(response, encoding="utf-8")
+
+    # Save page metadata for freshness tracking
+    if headers:
+        metadata_file = pages_dir / f"{filename}.meta.json"
+        metadata = {
+            "url": page_url,
+            "synced_at": datetime.now(timezone.utc).isoformat(),
+        }
+        metadata.update(headers)
+        metadata_file.write_text(json.dumps(metadata, indent=2))
+
     return True
 
 
