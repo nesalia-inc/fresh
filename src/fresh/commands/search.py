@@ -40,7 +40,7 @@ try:
     from .. import history as history_module
     HISTORY_AVAILABLE = True
 except ImportError:
-    history_module = None
+    history_module = None  # type: ignore[assignment]
     HISTORY_AVAILABLE = False
 
 app = typer.Typer(help="Search for content across documentation pages.")
@@ -578,12 +578,12 @@ def search_pages(
                     typer.echo(f"  [{i + 1}/{len(pages_to_search)}] Searching {page_url}")
 
                 # Use helper function to search page content
-                result = _search_page_content(
+                content_result = _search_page_content(
                     page_url, query, case_sensitive, regex, context_lines
                 )
 
-                if result:
-                    title, snippet = result
+                if content_result:
+                    title, snippet = content_result
                     remote_results.append(
                         SearchResult(
                             path=page_url.replace(base_url, ""),
