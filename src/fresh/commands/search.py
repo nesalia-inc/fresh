@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -388,6 +389,9 @@ def show_suggestions(query: str, base_url: str, verbose: bool = False) -> None:
 # Threshold for auto-parallel mode
 PARALLEL_THRESHOLD = 3
 
+# Default max workers for parallel search (based on CPU count, capped between 4-16)
+DEFAULT_MAX_WORKERS = min(max(os.cpu_count() or 4, 4), 16)
+
 
 def _search_page_parallel(
     page_url: str,
@@ -538,7 +542,7 @@ def search_pages(
 
         if use_parallel and len(pages_to_search) > 1:
             # Parallel fetching using ThreadPoolExecutor
-            max_workers = min(10, len(pages_to_search))
+            max_workers = min(DEFAULT_MAX_WORKERS, len(pages_to_search))
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit all search tasks
                 future_to_url = {

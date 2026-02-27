@@ -202,3 +202,47 @@ class TestGuideManagement:
                 imported = guide._load_guide("import")
                 assert imported["title"] == "JSON Guide"
                 assert "Content from JSON" in imported["content"]
+
+    def test_validate_guide_name_valid(self):
+        """Test valid guide names."""
+        assert guide._validate_guide_name("valid-name") is True
+        assert guide._validate_guide_name("guide123") is True
+        assert guide._validate_guide_name("my_guide") is True
+
+    def test_validate_guide_name_invalid_chars(self):
+        """Test invalid guide names with special characters."""
+        assert guide._validate_guide_name("guide/name") is False
+        assert guide._validate_guide_name("guide\\name") is False
+        assert guide._validate_guide_name("guide:name") is False
+        assert guide._validate_guide_name("guide*name") is False
+        assert guide._validate_guide_name("guide?name") is False
+
+    def test_validate_guide_name_path_traversal(self):
+        """Test invalid guide names with path traversal."""
+        assert guide._validate_guide_name("..") is False
+        assert guide._validate_guide_name("../etc") is False
+        assert guide._validate_guide_name(".hidden") is False
+
+    def test_import_guide_json_missing_content(self):
+        """Test importing JSON file without content field fails."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with mock.patch.object(guide, "GUIDES_DIR", Path(tmpdir)):
+                import json
+
+                json_file = Path(tmpdir) / "no-content.json"
+                json_file.write_text(
+                    json.dumps(
+                        {
+                            "title": "No Content Guide",
+                            # No content field
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+                result = runner.invoke(
+                    app,
+                    ["guide", "import", str(json_file)],
+                )
+                assert result.exit_code == 1
+                assert "must contain a 'content' field" in result.output

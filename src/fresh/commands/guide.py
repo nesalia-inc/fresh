@@ -29,6 +29,10 @@ def _create_console() -> Console:
 
 GUIDES_DIR = Path.home() / ".fresh" / "guides"
 
+# Reserved characters that are not allowed in guide names
+INVALID_NAME_CHARS = set("/\\:*?\"<>|")
+MAX_NAME_LENGTH = 255
+
 
 def _get_guides_dir() -> Path:
     """Get the guides directory, creating it if needed."""
@@ -79,6 +83,24 @@ def _list_guides() -> list[tuple[str, dict[str, Any]]]:
         except (json.JSONDecodeError, IOError):
             continue
     return sorted(guides, key=lambda x: x[0])
+
+
+def _validate_guide_name(name: str) -> bool:
+    """Validate guide name for safety.
+
+    Returns True if valid, False otherwise.
+    """
+    if not name:
+        return False
+    if len(name) > MAX_NAME_LENGTH:
+        return False
+    # Check for invalid characters
+    if any(char in INVALID_NAME_CHARS for char in name):
+        return False
+    # Check for path traversal attempts
+    if ".." in name or name.startswith("."):
+        return False
+    return True
 
 
 def _format_age(timestamp: str) -> str:
@@ -272,7 +294,7 @@ def append_guide(
     """Append content to an existing guide.
 
     Example:
-        fresh guide append react-install --content "4. npm run build"
+        fresh guide append react-install "4. npm run build"
     """
     # Check if guide exists
     guide = _load_guide(name)
@@ -355,6 +377,15 @@ def import_guide(
     if not name:
         name = file.stem
 
+    # Validate guide name
+    if not _validate_guide_name(name):
+        typer.echo(
+            f"Invalid guide name '{name}'. Guide names must not contain: {', '.join(INVALID_NAME_CHARS)} "
+            f"and must not exceed {MAX_NAME_LENGTH} characters.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
     # Determine title
     if not title:
         title = name
@@ -367,9 +398,18 @@ def import_guide(
     if file.suffix == ".json":
         try:
             guide_data = json.loads(content)
-            content = guide_data.get("content", content)
-            title = guide_data.get("title", title)
-            tags = guide_data.get("tags", [])
+            # For JSON, require content field - don't silently use entire file
+            if "content" not in guide_data:
+                typer.echo(
+                    "JSON file must contain a 'content' field.",
+                    err=True,
+                )
+                raise typer.Exit(1)
+            content = guide_data.get("content", "")
+            if "title" in guide_data:
+                title = guide_data["title"]
+            if "tags" in guide_data:
+                tags = guide_data.get("tags", [])
         except json.JSONDecodeError:
             typer.echo("Invalid JSON file", err=True)
             raise typer.Exit(1)
