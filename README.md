@@ -141,12 +141,59 @@ Show enhanced documentation for fresh commands.
 fresh doc [COMMAND]
 ```
 
+### `fresh history`
+View and manage search history.
+
+```bash
+# View recent search history
+fresh history
+
+# Show history statistics
+fresh history stats
+
+# Clear all history
+fresh history clear
+
+# Clear history for a specific URL
+fresh history clear --url https://example.com
+
+# Clear history older than 30 days
+fresh history clear --older-than-days 30
+
+# Export history to JSON
+fresh history export history.json
+
+# Import history from JSON
+fresh history import history.json
+```
+
+### `fresh guide`
+Manage personal guides and documentation.
+
+```bash
+# Create a new guide
+fresh guide create my-guide --content "Guide content here" --title "My Guide"
+
+# List all guides
+fresh guide list
+
+# Show a specific guide
+fresh guide show my-guide
+
+# Delete a guide
+fresh guide delete my-guide
+
+# Search across guides
+fresh guide search "keyword"
+```
+
 ## Configuration
 
 Fresh stores its configuration in the following locations:
 - Aliases: `~/.fresh/aliases.json`
 - Cache: `~/.fresh/cache/`
 - Sync data: `~/.fresh/docs/`
+- History: `~/.fresh/history.db`
 
 ## Development
 

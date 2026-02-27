@@ -35,6 +35,14 @@ from ..ui import is_interactive, show_success_message, spinner, _is_windows
 from .guide import _save_guide
 from .sync import get_page_freshness
 
+# Try to import history module (optional dependency)
+try:
+    from .. import history as history_module
+    HISTORY_AVAILABLE = True
+except ImportError:
+    history_module = None  # type: ignore[assignment]
+    HISTORY_AVAILABLE = False
+
 app = typer.Typer(help="Search for content across documentation pages.")
 
 # Initialize console with Windows-safe settings
@@ -669,6 +677,7 @@ def search(
     save_guide: str | None = typer.Option(None, "--save-guide", help="Save search results as a guide"),
     freshness: bool = typer.Option(False, "--freshness", "-f", help="Show freshness information for local results"),
     parallel: bool | None = typer.Option(None, "--parallel/--no-parallel", help="Enable parallel page fetching (auto-enabled when >3 pages, use --no-parallel to disable)"),
+    history: bool = typer.Option(True, "--history/--no-history", help="Track search history"),
 ) -> None:
     """Search for content across documentation pages."""
     # Handle no URL provided - show help
@@ -731,6 +740,7 @@ def search(
             save_guide=save_guide,
             freshness=freshness,
             parallel=parallel,
+            history=history,
         )
     else:
         # Multiple library search
@@ -750,6 +760,7 @@ def search(
             save_guide=save_guide,
             freshness=freshness,
             parallel=parallel,
+            history=history,
         )
 
 
@@ -769,8 +780,12 @@ def _search_single_library(
     save_guide: str | None = None,
     freshness: bool = False,
     parallel: bool | None = None,
+    history: bool = True,
 ) -> None:
     """Search a single library."""
+    # Record start time for history tracking
+    search_start_time = datetime.now(timezone.utc)
+
     if verbose:
         typer.echo(f"Searching \"{query}\" on {resolved_url}...")
 
@@ -894,6 +909,21 @@ def _search_single_library(
         _save_guide(save_guide, guide_data)
         typer.echo(f"Saved results as guide '{save_guide}'")
 
+    # Record search history (if enabled and history module available)
+    if history and HISTORY_AVAILABLE and history_module:
+        try:
+            duration_ms = int((datetime.now(timezone.utc) - search_start_time).total_seconds() * 1000)
+            history_module.add_search_record(
+                query=query,
+                url=resolved_url,
+                results_count=len(results),
+                success=len(results) > 0,
+                duration_ms=duration_ms,
+            )
+        except Exception:
+            # Don't fail if history recording fails
+            pass
+
     # Print error/warning summary
     print_summary()
 
@@ -914,8 +944,12 @@ def _search_multiple_libraries(
     save_guide: str | None = None,
     freshness: bool = False,
     parallel: bool | None = None,
+    history: bool = True,
 ) -> None:
     """Search across multiple libraries."""
+    # Record start time for history tracking
+    search_start_time = datetime.now(timezone.utc)
+
     if verbose:
         typer.echo(f"Searching \"{query}\" on {len(resolved_urls)} libraries...")
 
@@ -1005,6 +1039,22 @@ def _search_multiple_libraries(
                     "source": result.source,
                 })
         typer.echo(json.dumps(output, indent=2))
+
+    # Record search history for each library (if enabled and history module available)
+    if history and HISTORY_AVAILABLE and history_module:
+        try:
+            duration_ms = int((datetime.now(timezone.utc) - search_start_time).total_seconds() * 1000)
+            for lib_url, results in results_by_library.items():
+                history_module.add_search_record(
+                    query=query,
+                    url=lib_url,
+                    results_count=len(results),
+                    success=len(results) > 0,
+                    duration_ms=duration_ms // len(results_by_library) if results_by_library else 0,
+                )
+        except Exception:
+            # Don't fail if history recording fails
+            pass
 
     # Print error/warning summary
     print_summary()
