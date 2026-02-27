@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse, quote
 
+import httpx
 import typer
 from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
 
@@ -123,8 +124,6 @@ def check_page_changed(page_url: str, page_freshness: dict[str, str]) -> bool:
     Returns:
         True if page has changed, False if unchanged
     """
-    import httpx
-
     headers: dict[str, str] = {}
     if etag := page_freshness.get("etag"):
         headers["If-None-Match"] = etag
@@ -136,12 +135,50 @@ def check_page_changed(page_url: str, page_freshness: dict[str, str]) -> bool:
 
     try:
         client = httpx.Client(timeout=10.0)
-        resp = client.head(page_url, follow_redirects=True, headers=headers)
-        client.close()
-        # 304 Not Modified means page hasn't changed
-        return resp.status_code != 304
-    except Exception:
+        try:
+            resp = client.head(page_url, follow_redirects=True, headers=headers)
+            # Log unexpected status codes
+            if resp.status_code not in (200, 304):
+                typer.echo(f"  Warning: Unexpected status {resp.status_code} for {page_url}")
+            # 304 Not Modified means page hasn't changed
+            return resp.status_code != 304
+        finally:
+            client.close()
+    except (httpx.RequestError, httpx.TimeoutException):
         return True  # Error, assume changed to be safe
+
+
+def _should_skip_page(
+    page_url: str,
+    incremental: bool,
+    resolved_url: str,
+    sitemap_domain: str | None,
+    pages_dir: Path,
+) -> tuple[bool, str]:
+    """
+    Check if a page should be skipped during sync.
+
+    Args:
+        page_url: The URL to check
+        incremental: Whether incremental sync is enabled
+        resolved_url: The base URL for the documentation
+        sitemap_domain: Domain for robots.txt checks
+        pages_dir: Directory containing page metadata
+
+    Returns:
+        Tuple of (should_skip: bool, reason: str)
+    """
+    # Check robots.txt
+    if not is_allowed_by_robots(page_url, domain=sitemap_domain):
+        return True, "robots.txt"
+
+    # Check incremental sync
+    if incremental:
+        freshness = get_page_freshness(page_url, resolved_url)
+        if freshness and not check_page_changed(page_url, freshness):
+            return True, "unchanged"
+
+    return False, ""
 
 
 def _fetch_page_for_sync(page_url: str) -> tuple[str | None, dict[str, str] | None]:
@@ -361,19 +398,15 @@ def sync(
         for i, page_url in enumerate(urls_to_sync):
             typer.echo(f"[{i + 1}/{total_pages}] Syncing: {page_url}")
 
-            # Check robots.txt before fetching (use sitemap domain if available)
-            if not is_allowed_by_robots(page_url, domain=sitemap_domain):
-                typer.echo(f"  Skipped (robots.txt): {page_url}")
-                skipped_robots += 1
-                continue
-
-            # Check if page has changed (incremental sync)
-            if incremental:
-                freshness = get_page_freshness(page_url, resolved_url)
-                if freshness and not check_page_changed(page_url, freshness):
+            skip, reason = _should_skip_page(page_url, incremental, resolved_url, sitemap_domain, pages_dir)
+            if skip:
+                if reason == "robots.txt":
+                    skipped_robots += 1
+                    typer.echo(f"  Skipped (robots.txt): {page_url}")
+                elif reason == "unchanged":
                     skipped_unchanged += 1
                     typer.echo(f"  Skipped (unchanged): {page_url}")
-                    continue
+                continue
 
             # Fetch and save the page
             try:
@@ -405,19 +438,14 @@ def sync(
             )
 
             for page_url in urls_to_sync:
-                # Check robots.txt before fetching (use sitemap domain for consistency)
-                if not is_allowed_by_robots(page_url, domain=sitemap_domain):
-                    skipped_robots += 1
+                skip, reason = _should_skip_page(page_url, incremental, resolved_url, sitemap_domain, pages_dir)
+                if skip:
+                    if reason == "robots.txt":
+                        skipped_robots += 1
+                    elif reason == "unchanged":
+                        skipped_unchanged += 1
                     progress.advance(task)
                     continue
-
-                # Check if page has changed (incremental sync)
-                if incremental:
-                    freshness = get_page_freshness(page_url, resolved_url)
-                    if freshness and not check_page_changed(page_url, freshness):
-                        skipped_unchanged += 1
-                        progress.advance(task)
-                        continue
 
                 # Fetch and save the page
                 try:
@@ -441,17 +469,13 @@ def sync(
     else:
         # Non-interactive mode: simple progress without spinner
         for page_url in urls_to_sync:
-            # Check robots.txt before fetching (use sitemap domain for consistency)
-            if not is_allowed_by_robots(page_url, domain=sitemap_domain):
-                skipped_robots += 1
-                continue
-
-            # Check if page has changed (incremental sync)
-            if incremental:
-                freshness = get_page_freshness(page_url, resolved_url)
-                if freshness and not check_page_changed(page_url, freshness):
+            skip, reason = _should_skip_page(page_url, incremental, resolved_url, sitemap_domain, pages_dir)
+            if skip:
+                if reason == "robots.txt":
+                    skipped_robots += 1
+                elif reason == "unchanged":
                     skipped_unchanged += 1
-                    continue
+                continue
 
             # Fetch and save the page
             try:
