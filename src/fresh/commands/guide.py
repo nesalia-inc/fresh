@@ -30,7 +30,8 @@ def _load_guide(name: str) -> dict[str, Any] | None:
         return None
     try:
         with open(guide_file, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data: dict[str, Any] = json.load(f)
+            return data
     except (json.JSONDecodeError, IOError):
         return None
 
