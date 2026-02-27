@@ -347,7 +347,7 @@ class TestParallelSearch:
 
     def test_search_pages_auto_parallel_when_many_pages(self):
         """Should use parallel when max_pages > threshold."""
-        from fresh.commands.search import search_pages, PARALLEL_THRESHOLD
+        from fresh.commands.search import PARALLEL_THRESHOLD
 
         # With max_pages > threshold, should use parallel
         assert PARALLEL_THRESHOLD == 3
@@ -410,7 +410,7 @@ class TestParallelSearch:
 
     def test_search_pages_auto_detects_parallel_threshold(self):
         """Should auto-detect parallel when max_pages > 3."""
-        from fresh.commands.search import PARALLEL_THRESHOLD, search_pages
+        from fresh.commands.search import PARALLEL_THRESHOLD
 
         # With max_pages > threshold, should use parallel
         assert PARALLEL_THRESHOLD == 3
