@@ -438,7 +438,7 @@ def fetch_single_url(
         if not no_cache:
             save_to_cache(resolved_url, content)
             if verbose:
-                typer.echo("{CHECK_MARK} Saved to cache")
+                typer.echo(f"{CHECK_MARK} Saved to cache")
 
     if content is None:
         return {
