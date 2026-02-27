@@ -123,22 +123,35 @@ def get_cache_dir() -> Path:
     return cache_dir
 
 
-def get_cached_content(url: str) -> str | None:
+def get_cached_content(url: str, ttl_days: int | None = None) -> str | None:
     """Get cached content for a URL.
 
     Args:
         url: The URL to get cached content for
+        ttl_days: Cache TTL in days (None = use default)
 
     Returns:
-        Cached content or None if not cached
+        Cached content or None if not cached or expired
     """
     # Create a hash of the URL for the filename
     url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
     cache_file = get_cache_dir() / f"{url_hash}.md"
 
-    if cache_file.exists():
-        return cache_file.read_text(encoding="utf-8")
-    return None
+    if not cache_file.exists():
+        return None
+
+    # Check TTL if not disabled
+    if ttl_days is not None and ttl_days > 0:
+        import time
+
+        ttl_seconds = ttl_days * 24 * 60 * 60
+        file_age = time.time() - cache_file.stat().st_mtime
+        if file_age > ttl_seconds:
+            # Cache expired, remove it
+            cache_file.unlink()
+            return None
+
+    return cache_file.read_text(encoding="utf-8")
 
 
 def save_to_cache(url: str, content: str) -> None:
@@ -292,6 +305,7 @@ def fetch_single_url(
     no_follow: bool = False,
     skip_scripts: bool = False,
     no_cache: bool = False,
+    cache_ttl: int | None = None,
     retry: int = 3,
     dry_run: bool = False,
     local: bool = False,
@@ -362,7 +376,7 @@ def fetch_single_url(
     if content is None and not use_local_only and not no_cache:
         if verbose:
             typer.echo("Checking cache...")
-        content = get_cached_content(resolved_url)
+        content = get_cached_content(resolved_url, ttl_days=cache_ttl)
         if content and verbose:
             typer.echo("Found in cache")
 
@@ -466,6 +480,7 @@ def get(
     no_follow: bool = typer.Option(False, "--no-follow", help="Do not follow redirects"),
     skip_scripts: bool = typer.Option(False, "--skip-scripts", help="Exclude JavaScript from output"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass cache"),
+    cache_ttl: int = typer.Option(None, "--cache-ttl", help="Cache TTL in days (default: 30, 0 to disable)"),
     output: str | None = typer.Option(None, "--output", "-o", help="Write output to file (for single URL)"),
     output_dir: Path | None = typer.Option(None, "--output-dir", help="Write each page to a separate file in directory"),
     input_file: Path | None = typer.Option(None, "--input-file", "-i", help="Read URLs from file"),
@@ -549,6 +564,7 @@ def get(
             no_follow=no_follow,
             skip_scripts=skip_scripts,
             no_cache=no_cache,
+            cache_ttl=cache_ttl,
             retry=retry,
             dry_run=dry_run,
             local=local,
