@@ -761,9 +761,9 @@ def _search_single_library(
             }
             # Add freshness if requested and result is local
             if freshness and r.source == "local":
-                freshness_str = _get_result_freshness(r.url, resolved_url)
-                if freshness_str:
-                    result_dict["freshness"] = freshness_str
+                _freshness = _get_result_freshness(r.url, resolved_url)
+                if _freshness:
+                    result_dict["freshness"] = _freshness
             output.append(result_dict)
         typer.echo(json.dumps(output, indent=2))
 

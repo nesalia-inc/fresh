@@ -68,7 +68,8 @@ def get_sync_metadata(base_url: str) -> dict[str, str] | None:
     if not metadata_file.exists():
         return None
     try:
-        return json.loads(metadata_file.read_text(encoding="utf-8"))
+        data: dict[str, str] = json.loads(metadata_file.read_text(encoding="utf-8"))
+        return data
     except (json.JSONDecodeError, IOError):
         return None
 
@@ -105,7 +106,8 @@ def get_page_freshness(page_url: str, base_url: str) -> dict[str, str] | None:
         return None
 
     try:
-        return json.loads(metadata_file.read_text(encoding="utf-8"))
+        data: dict[str, str] = json.loads(metadata_file.read_text(encoding="utf-8"))
+        return data
     except (json.JSONDecodeError, IOError):
         return None
 
