@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -141,7 +140,7 @@ def get_search_history(
     conn = _get_connection()
     try:
         sql = "SELECT * FROM search_history"
-        params = []
+        params: list[str | int] = []
 
         conditions = []
         if query:
@@ -171,7 +170,7 @@ def get_access_history(
     conn = _get_connection()
     try:
         sql = "SELECT * FROM access_history"
-        params = []
+        params: list[str | int] = []
 
         if url:
             sql += " WHERE url LIKE ?"
@@ -199,7 +198,7 @@ def clear_history(url: str | None = None, older_than_days: int | None = None) ->
     conn = _get_connection()
     try:
         sql = "DELETE FROM search_history WHERE 1=1"
-        params = []
+        params: list[str | int] = []
 
         if url:
             sql += " AND url = ?"

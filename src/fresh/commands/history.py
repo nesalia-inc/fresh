@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import typer
@@ -62,8 +63,6 @@ def history(
         table.add_column("Method", style="yellow")
 
         for record in records:
-            from datetime import datetime, timezone
-
             timestamp = record.get("timestamp", "")
             try:
                 dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
@@ -134,8 +133,6 @@ def history(
 
 def _format_age(dt: datetime) -> str:
     """Format datetime as relative age."""
-    from datetime import datetime, timezone
-
     now = datetime.now(timezone.utc)
     diff = now - dt
 
