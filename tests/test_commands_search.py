@@ -428,10 +428,10 @@ class TestParallelSearch:
         assert result is False
 
     def test_default_max_workers_constant(self):
-        """DEFAULT_MAX_WORKERS should be 10."""
+        """DEFAULT_MAX_WORKERS should be between 4 and 16 based on CPU count."""
         from fresh.commands.search import DEFAULT_MAX_WORKERS
 
-        assert DEFAULT_MAX_WORKERS == 10
+        assert 4 <= DEFAULT_MAX_WORKERS <= 16
 
     def test_max_workers_edge_cases(self):
         """Test max_workers calculation for edge cases."""
