@@ -28,6 +28,7 @@ from ..scraper.searcher import (
     create_snippet,
     find_fuzzy_suggestions,
     search_in_content,
+    search_fuzzy,
 )
 from bs4 import BeautifulSoup
 
@@ -448,6 +449,7 @@ def search_pages(
     result_limit: int | None = None,
     source: str = "auto",  # "auto", "local", "remote"
     parallel: bool | None = None,  # None = auto, True = force parallel, False = sequential
+    fuzzy: bool = False,  # Internal flag to prevent recursion
 ) -> list[SearchResult]:
     """
     Search for a query across documentation pages.
@@ -539,12 +541,21 @@ def search_pages(
                 text_content = soup.get_text(separator="\n")
 
                 search_query = query
-                matches = search_in_content(
-                    text_content,
-                    search_query,
-                    case_sensitive=case_sensitive,
-                    regex=regex,
-                )
+
+                # Use fuzzy search if fuzzy=True, otherwise use exact search
+                if fuzzy:
+                    matches = search_fuzzy(
+                        text_content,
+                        search_query,
+                        case_sensitive=case_sensitive,
+                    )
+                else:
+                    matches = search_in_content(
+                        text_content,
+                        search_query,
+                        case_sensitive=case_sensitive,
+                        regex=regex,
+                    )
 
                 if matches:
                     title = filter_module.extract_name_from_url(page_url)
@@ -720,6 +731,7 @@ def search(
     freshness: bool = typer.Option(False, "--freshness", "-f", help="Show freshness information for local results"),
     parallel: bool | None = typer.Option(None, "--parallel/--no-parallel", help="Enable parallel page fetching (auto-enabled when >3 pages, use --no-parallel to disable)"),
     history: bool = typer.Option(True, "--history/--no-history", help="Track search history"),
+    fuzzy: bool | None = typer.Option(None, "--fuzzy/--no-fuzzy", help="Enable fuzzy matching as fallback when no exact match found (enabled by default)"),
 ) -> None:
     """Search for content across documentation pages."""
     # Handle no URL provided - show help
@@ -823,6 +835,7 @@ def _search_single_library(
     freshness: bool = False,
     parallel: bool | None = None,
     history: bool = True,
+    fuzzy: bool | None = None,
 ) -> None:
     """Search a single library."""
     # Record start time for history tracking
@@ -866,10 +879,40 @@ def _search_single_library(
     # Limit results
     results = results[:limit]
 
+    # Auto fuzzy fallback: try fuzzy search if no results and fuzzy is enabled
+    used_fuzzy = False
+    if not results and (fuzzy is None or fuzzy is True):
+        # Fuzzy is enabled by default (or explicitly), try fuzzy search
+        if verbose:
+            typer.echo("No exact matches found. Trying fuzzy search...")
+
+        # Try fuzzy search
+        fuzzy_results = search_pages(
+            resolved_url,
+            query,
+            max_pages=max_pages,
+            depth=depth,
+            case_sensitive=case_sensitive,
+            regex=False,  # Fuzzy doesn't work well with regex
+            context_lines=context,
+            verbose=False,
+            result_limit=limit,
+            source=source,
+            parallel=parallel,
+            fuzzy=True,  # Pass fuzzy=True to avoid infinite recursion
+        )
+
+        if fuzzy_results:
+            results = fuzzy_results[:limit]
+            used_fuzzy = True
+            if verbose:
+                typer.echo(f"Found {len(results)} fuzzy matches.")
+
     # Display results
     if not results:
         typer.echo("No results found.")
-        show_suggestions(query, resolved_url, verbose)
+        if not used_fuzzy:
+            show_suggestions(query, resolved_url, verbose)
         return
 
     # Default to JSON output, use table only with --table or --verbose
