@@ -1,10 +1,9 @@
 """Tests for history command."""
 
+import sqlite3
 import tempfile
 from pathlib import Path
 from unittest import mock
-
-import pytest
 
 from fresh import history
 
@@ -145,6 +144,3 @@ class TestHistoryModule:
                 count = history.import_history(export_file)
                 assert count == 1
                 assert len(history.get_search_history()) == 1
-
-
-import sqlite3
