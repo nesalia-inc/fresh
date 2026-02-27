@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 import json
@@ -376,6 +377,45 @@ def show_suggestions(query: str, base_url: str, verbose: bool = False) -> None:
         logger.debug(f"Could not generate suggestions: {e}")
 
 
+# Threshold for auto-parallel mode
+PARALLEL_THRESHOLD = 3
+
+
+def _search_page_parallel(
+    page_url: str,
+    query: str,
+    case_sensitive: bool,
+    regex: bool,
+    context_lines: int,
+    base_url: str,
+) -> SearchResult | None:
+    """
+    Search a single page in parallel (helper for parallel search).
+
+    Args:
+        page_url: URL of the page to search
+        query: Search query
+        case_sensitive: Case-sensitive search
+        regex: Treat query as regex
+        context_lines: Lines of context around matches
+        base_url: Base URL of the documentation
+
+    Returns:
+        SearchResult if match found, None otherwise
+    """
+    result = _search_page_content(page_url, query, case_sensitive, regex, context_lines)
+    if result:
+        title, snippet = result
+        return SearchResult(
+            path=page_url.replace(base_url, ""),
+            title=title,
+            snippet=snippet,
+            url=page_url,
+            source="remote",
+        )
+    return None
+
+
 def search_pages(
     base_url: str,
     query: str,
@@ -387,6 +427,7 @@ def search_pages(
     verbose: bool = False,
     result_limit: int | None = None,
     source: str = "auto",  # "auto", "local", "remote"
+    parallel: bool | None = None,  # None = auto, True = force parallel, False = sequential
 ) -> list[SearchResult]:
     """
     Search for a query across documentation pages.
@@ -402,11 +443,15 @@ def search_pages(
         verbose: Whether to show verbose output
         result_limit: Early termination when this many results found
         source: Data source - "auto" (local-first), "local", or "remote"
+        parallel: Parallel fetching - None=auto (use parallel if >3 pages), True=force, False=never
 
     Returns:
         List of SearchResult objects
     """
     results: list[SearchResult] = []
+
+    # Determine if we should use parallel (auto-detect if None)
+    use_parallel = parallel if parallel is not None else (max_pages > PARALLEL_THRESHOLD)
 
     # Determine search strategy
     use_local = source in ("local", "auto")
@@ -478,31 +523,71 @@ def search_pages(
         pages_to_search = discover_documentation_urls(base_url, max_pages, verbose)
 
         if verbose:
-            typer.echo(f"Searching {len(pages_to_search)} pages...")
+            if use_parallel:
+                typer.echo(f"Searching {len(pages_to_search)} pages in parallel...")
+            else:
+                typer.echo(f"Searching {len(pages_to_search)} pages...")
 
-        for i, page_url in enumerate(pages_to_search):
-            if verbose:
-                typer.echo(f"  [{i + 1}/{len(pages_to_search)}] Searching {page_url}")
+        if use_parallel and len(pages_to_search) > 1:
+            # Parallel fetching using ThreadPoolExecutor
+            max_workers = min(10, len(pages_to_search))
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit all search tasks
+                future_to_url = {
+                    executor.submit(
+                        _search_page_parallel,
+                        page_url,
+                        query,
+                        case_sensitive,
+                        regex,
+                        context_lines,
+                        base_url,
+                    ): page_url
+                    for page_url in pages_to_search
+                }
 
-            # Use helper function to search page content
-            result = _search_page_content(
-                page_url, query, case_sensitive, regex, context_lines
-            )
+                # Collect results as they complete
+                for future in as_completed(future_to_url):
+                    page_url = future_to_url[future]
+                    try:
+                        result = future.result()
+                        if result:
+                            remote_results.append(result)
+                            if verbose:
+                                typer.echo(f"  [found] {page_url}")
+                            if result_limit and len(remote_results) >= result_limit:
+                                # Cancel remaining futures
+                                for f in future_to_url:
+                                    f.cancel()
+                                break
+                    except Exception as e:
+                        if verbose:
+                            typer.echo(f"  [error] {page_url}: {e}")
+        else:
+            # Sequential fetching (default)
+            for i, page_url in enumerate(pages_to_search):
+                if verbose:
+                    typer.echo(f"  [{i + 1}/{len(pages_to_search)}] Searching {page_url}")
 
-            if result:
-                title, snippet = result
-                remote_results.append(
-                    SearchResult(
-                        path=page_url.replace(base_url, ""),
-                        title=title,
-                        snippet=snippet,
-                        url=page_url,
-                        source="remote",
-                    )
+                # Use helper function to search page content
+                result = _search_page_content(
+                    page_url, query, case_sensitive, regex, context_lines
                 )
 
-                if result_limit and len(remote_results) >= result_limit:
-                    break
+                if result:
+                    title, snippet = result
+                    remote_results.append(
+                        SearchResult(
+                            path=page_url.replace(base_url, ""),
+                            title=title,
+                            snippet=snippet,
+                            url=page_url,
+                            source="remote",
+                        )
+                    )
+
+                    if result_limit and len(remote_results) >= result_limit:
+                        break
 
     # Combine results: local first, then remote
     results = local_results + remote_results
@@ -578,6 +663,7 @@ def search(
     table_output: bool = typer.Option(False, "--table", "-t", help="Output results as table (verbose)"),
     save_guide: str | None = typer.Option(None, "--save-guide", help="Save search results as a guide"),
     freshness: bool = typer.Option(False, "--freshness", "-f", help="Show freshness information for local results"),
+    parallel: bool | None = typer.Option(None, "--parallel/--no-parallel", help="Enable parallel page fetching (auto-enabled when >3 pages, use --no-parallel to disable)"),
 ) -> None:
     """Search for content across documentation pages."""
     # Handle no URL provided - show help
@@ -639,6 +725,7 @@ def search(
             table_output=table_output,
             save_guide=save_guide,
             freshness=freshness,
+            parallel=parallel,
         )
     else:
         # Multiple library search
@@ -657,6 +744,7 @@ def search(
             table_output=table_output,
             save_guide=save_guide,
             freshness=freshness,
+            parallel=parallel,
         )
 
 
@@ -675,6 +763,7 @@ def _search_single_library(
     table_output: bool = False,
     save_guide: str | None = None,
     freshness: bool = False,
+    parallel: bool | None = None,
 ) -> None:
     """Search a single library."""
     if verbose:
@@ -693,6 +782,7 @@ def _search_single_library(
             verbose=verbose,
             result_limit=limit,
             source=source,
+            parallel=parallel,
         )
 
     try:
@@ -818,6 +908,7 @@ def _search_multiple_libraries(
     table_output: bool = False,
     save_guide: str | None = None,
     freshness: bool = False,
+    parallel: bool | None = None,
 ) -> None:
     """Search across multiple libraries."""
     if verbose:
@@ -843,6 +934,7 @@ def _search_multiple_libraries(
                 verbose=verbose,
                 result_limit=limit,
                 source=source,
+                parallel=parallel,
             )
             results_by_library[lib_url] = results[:limit]
             total_results += len(results_by_library[lib_url])

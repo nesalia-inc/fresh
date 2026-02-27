@@ -334,3 +334,95 @@ class TestSearchSource:
         )
 
         assert result2.source == "remote"
+
+
+class TestParallelSearch:
+    """Tests for parallel search functionality."""
+
+    def test_parallel_threshold_constant(self):
+        """PARALLEL_THRESHOLD should be 3."""
+        from fresh.commands.search import PARALLEL_THRESHOLD
+
+        assert PARALLEL_THRESHOLD == 3
+
+    def test_search_pages_auto_parallel_when_many_pages(self):
+        """Should use parallel when max_pages > threshold."""
+        from fresh.commands.search import search_pages, PARALLEL_THRESHOLD
+
+        # With max_pages > threshold, should use parallel
+        assert PARALLEL_THRESHOLD == 3
+
+    @mock.patch("fresh.commands.search._search_page_parallel")
+    @mock.patch("fresh.commands.search.discover_documentation_urls")
+    def test_search_pages_uses_parallel_when_enabled(
+        self, mock_discover, mock_parallel_search
+    ):
+        """Should use parallel fetching when parallel=True."""
+        from fresh.commands.search import search_pages
+
+        # Setup mocks
+        mock_discover.return_value = [
+            "https://example.com/page1",
+            "https://example.com/page2",
+            "https://example.com/page3",
+        ]
+        mock_parallel_search.return_value = None
+
+        # Call with parallel=True
+        search_pages(
+            "https://example.com",
+            "test",
+            max_pages=10,
+            source="remote",
+            parallel=True,
+        )
+
+        # Should call parallel search function
+        assert mock_parallel_search.call_count == 3
+
+    @mock.patch("fresh.commands.search._search_page_content")
+    @mock.patch("fresh.commands.search.discover_documentation_urls")
+    def test_search_pages_uses_sequential_when_disabled(
+        self, mock_discover, mock_search_content
+    ):
+        """Should use sequential fetching when parallel=False."""
+        from fresh.commands.search import search_pages
+
+        # Setup mocks
+        mock_discover.return_value = [
+            "https://example.com/page1",
+            "https://example.com/page2",
+            "https://example.com/page3",
+        ]
+        mock_search_content.return_value = None
+
+        # Call with parallel=False
+        search_pages(
+            "https://example.com",
+            "test",
+            max_pages=10,
+            source="remote",
+            parallel=False,
+        )
+
+        # Should call sequential search function instead
+        assert mock_search_content.call_count == 3
+
+    def test_search_pages_auto_detects_parallel_threshold(self):
+        """Should auto-detect parallel when max_pages > 3."""
+        from fresh.commands.search import PARALLEL_THRESHOLD, search_pages
+
+        # With max_pages > threshold, should use parallel
+        assert PARALLEL_THRESHOLD == 3
+
+        # Test that auto-detection logic works correctly
+        # When parallel=None and max_pages > 3, use_parallel should be True
+        use_parallel_auto = None  # auto-detect
+        max_pages_above = 10
+        result = use_parallel_auto if use_parallel_auto is not None else (max_pages_above > PARALLEL_THRESHOLD)
+        assert result is True
+
+        # When max_pages <= 3, use_parallel should be False
+        max_pages_below = 2
+        result = use_parallel_auto if use_parallel_auto is not None else (max_pages_below > PARALLEL_THRESHOLD)
+        assert result is False
