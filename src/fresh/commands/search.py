@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import json
 import logging
 import re
@@ -27,6 +29,8 @@ from ..scraper.searcher import (
 from bs4 import BeautifulSoup
 
 from ..ui import is_interactive, show_success_message, spinner
+
+from .guide import _save_guide
 
 app = typer.Typer(help="Search for content across documentation pages.")
 console = Console()
@@ -528,6 +532,7 @@ def search(
     fresh: bool = typer.Option(False, "--fresh", help="Force fresh search (skip cache)"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output results as JSON"),
     table_output: bool = typer.Option(False, "--table", "-t", help="Output results as table (verbose)"),
+    save_guide: str | None = typer.Option(None, "--save-guide", help="Save search results as a guide"),
 ) -> None:
     """Search for content across documentation pages."""
     # Handle no URL provided - show help
@@ -587,6 +592,7 @@ def search(
             source=source,
             json_output=json_output,
             table_output=table_output,
+            save_guide=save_guide,
         )
     else:
         # Multiple library search
@@ -603,6 +609,7 @@ def search(
             source=source,
             json_output=json_output,
             table_output=table_output,
+            save_guide=save_guide,
         )
 
 
@@ -619,6 +626,7 @@ def _search_single_library(
     source: str = "auto",
     json_output: bool = False,
     table_output: bool = False,
+    save_guide: str | None = None,
 ) -> None:
     """Search a single library."""
     if verbose:
@@ -704,6 +712,32 @@ def _search_single_library(
         ]
         typer.echo(json.dumps(output, indent=2))
 
+    # Save as guide if requested
+    if save_guide and results:
+        guide_content = f"# Search: {query}\n\n"
+        guide_content += f"Query: {query}\n"
+        guide_content += f"URL: {resolved_url}\n"
+        guide_content += f"Results: {len(results)}\n\n"
+        guide_content += "## Results\n\n"
+        for r in results:
+            guide_content += f"### {r.title}\n"
+            guide_content += f"URL: {r.url}\n"
+            guide_content += f"```\n{r.snippet}\n```\n\n"
+
+        guide_data = {
+            "title": f"Search: {query}",
+            "content": guide_content,
+            "source_url": resolved_url,
+            "tags": ["search", query.lower()],
+        }
+
+        now = datetime.now(timezone.utc).isoformat()
+        guide_data["created"] = now
+        guide_data["updated"] = now
+
+        _save_guide(save_guide, guide_data)
+        typer.echo(f"Saved results as guide '{save_guide}'")
+
     # Print error/warning summary
     print_summary()
 
@@ -721,6 +755,7 @@ def _search_multiple_libraries(
     source: str = "auto",
     json_output: bool = False,
     table_output: bool = False,
+    save_guide: str | None = None,
 ) -> None:
     """Search across multiple libraries."""
     if verbose:
