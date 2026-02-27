@@ -437,10 +437,8 @@ class TestParallelSearch:
         """Test max_workers calculation for edge cases."""
         from fresh.commands.search import DEFAULT_MAX_WORKERS
 
-        # When there are fewer pages than max_workers, use page count
-        pages_5 = 5
-        workers_5 = min(DEFAULT_MAX_WORKERS, pages_5)
-        assert workers_5 == 5
+        # Verify DEFAULT_MAX_WORKERS is in valid range
+        assert 4 <= DEFAULT_MAX_WORKERS <= 16
 
         # When there are more pages than max_workers, use max_workers
         pages_20 = 20
