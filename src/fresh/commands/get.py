@@ -16,6 +16,7 @@ from markdownify import markdownify as md
 from ..config import resolve_alias
 from ..console import echo_error, print_summary, reset_console, set_verbose
 from ..scraper.http import fetch_with_retry, validate_url
+from ..ui import CHECK_MARK, CROSS_MARK
 
 app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
 
@@ -426,7 +427,7 @@ def fetch_single_url(
             html_content = str(response)
 
         if verbose:
-            typer.echo(f"✓ Fetched ({len(html_content)} bytes)")
+            typer.echo(f"{CHECK_MARK} Fetched ({len(html_content)} bytes)")
 
         # Convert to Markdown
         if verbose:
@@ -437,7 +438,7 @@ def fetch_single_url(
         if not no_cache:
             save_to_cache(resolved_url, content)
             if verbose:
-                typer.echo("✓ Saved to cache")
+                typer.echo(f"{CHECK_MARK} Saved to cache")
 
     if content is None:
         return {
@@ -591,10 +592,10 @@ def get(
                 file_path.write_text(result["content"], encoding="utf-8")
                 success_count += 1
                 if verbose:
-                    typer.echo(f"✓ Written to {file_path}")
+                    typer.echo(f"{CHECK_MARK} Written to {file_path}")
 
         if verbose:
-            typer.echo(f"✓ Done ({success_count}/{len(results)} pages)")
+            typer.echo(f"{CHECK_MARK} Done ({success_count}/{len(results)} pages)")
         return
 
     # Single URL with text output (legacy behavior)
@@ -619,11 +620,11 @@ def get(
                 output_path.parent.mkdir(parents=True, exist_ok=True)
                 output_path.write_text(result["content"], encoding="utf-8")
                 if verbose:
-                    typer.echo(f"✓ Written to {output}")
+                    typer.echo(f"{CHECK_MARK} Written to {output}")
             else:
                 typer.echo(result["content"])
             if verbose:
-                typer.echo(f"✓ Done ({len(result['content'])} chars)")
+                typer.echo(f"{CHECK_MARK} Done ({len(result['content'])} chars)")
         else:
             echo_error(
                 message="No content retrieved",
@@ -637,7 +638,7 @@ def get(
         typer.echo(f"Fetched {success_count}/{len(results)} pages successfully")
         if verbose:
             for result in results:
-                status = "✓" if result["success"] else "✗"
+                status = CHECK_MARK if result["success"] else CROSS_MARK
                 typer.echo(f"  {status} {result['url']}")
 
     # Print error/warning summary
