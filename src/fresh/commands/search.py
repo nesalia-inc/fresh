@@ -44,6 +44,14 @@ except ImportError:
     history_module = None  # type: ignore[assignment]
     HISTORY_AVAILABLE = False
 
+# Try to import indexer module (optional dependency)
+try:
+    from .. import indexer as indexer_module
+    INDEXER_AVAILABLE = True
+except ImportError:
+    indexer_module = None  # type: ignore[assignment]
+    INDEXER_AVAILABLE = False
+
 app = typer.Typer(help="Search for content across documentation pages.")
 
 # Initialize console with Windows-safe settings
@@ -468,6 +476,41 @@ def search_pages(
     # Determine search strategy
     use_local = source in ("local", "auto")
     use_remote = source in ("remote", "auto")
+
+    # Try index search first if available and using local
+    if use_local and INDEXER_AVAILABLE:
+        from urllib.parse import urlparse
+
+        site_name = urlparse(base_url).netloc.replace(":", "_").replace(".", "_")
+        index_stats = indexer_module.get_index_stats(site_name)
+
+        if index_stats and verbose:
+            typer.echo(f"Using search index ({index_stats['page_count']} pages indexed)...")
+
+        if index_stats:
+            # Use index for fast search
+            index_results = indexer_module.search_index(site_name, query, result_limit or max_pages)
+
+            if index_results:
+                if verbose:
+                    typer.echo(f"Found {len(index_results)} results from index ({(result_limit or max_pages)} max)...")
+
+                # Convert index results to SearchResult
+                for idx_result in index_results:
+                    results.append(SearchResult(
+                        path=idx_result["url"],
+                        title=idx_result["title"],
+                        snippet=idx_result["snippet"],
+                        url=base_url.rstrip("/") + idx_result["url"],
+                        source="local",
+                    ))
+
+                if result_limit and len(results) >= result_limit:
+                    return results[:result_limit]
+
+                # If we have results from index, we can return early for better performance
+                if results:
+                    return results
 
     # Try local first if auto or local
     local_results: list[SearchResult] = []
