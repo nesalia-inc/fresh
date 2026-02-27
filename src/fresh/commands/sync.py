@@ -112,6 +112,38 @@ def get_page_freshness(page_url: str, base_url: str) -> dict[str, str] | None:
         return None
 
 
+def check_page_changed(page_url: str, page_freshness: dict[str, str]) -> bool:
+    """
+    Check if a page has changed using HTTP conditional requests.
+
+    Args:
+        page_url: The URL to check
+        page_freshness: Previous freshness metadata (etag, last_modified)
+
+    Returns:
+        True if page has changed, False if unchanged
+    """
+    import httpx
+
+    headers: dict[str, str] = {}
+    if etag := page_freshness.get("etag"):
+        headers["If-None-Match"] = etag
+    if last_modified := page_freshness.get("last-modified"):
+        headers["If-Modified-Since"] = last_modified
+
+    if not headers:
+        return True  # No way to check, assume changed
+
+    try:
+        client = httpx.Client(timeout=10.0)
+        resp = client.head(page_url, follow_redirects=True, headers=headers)
+        client.close()
+        # 304 Not Modified means page hasn't changed
+        return resp.status_code != 304
+    except Exception:
+        return True  # Error, assume changed to be safe
+
+
 def _fetch_page_for_sync(page_url: str) -> tuple[str | None, dict[str, str] | None]:
     """
     Fetch a page for sync, skipping binary content.
@@ -204,6 +236,7 @@ def sync(
     max_pages: int = typer.Option(100, "--max-pages", help="Maximum number of pages to sync"),
     depth: int = typer.Option(3, "--depth", "-d", help="Maximum crawl depth"),
     force: bool = typer.Option(False, "--force", "-f", help="Force re-sync (delete existing files first)"),
+    incremental: bool = typer.Option(True, "--incremental/--no-incremental", help="Only sync changed pages (uses etag/last-modified)"),
     pattern: str | None = typer.Option(None, "--pattern", "-p", help="Filter paths matching pattern"),
     workers: int = typer.Option(1, "--workers", "-w", help="Number of parallel workers (1 = sequential, >1 = parallel)"),
 ) -> None:
@@ -319,6 +352,7 @@ def sync(
     fail_count = 0
     skipped_robots = 0
     skipped_binary = 0
+    skipped_unchanged = 0
     total_pages = len(urls_to_sync)
 
     # Process pages based on output mode
@@ -332,6 +366,14 @@ def sync(
                 typer.echo(f"  Skipped (robots.txt): {page_url}")
                 skipped_robots += 1
                 continue
+
+            # Check if page has changed (incremental sync)
+            if incremental:
+                freshness = get_page_freshness(page_url, resolved_url)
+                if freshness and not check_page_changed(page_url, freshness):
+                    skipped_unchanged += 1
+                    typer.echo(f"  Skipped (unchanged): {page_url}")
+                    continue
 
             # Fetch and save the page
             try:
@@ -369,6 +411,14 @@ def sync(
                     progress.advance(task)
                     continue
 
+                # Check if page has changed (incremental sync)
+                if incremental:
+                    freshness = get_page_freshness(page_url, resolved_url)
+                    if freshness and not check_page_changed(page_url, freshness):
+                        skipped_unchanged += 1
+                        progress.advance(task)
+                        continue
+
                 # Fetch and save the page
                 try:
                     result = _save_page(page_url, pages_dir)
@@ -396,6 +446,13 @@ def sync(
                 skipped_robots += 1
                 continue
 
+            # Check if page has changed (incremental sync)
+            if incremental:
+                freshness = get_page_freshness(page_url, resolved_url)
+                if freshness and not check_page_changed(page_url, freshness):
+                    skipped_unchanged += 1
+                    continue
+
             # Fetch and save the page
             try:
                 result = _save_page(page_url, pages_dir)
@@ -415,6 +472,8 @@ def sync(
     # Summary
     typer.echo("\nSync complete!")
     typer.echo(f"  Success: {success_count} pages")
+    if skipped_unchanged > 0:
+        typer.echo(f"  Skipped (unchanged): {skipped_unchanged} pages")
     if skipped_binary > 0:
         typer.echo(f"  Skipped (binary): {skipped_binary} pages")
     if skipped_robots > 0:
