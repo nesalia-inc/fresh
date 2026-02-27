@@ -14,6 +14,22 @@ console = Console()
 T = TypeVar("T")
 
 
+def _is_windows() -> bool:
+    """Check if running on Windows."""
+    return sys.platform == "win32"
+
+
+# Unicode-safe symbols (use ASCII alternatives on Windows)
+if _is_windows():
+    CHECK_MARK = "[OK]"
+    CROSS_MARK = "[X]"
+    INFO_MARK = "[i]"
+else:
+    CHECK_MARK = "✓"
+    CROSS_MARK = "✗"
+    INFO_MARK = "ℹ"
+
+
 def is_interactive() -> bool:
     """Check if stdout is interactive (TTY)."""
     return sys.stdout.isatty()
@@ -72,14 +88,14 @@ def run_with_progress(
 def show_error_message(message: str) -> None:
     """Show an error message."""
     err_console = Console(stderr=True)
-    err_console.print(f"[red]✗[/red] {message}")
+    err_console.print(f"[red]{CROSS_MARK}[/red] {message}")
 
 
 def show_info_message(message: str) -> None:
     """Show an info message."""
-    console.print(f"[blue]ℹ[/blue] {message}")
+    console.print(f"[blue]{INFO_MARK}[/blue] {message}")
 
 
 def show_success_message(message: str) -> None:
     """Show a success message."""
-    console.print(f"[green]✓[/green] {message}")
+    console.print(f"[green]{CHECK_MARK}[/green] {message}")
