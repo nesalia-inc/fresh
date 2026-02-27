@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse, quote
 
+import httpx
 import typer
 from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
 
@@ -123,8 +124,6 @@ def check_page_changed(page_url: str, page_freshness: dict[str, str]) -> bool:
     Returns:
         True if page has changed, False if unchanged
     """
-    import httpx
-
     headers: dict[str, str] = {}
     if etag := page_freshness.get("etag"):
         headers["If-None-Match"] = etag
@@ -136,11 +135,13 @@ def check_page_changed(page_url: str, page_freshness: dict[str, str]) -> bool:
 
     try:
         client = httpx.Client(timeout=10.0)
-        resp = client.head(page_url, follow_redirects=True, headers=headers)
-        client.close()
-        # 304 Not Modified means page hasn't changed
-        return resp.status_code != 304
-    except Exception:
+        try:
+            resp = client.head(page_url, follow_redirects=True, headers=headers)
+            # 304 Not Modified means page hasn't changed
+            return resp.status_code != 304
+        finally:
+            client.close()
+    except (httpx.RequestError, httpx.TimeoutException):
         return True  # Error, assume changed to be safe
 
 
