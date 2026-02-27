@@ -38,6 +38,7 @@ from .commands.alias import alias_app
 from .commands.doc import doc
 from .commands.get import get
 from .commands.guide import guide_app
+from .commands.history import history_app
 from .commands.list import list_urls
 from .commands.search import search
 from .commands.sync import sync
@@ -54,6 +55,7 @@ app.command(name="sync")(sync)
 app.command(name="update")(update)
 app.add_typer(alias_app, name="alias")
 app.add_typer(guide_app, name="guide")
+app.add_typer(history_app, name="history")
 
 
 def main() -> None:
