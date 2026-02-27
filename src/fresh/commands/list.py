@@ -178,8 +178,16 @@ def list_urls(
         try:
             from rich.console import Console
             from rich.table import Table
+            import sys
 
-            console = Console()
+            # Check if Windows
+            is_windows = sys.platform == "win32"
+
+            try:
+                console = Console(no_color=is_windows, force_terminal=None)
+            except Exception:
+                console = Console(file=sys.stdout, no_color=True, force_terminal=False)
+
             table = Table(title="Documentation Pages")
 
             table.add_column("Name", style="cyan")
@@ -190,8 +198,8 @@ def list_urls(
 
             console.print(table)
             console.print(f"\nFound {len(entries)} pages")
-        except ImportError:
-            # Fallback to JSON if rich not available
+        except (ImportError, Exception):
+            # Fallback to JSON if rich not available or Console fails
             typer.echo(json.dumps(entries, indent=2))
     else:
         # JSON output (default)

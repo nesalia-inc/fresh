@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,19 @@ from rich.console import Console
 from rich.table import Table
 
 guide_app = typer.Typer(help="Create and manage persistent documentation guides")
+
+
+def _is_windows() -> bool:
+    """Check if running on Windows."""
+    return sys.platform == "win32"
+
+
+def _create_console() -> Console:
+    """Create a Console with Windows-safe settings."""
+    try:
+        return Console(no_color=_is_windows(), force_terminal=None)
+    except Exception:
+        return Console(file=sys.stdout, no_color=True, force_terminal=False)
 
 GUIDES_DIR = Path.home() / ".fresh" / "guides"
 
@@ -135,7 +149,7 @@ def list_guides() -> None:
         typer.echo("No guides found. Use 'fresh guide create' to create one.")
         return
 
-    console = Console()
+    console = _create_console()
     table = Table(title="Guides")
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("Title", style="green")
@@ -202,7 +216,7 @@ def search(query: str = typer.Argument(..., help="Search query")) -> None:
         typer.echo(f"No guides found matching '{query}'")
         raise typer.Exit(1)
 
-    console = Console()
+    console = _create_console()
     table = Table(title=f"Guides matching '{query}'")
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("Title", style="green")

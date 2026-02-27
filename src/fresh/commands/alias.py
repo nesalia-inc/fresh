@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 
 import typer
 
@@ -58,7 +59,14 @@ def list_aliases(
         from rich.console import Console
         from rich.table import Table
 
-        console = Console()
+        # Check if Windows
+        is_windows = sys.platform == "win32"
+
+        try:
+            console = Console(no_color=is_windows, force_terminal=None)
+        except Exception:
+            console = Console(file=sys.stdout, no_color=True, force_terminal=False)
+
         table = Table(title="Available Aliases" + (" (User)" if is_user else " (All)"))
 
         table.add_column("Alias", style="cyan", no_wrap=True)
@@ -69,7 +77,7 @@ def list_aliases(
 
         console.print(table)
         typer.echo(f"\nTotal: {len(aliases)} aliases")
-    except ImportError:
+    except (ImportError, Exception):
         # Fallback to simple output
         for alias, url in sorted(aliases.items()):
             typer.echo(f"{alias}: {url}")
@@ -161,7 +169,14 @@ def search(query: str = typer.Argument(..., help="Search query")) -> None:
         from rich.console import Console
         from rich.table import Table
 
-        console = Console()
+        # Check if Windows
+        is_windows = sys.platform == "win32"
+
+        try:
+            console = Console(no_color=is_windows, force_terminal=None)
+        except Exception:
+            console = Console(file=sys.stdout, no_color=True, force_terminal=False)
+
         table = Table(title=f"Aliases matching '{query}'")
 
         table.add_column("Alias", style="cyan", no_wrap=True)
@@ -172,7 +187,7 @@ def search(query: str = typer.Argument(..., help="Search query")) -> None:
 
         console.print(table)
         typer.echo(f"\nFound {len(results)} matching aliases")
-    except ImportError:
+    except (ImportError, Exception):
         # Fallback to simple output
         for alias, url in results:
             typer.echo(f"{alias}: {url}")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timezone
 
 import json
@@ -28,13 +29,18 @@ from ..scraper.searcher import (
 )
 from bs4 import BeautifulSoup
 
-from ..ui import is_interactive, show_success_message, spinner
+from ..ui import is_interactive, show_success_message, spinner, _is_windows
 
 from .guide import _save_guide
 from .sync import get_page_freshness
 
 app = typer.Typer(help="Search for content across documentation pages.")
-console = Console()
+
+# Initialize console with Windows-safe settings
+try:
+    console = Console(no_color=_is_windows(), force_terminal=None)
+except Exception:
+    console = Console(file=sys.stdout, no_color=True, force_terminal=False)
 
 logger = logging.getLogger(__name__)
 
