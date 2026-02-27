@@ -106,31 +106,6 @@ def add_search_record(
         conn.close()
 
 
-def add_access_record(
-    page_path: str,
-    url: str,
-    method: str = "search",
-) -> None:
-    """Add an access record to history."""
-    conn = _get_connection()
-    try:
-        conn.execute(
-            """
-            INSERT INTO access_history (page_path, url, timestamp, method)
-            VALUES (?, ?, ?, ?)
-            """,
-            (
-                page_path,
-                url,
-                datetime.now(timezone.utc).isoformat(),
-                method,
-            ),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-
-
 def get_search_history(
     limit: int = 20,
     query: str | None = None,
@@ -260,8 +235,37 @@ def import_history(file_path: Path) -> int:
 
     Returns:
         Number of records imported
+
+    Raises:
+        ValueError: If the file does not contain valid history data
     """
-    data = json.loads(file_path.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(file_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON format: {e}") from e
+
+    # Validate required fields
+    if not isinstance(data, dict):
+        raise ValueError("Invalid history format: expected JSON object")
+
+    if "search_history" not in data and "access_history" not in data:
+        raise ValueError("Invalid history format: missing 'search_history' or 'access_history' field")
+
+    # Validate structure of search_history
+    if "search_history" in data:
+        if not isinstance(data["search_history"], list):
+            raise ValueError("Invalid history format: 'search_history' must be a list")
+        for record in data["search_history"]:
+            if not isinstance(record, dict):
+                raise ValueError("Invalid history format: each search_history record must be an object")
+
+    # Validate structure of access_history
+    if "access_history" in data:
+        if not isinstance(data["access_history"], list):
+            raise ValueError("Invalid history format: 'access_history' must be a list")
+        for record in data["access_history"]:
+            if not isinstance(record, dict):
+                raise ValueError("Invalid history format: each access_history record must be an object")
 
     conn = _get_connection()
     try:

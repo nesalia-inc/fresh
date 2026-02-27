@@ -5,6 +5,8 @@ import tempfile
 from pathlib import Path
 from unittest import mock
 
+import pytest
+
 from fresh import history
 
 
@@ -144,3 +146,79 @@ class TestHistoryModule:
                 count = history.import_history(export_file)
                 assert count == 1
                 assert len(history.get_search_history()) == 1
+
+    def test_cleanup_old_entries(self):
+        """Test cleaning up old history entries."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_db = Path(tmpdir) / "test_history.db"
+
+            with mock.patch.object(history, "get_history_db", return_value=test_db):
+                history.init_db()
+
+                # Add old record (simulate by directly inserting old timestamp)
+                conn = sqlite3.connect(test_db)
+                try:
+                    conn.execute(
+                        "INSERT INTO search_history (query, url, results_count, success, timestamp) VALUES (?, ?, ?, ?, ?)",
+                        ("old_query", "https://example.com", 1, 1, "2020-01-01T00:00:00+00:00"),
+                    )
+                    conn.commit()
+                finally:
+                    conn.close()
+
+                # Add recent record
+                history.add_search_record("recent", "https://example.org", 1, True)
+
+                # Cleanup entries older than 30 days (default)
+                deleted = history.cleanup_old_entries(days=30)
+                assert deleted == 1
+
+                # Only recent record should remain
+                records = history.get_search_history()
+                assert len(records) == 1
+                assert records[0]["query"] == "recent"
+
+    def test_import_history_invalid_json(self):
+        """Test importing history with invalid JSON."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_db = Path(tmpdir) / "test_history.db"
+            invalid_file = Path(tmpdir) / "invalid.json"
+
+            with mock.patch.object(history, "get_history_db", return_value=test_db):
+                history.init_db()
+
+                # Write invalid JSON
+                invalid_file.write_text("not valid json {", encoding="utf-8")
+
+                with pytest.raises(ValueError, match="Invalid JSON"):
+                    history.import_history(invalid_file)
+
+    def test_import_history_missing_fields(self):
+        """Test importing history with missing required fields."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_db = Path(tmpdir) / "test_history.db"
+            invalid_file = Path(tmpdir) / "invalid.json"
+
+            with mock.patch.object(history, "get_history_db", return_value=test_db):
+                history.init_db()
+
+                # Write JSON without required fields
+                invalid_file.write_text('{"other": "data"}', encoding="utf-8")
+
+                with pytest.raises(ValueError, match="missing"):
+                    history.import_history(invalid_file)
+
+    def test_import_history_invalid_structure(self):
+        """Test importing history with invalid structure."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_db = Path(tmpdir) / "test_history.db"
+            invalid_file = Path(tmpdir) / "invalid.json"
+
+            with mock.patch.object(history, "get_history_db", return_value=test_db):
+                history.init_db()
+
+                # Write JSON with invalid structure (non-list search_history)
+                invalid_file.write_text('{"search_history": "not a list"}', encoding="utf-8")
+
+                with pytest.raises(ValueError, match="must be a list"):
+                    history.import_history(invalid_file)
