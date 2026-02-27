@@ -31,6 +31,7 @@ from bs4 import BeautifulSoup
 from ..ui import is_interactive, show_success_message, spinner
 
 from .guide import _save_guide
+from .sync import get_page_freshness
 
 app = typer.Typer(help="Search for content across documentation pages.")
 console = Console()
@@ -46,6 +47,43 @@ def _get_sync_dir_for_url(url: str) -> Path:
     parsed = urlparse(url)
     domain = parsed.netloc.replace(":", "_").replace(".", "_")
     return DEFAULT_SYNC_DIR / domain / "pages"
+
+
+def _format_freshness_age(timestamp: str) -> str:
+    """Format a timestamp as relative age."""
+    from datetime import datetime, timezone
+
+    try:
+        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        now = datetime.now(timezone.utc)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        delta = now - dt
+
+        if delta.total_seconds() < 60:
+            return "just now"
+        elif delta.total_seconds() < 3600:
+            minutes = int(delta.total_seconds() / 60)
+            return f"{minutes}m ago"
+        elif delta.total_seconds() < 86400:
+            hours = int(delta.total_seconds() / 3600)
+            return f"{hours}h ago"
+        elif delta.total_seconds() < 604800:
+            days = int(delta.total_seconds() / 86400)
+            return f"{days}d ago"
+        else:
+            weeks = int(delta.total_seconds() / 604800)
+            return f"{weeks}w ago"
+    except (ValueError, TypeError):
+        return "unknown"
+
+
+def _get_result_freshness(url: str, base_url: str) -> str | None:
+    """Get freshness info for a URL if available."""
+    if freshness := get_page_freshness(url, base_url):
+        if synced_at := freshness.get("synced_at"):
+            return _format_freshness_age(synced_at)
+    return None
 
 
 def _url_to_local_path(url: str) -> Path | None:
@@ -533,6 +571,7 @@ def search(
     json_output: bool = typer.Option(False, "--json", "-j", help="Output results as JSON"),
     table_output: bool = typer.Option(False, "--table", "-t", help="Output results as table (verbose)"),
     save_guide: str | None = typer.Option(None, "--save-guide", help="Save search results as a guide"),
+    freshness: bool = typer.Option(False, "--freshness", "-f", help="Show freshness information for local results"),
 ) -> None:
     """Search for content across documentation pages."""
     # Handle no URL provided - show help
@@ -593,6 +632,7 @@ def search(
             json_output=json_output,
             table_output=table_output,
             save_guide=save_guide,
+            freshness=freshness,
         )
     else:
         # Multiple library search
@@ -610,6 +650,7 @@ def search(
             json_output=json_output,
             table_output=table_output,
             save_guide=save_guide,
+            freshness=freshness,
         )
 
 
@@ -627,6 +668,7 @@ def _search_single_library(
     json_output: bool = False,
     table_output: bool = False,
     save_guide: str | None = None,
+    freshness: bool = False,
 ) -> None:
     """Search a single library."""
     if verbose:
@@ -684,6 +726,8 @@ def _search_single_library(
         table.add_column("Page", style="cyan")
         table.add_column("URL", style="dim")
         table.add_column("Snippet", style="green")
+        if freshness:
+            table.add_column("Freshness", style="yellow")
 
         for result in results:
             # Truncate snippet for table
@@ -694,22 +738,33 @@ def _search_single_library(
             url_display = result.url
             if len(url_display) > 50:
                 url_display = "..." + url_display[-47:]
-            table.add_row(result.title, url_display, snippet_preview)
+
+            # Add freshness if requested and result is local
+            freshness_str = ""
+            if freshness and result.source == "local":
+                freshness_str = _get_result_freshness(result.url, resolved_url) or ""
+
+            table.add_row(result.title, url_display, snippet_preview, freshness_str)
 
         console.print(table)
 
     if show_json:
         # JSON output for scripting
-        output = [
-            {
+        output = []
+        for r in results:
+            result_dict = {
                 "path": r.path,
                 "title": r.title,
                 "snippet": r.snippet,
                 "url": r.url,
                 "source": r.source,
             }
-            for r in results
-        ]
+            # Add freshness if requested and result is local
+            if freshness and r.source == "local":
+                freshness_str = _get_result_freshness(r.url, resolved_url)
+                if freshness_str:
+                    result_dict["freshness"] = freshness_str
+            output.append(result_dict)
         typer.echo(json.dumps(output, indent=2))
 
     # Save as guide if requested
@@ -756,6 +811,7 @@ def _search_multiple_libraries(
     json_output: bool = False,
     table_output: bool = False,
     save_guide: str | None = None,
+    freshness: bool = False,
 ) -> None:
     """Search across multiple libraries."""
     if verbose:
