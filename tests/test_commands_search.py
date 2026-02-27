@@ -426,3 +426,28 @@ class TestParallelSearch:
         max_pages_below = 2
         result = use_parallel_auto if use_parallel_auto is not None else (max_pages_below > PARALLEL_THRESHOLD)
         assert result is False
+
+    def test_default_max_workers_constant(self):
+        """DEFAULT_MAX_WORKERS should be 10."""
+        from fresh.commands.search import DEFAULT_MAX_WORKERS
+
+        assert DEFAULT_MAX_WORKERS == 10
+
+    def test_max_workers_edge_cases(self):
+        """Test max_workers calculation for edge cases."""
+        from fresh.commands.search import DEFAULT_MAX_WORKERS
+
+        # When there are fewer pages than max_workers, use page count
+        pages_5 = 5
+        workers_5 = min(DEFAULT_MAX_WORKERS, pages_5)
+        assert workers_5 == 5
+
+        # When there are more pages than max_workers, use max_workers
+        pages_20 = 20
+        workers_20 = min(DEFAULT_MAX_WORKERS, pages_20)
+        assert workers_20 == DEFAULT_MAX_WORKERS
+
+        # Single page should use 1 worker
+        pages_1 = 1
+        workers_1 = min(DEFAULT_MAX_WORKERS, pages_1)
+        assert workers_1 == 1

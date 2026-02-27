@@ -380,6 +380,10 @@ def show_suggestions(query: str, base_url: str, verbose: bool = False) -> None:
 # Threshold for auto-parallel mode
 PARALLEL_THRESHOLD = 3
 
+# Default max workers for parallel fetching
+# Note: The HTTP client in scraper/http.py is thread-safe (uses locking)
+DEFAULT_MAX_WORKERS = 10
+
 
 def _search_page_parallel(
     page_url: str,
@@ -530,7 +534,8 @@ def search_pages(
 
         if use_parallel and len(pages_to_search) > 1:
             # Parallel fetching using ThreadPoolExecutor
-            max_workers = min(10, len(pages_to_search))
+            # Note: httpx.Client is thread-safe, but connection limits apply
+            max_workers = min(DEFAULT_MAX_WORKERS, len(pages_to_search))
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit all search tasks
                 future_to_url = {
