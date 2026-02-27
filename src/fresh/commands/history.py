@@ -24,7 +24,7 @@ def _create_console() -> Console:
         return Console(file=sys.stdout, no_color=True, force_terminal=False)
 
 
-@history_app.command(name="history")
+@history_app.command()
 def history(
     query: str | None = typer.Argument(None, help="Search query to filter history"),
     url: str | None = typer.Option(None, "--url", "-u", help="Filter by URL"),

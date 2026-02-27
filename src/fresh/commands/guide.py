@@ -29,6 +29,10 @@ def _create_console() -> Console:
 
 GUIDES_DIR = Path.home() / ".fresh" / "guides"
 
+# Reserved characters that are not allowed in guide names
+INVALID_NAME_CHARS = set("/\\:*?\"<>|")
+MAX_NAME_LENGTH = 255
+
 
 def _get_guides_dir() -> Path:
     """Get the guides directory, creating it if needed."""
@@ -79,6 +83,24 @@ def _list_guides() -> list[tuple[str, dict[str, Any]]]:
         except (json.JSONDecodeError, IOError):
             continue
     return sorted(guides, key=lambda x: x[0])
+
+
+def _validate_guide_name(name: str) -> bool:
+    """Validate guide name for safety.
+
+    Returns True if valid, False otherwise.
+    """
+    if not name:
+        return False
+    if len(name) > MAX_NAME_LENGTH:
+        return False
+    # Check for invalid characters
+    if any(char in INVALID_NAME_CHARS for char in name):
+        return False
+    # Check for path traversal attempts
+    if ".." in name or name.startswith("."):
+        return False
+    return True
 
 
 def _format_age(timestamp: str) -> str:
@@ -228,3 +250,184 @@ def search(query: str = typer.Argument(..., help="Search query")) -> None:
 
     console.print(table)
     typer.echo(f"\nFound {len(results)} matching guides")
+
+
+@guide_app.command("update")
+def update_guide(
+    name: str = typer.Argument(..., help="Guide name to update"),
+    content: str = typer.Option(..., "--content", "-c", help="New content for the guide"),
+    title: str | None = typer.Option(None, "--title", "-t", help="New title for the guide"),
+    tags: list[str] | None = typer.Option(None, "--tag", help="Tags for the guide (can be repeated)"),
+) -> None:
+    """Update an existing guide's content.
+
+    Example:
+        fresh guide update react-install --content "new content here"
+    """
+    # Check if guide exists
+    guide = _load_guide(name)
+    if not guide:
+        typer.echo(f"Guide '{name}' not found.", err=True)
+        raise typer.Exit(1)
+
+    # Update content
+    guide["content"] = content
+    guide["updated"] = datetime.now(timezone.utc).isoformat()
+
+    # Update title if provided
+    if title:
+        guide["title"] = title
+
+    # Update tags if provided
+    if tags:
+        guide["tags"] = tags
+
+    _save_guide(name, guide)
+    typer.echo(f"Updated guide '{name}'")
+
+
+@guide_app.command("append")
+def append_guide(
+    name: str = typer.Argument(..., help="Guide name to append to"),
+    content: str = typer.Argument(..., help="Content to append"),
+) -> None:
+    """Append content to an existing guide.
+
+    Example:
+        fresh guide append react-install "4. npm run build"
+    """
+    # Check if guide exists
+    guide = _load_guide(name)
+    if not guide:
+        typer.echo(f"Guide '{name}' not found.", err=True)
+        raise typer.Exit(1)
+
+    # Append content
+    existing_content = guide.get("content", "")
+    if existing_content:
+        guide["content"] = existing_content + "\n\n" + content
+    else:
+        guide["content"] = content
+
+    guide["updated"] = datetime.now(timezone.utc).isoformat()
+
+    _save_guide(name, guide)
+    typer.echo(f"Appended content to guide '{name}'")
+
+
+@guide_app.command("export")
+def export_guide(
+    name: str = typer.Argument(..., help="Guide name to export"),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Output file path (default: {name}.md)"),
+    format: str = typer.Option("markdown", "--format", "-f", help="Export format: markdown, json"),
+) -> None:
+    """Export a guide to a file.
+
+    Example:
+        fresh guide export react-install --output guide.md
+        fresh guide export react-install --format json
+    """
+    # Check if guide exists
+    guide = _load_guide(name)
+    if not guide:
+        typer.echo(f"Guide '{name}' not found.", err=True)
+        raise typer.Exit(1)
+
+    # Determine output path
+    if not output:
+        output = Path(f"{name}.md")
+
+    # Export based on format
+    if format == "json":
+        output.write_text(json.dumps(guide, indent=2, ensure_ascii=False), encoding="utf-8")
+        typer.echo(f"Exported guide '{name}' to {output} (JSON)")
+    else:
+        # Markdown format
+        title = guide.get("title", name)
+        content = guide.get("content", "")
+        tags = guide.get("tags", [])
+
+        md_content = f"# {title}\n\n"
+        if tags:
+            md_content += "Tags: " + ", ".join(tags) + "\n\n"
+        md_content += "---\n\n"
+        md_content += content
+
+        output.write_text(md_content, encoding="utf-8")
+        typer.echo(f"Exported guide '{name}' to {output} (Markdown)")
+
+
+@guide_app.command("import")
+def import_guide(
+    file: Path = typer.Argument(..., help="File to import"),
+    name: str | None = typer.Option(None, "--name", "-n", help="Guide name (default: filename without extension)"),
+    title: str | None = typer.Option(None, "--title", "-t", help="Guide title (default: filename)"),
+) -> None:
+    """Import a guide from a file.
+
+    Example:
+        fresh guide import guide.md --name my-guide
+        fresh guide import guide.json
+    """
+    if not file.exists():
+        typer.echo(f"File not found: {file}", err=True)
+        raise typer.Exit(1)
+
+    # Determine guide name
+    if not name:
+        name = file.stem
+
+    # Validate guide name
+    if not _validate_guide_name(name):
+        typer.echo(
+            f"Invalid guide name '{name}'. Guide names must not contain: {', '.join(INVALID_NAME_CHARS)} "
+            f"and must not exceed {MAX_NAME_LENGTH} characters.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    # Determine title
+    if not title:
+        title = name
+
+    # Determine format and read content
+    content = file.read_text(encoding="utf-8")
+    tags: list[str] = []
+
+    # If JSON, parse it
+    if file.suffix == ".json":
+        try:
+            guide_data = json.loads(content)
+            # For JSON, require content field - don't silently use entire file
+            if "content" not in guide_data:
+                typer.echo(
+                    "JSON file must contain a 'content' field.",
+                    err=True,
+                )
+                raise typer.Exit(1)
+            content = guide_data.get("content", "")
+            if "title" in guide_data:
+                title = guide_data["title"]
+            if "tags" in guide_data:
+                tags = guide_data.get("tags", [])
+        except json.JSONDecodeError:
+            typer.echo("Invalid JSON file", err=True)
+            raise typer.Exit(1)
+    else:
+        # For markdown, try to extract title from first heading
+        lines = content.split("\n")
+        if lines and lines[0].startswith("# "):
+            title = lines[0][2:].strip()
+            content = "\n".join(lines[2:])  # Skip title line and blank line
+
+    # Create guide
+    guide = {
+        "title": title,
+        "content": content,
+        "tags": tags,
+        "created": datetime.now(timezone.utc).isoformat(),
+        "updated": datetime.now(timezone.utc).isoformat(),
+    }
+
+    _save_guide(name, guide)
+    typer.echo(f"Imported guide '{name}' from {file}")
