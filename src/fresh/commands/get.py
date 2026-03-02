@@ -6,6 +6,7 @@ import json
 import re
 import sys
 import time
+from typing import Any
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse, quote
@@ -15,9 +16,57 @@ import typer
 from ..config import resolve_alias
 from ..console import echo_error, print_summary, reset_console, set_verbose
 from ..core import Get, GetConfig
+from ..core import (
+    get_cache_dir,
+    get_cached_content,
+    get_local_content,
+    get_local_content_exists,
+    get_sync_dir,
+    html_to_markdown,
+    save_to_cache,
+    url_to_sync_path,
+)
 from ..scraper.http import fetch_with_retry, validate_url
 from ..ui import CHECK_MARK, CROSS_MARK
 from .guide import _save_guide
+
+
+# Alias for backwards compatibility with tests
+local_content_exists = get_local_content_exists
+
+
+# Explicit exports for backwards compatibility (used by tests)
+__all__ = [
+    "get_cache_dir",
+    "get_cached_content",
+    "get_local_content",
+    "get_local_content_exists",
+    "get_sync_dir",
+    "html_to_markdown",
+    "local_content_exists",
+    "save_to_cache",
+    "url_to_sync_path",
+]
+
+
+# --- Option Validation Helpers ---
+
+def validate_no_conflicting_options(**options: Any) -> None:
+    """Validate that mutually exclusive options are not used together.
+
+    Usage:
+        validate_no_conflicting_options(local=local, remote=remote)
+    """
+    active = [name.replace("_", "-") for name, value in options.items() if value]
+    if len(active) > 1:
+        options_str = ", ".join(f"--{opt}" for opt in active)
+        echo_error(
+            message=f"Cannot use {options_str} together",
+            code="CONFLICTING_OPTIONS",
+            suggestions=[f"Use only one of: {options_str}"],
+        )
+        raise typer.Exit(1)
+
 
 app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
 
@@ -29,101 +78,12 @@ CACHE_TTL_DAYS = 30
 DEFAULT_SYNC_DIR = Path.home() / ".fresh" / "docs"
 
 
-# Initialize Get entity for command-level functions
+# Initialize Get entity for cache management
 _get_entity = Get(GetConfig(url=""))
 
 
-def get_sync_dir() -> Path:
-    """Get the default sync directory.
-
-    Returns:
-        Path to the sync directory
-    """
-    return _get_entity.get_sync_dir()
-
-
-def url_to_sync_path(url: str, sync_dir: Path | None = None) -> Path | None:
-    """Convert a URL to its potential sync file path.
-
-    Args:
-        url: The URL to convert
-        sync_dir: Optional custom sync directory (defaults to command's DEFAULT_SYNC_DIR)
-
-    Returns:
-        The potential path in the sync directory, or None if the URL cannot be mapped
-    """
-    return _get_entity.url_to_sync_path(url, sync_dir or DEFAULT_SYNC_DIR)
-
-
-def get_local_content(url: str, sync_dir: Path | None = None) -> str | None:
-    """Get locally synced content for a URL.
-
-    Args:
-        url: The URL to get local content for
-        sync_dir: Optional custom sync directory (defaults to command's DEFAULT_SYNC_DIR)
-
-    Returns:
-        Local HTML content or None if not available locally
-    """
-    return _get_entity.get_local_content(url, sync_dir or DEFAULT_SYNC_DIR)
-
-
-def local_content_exists(url: str, sync_dir: Path | None = None) -> bool:
-    """Check if local synced content exists for a URL.
-
-    Args:
-        url: The URL to check
-        sync_dir: Optional custom sync directory (defaults to command's DEFAULT_SYNC_DIR)
-
-    Returns:
-        True if local content exists, False otherwise
-    """
-    return _get_entity.local_content_exists(url, sync_dir or DEFAULT_SYNC_DIR)
-
-
-def html_to_markdown(html: str, skip_scripts: bool = False) -> str:
-    """Convert HTML to Markdown.
-
-    Args:
-        html: The HTML content to convert
-        skip_scripts: If True, remove script tags before conversion
-
-    Returns:
-        Markdown formatted string
-    """
-    return Get.html_to_markdown(html, skip_scripts)
-
-
-def get_cache_dir() -> Path:
-    """Get the cache directory for fresh.
-
-    Returns:
-        Path to the cache directory
-    """
-    return _get_entity.get_cache_dir()
-
-
-def get_cached_content(url: str, ttl_days: int | None = None) -> str | None:
-    """Get cached content for a URL.
-
-    Args:
-        url: The URL to get cached content for
-        ttl_days: Cache TTL in days (None = use default)
-
-    Returns:
-        Cached content or None if not cached or expired
-    """
-    return _get_entity.get_cached_content(url, ttl_days)
-
-
-def save_to_cache(url: str, content: str) -> None:
-    """Save content to cache.
-
-    Args:
-        url: The URL the content was fetched from
-        content: The Markdown content to cache
-    """
-    # Enforce cache limits before saving
+def _save_to_cache_with_limits(url: str, content: str) -> None:
+    """Save content to cache with limit enforcement."""
     _enforce_cache_limits()
     _get_entity.save_to_cache(url, content)
 
@@ -312,7 +272,7 @@ def fetch_single_url(
     html_content: str | None = None
 
     # Check local synced content first
-    if not skip_local and local_content_exists(resolved_url):
+    if not skip_local and get_local_content_exists(resolved_url):
         if verbose:
             typer.echo("Found local synced content...")
         html_content = get_local_content(resolved_url)
@@ -409,7 +369,7 @@ def fetch_single_url(
 
         # Save to cache
         if not no_cache:
-            save_to_cache(resolved_url, content)
+            _save_to_cache_with_limits(resolved_url, content)
             if verbose:
                 typer.echo(f"{CHECK_MARK} Saved to cache")
 
@@ -458,21 +418,8 @@ def get(
     use only local content, or --remote to force remote fetching.
     """
     # Validate mutually exclusive options
-    if local and remote:
-        echo_error(
-            message="Cannot use both --local and --remote flags",
-            code="CONFLICTING_OPTIONS",
-            suggestions=["Use either --local or --remote, not both"],
-        )
-        raise typer.Exit(1)
-
-    if output and (output_dir or format == "json"):
-        echo_error(
-            message="Cannot use --output with --output-dir or --format",
-            code="CONFLICTING_OPTIONS",
-            suggestions=["Use either --output, --output-dir, or --format"],
-        )
-        raise typer.Exit(1)
+    validate_no_conflicting_options(local=local, remote=remote)
+    validate_no_conflicting_options(output=output, output_dir=output_dir, json_format=format == "json")
 
     # Initialize console with verbose mode
     set_verbose(verbose)
