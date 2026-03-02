@@ -7,6 +7,7 @@ import json
 import re
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse, quote
 
@@ -17,6 +18,7 @@ from ..config import resolve_alias
 from ..console import echo_error, print_summary, reset_console, set_verbose
 from ..scraper.http import fetch_with_retry, validate_url
 from ..ui import CHECK_MARK, CROSS_MARK
+from .guide import _save_guide
 
 app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
 
@@ -490,6 +492,7 @@ def get(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be fetched without downloading"),
     local: bool = typer.Option(False, "--local", "--offline", help="Use only local synced content (no network requests)"),
     remote: bool = typer.Option(False, "--remote", help="Force remote fetching (skip local content check)"),
+    save_guide: str | None = typer.Option(None, "--save-guide", help="Save fetched content as a guide"),
 ) -> None:
     """Fetch a documentation page and convert it to Markdown.
 
@@ -631,6 +634,22 @@ def get(
             )
             raise typer.Exit(1)
         if result["content"]:
+            # Save as guide if requested
+            if save_guide:
+                guide_data = {
+                    "title": result.get("url", "Untitled"),
+                    "content": result["content"],
+                    "source_url": result.get("resolved_url", result["url"]),
+                    "tags": ["fetched"],
+                }
+                now = datetime.now(timezone.utc).isoformat()
+                guide_data["created"] = now
+                guide_data["updated"] = now
+
+                _save_guide(save_guide, guide_data)
+                if verbose:
+                    typer.echo(f"{CHECK_MARK} Saved as guide '{save_guide}'")
+
             if output:
                 output_path = Path(output)
                 output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -638,7 +657,9 @@ def get(
                 if verbose:
                     typer.echo(f"{CHECK_MARK} Written to {output}")
             else:
-                typer.echo(result["content"])
+                # Only output to stdout if not saving as guide
+                if not save_guide:
+                    typer.echo(result["content"])
             if verbose:
                 typer.echo(f"{CHECK_MARK} Done ({len(result['content'])} chars)")
         else:
