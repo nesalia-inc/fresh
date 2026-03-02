@@ -18,6 +18,7 @@ from .config import (
     SyncResult,
     ResultSource,
 )
+from .sync_service import Sync
 
 __all__ = [
     "GetConfig",
@@ -31,6 +32,7 @@ __all__ = [
     "SearchResult",
     "SearchResultItem",
     "SearchSource",
+    "Sync",
     "SyncConfig",
     "SyncResult",
     "ResultSource",
