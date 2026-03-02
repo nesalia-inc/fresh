@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,9 +16,37 @@ logger = logging.getLogger(__name__)
 # Default index directory
 DEFAULT_INDEX_DIR = Path.home() / ".fresh" / "index"
 
+# Valid characters for site names: alphanumeric, underscore, hyphen, dot
+SAFE_SITE_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_.\-]+$")
+
+
+def _validate_site_name(site_name: str) -> bool:
+    """Validate site name to prevent path traversal.
+
+    Returns True if valid, False otherwise.
+    """
+    if not site_name or len(site_name) > 255:
+        return False
+    return bool(SAFE_SITE_NAME_PATTERN.match(site_name))
+
 
 def get_index_db(site_name: str) -> Path:
-    """Get the path to the index database for a site."""
+    """Get the path to the index database for a site.
+
+    Args:
+        site_name: The site name (must contain only safe characters)
+
+    Returns:
+        Path to the index database
+
+    Raises:
+        ValueError: If site_name contains invalid characters
+    """
+    if not _validate_site_name(site_name):
+        raise ValueError(
+            f"Invalid site name '{site_name}'. Site names must contain only "
+            "alphanumeric characters, underscores, hyphens, and dots."
+        )
     index_dir = DEFAULT_INDEX_DIR
     index_dir.mkdir(parents=True, exist_ok=True)
     return index_dir / f"{site_name}.db"

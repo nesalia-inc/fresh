@@ -73,11 +73,30 @@ def build_index(
         raise typer.Exit(1)
 
     # Check if index exists
-    if not force:
-        age = get_index_age(site_name)
-        if age:
-            typer.echo(f"Index already exists for {site_name}. Use --force to rebuild.")
-            raise typer.Exit(1)
+    age = get_index_age(site_name)
+    if age and not force:
+        # Show existing index info and ask for confirmation
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        if age.tzinfo is None:
+            age = age.replace(tzinfo=timezone.utc)
+        delta = now - age
+
+        if delta.days > 0:
+            age_str = f"{delta.days} days ago"
+        elif delta.seconds // 3600 > 0:
+            age_str = f"{delta.seconds // 3600} hours ago"
+        elif delta.seconds // 60 > 0:
+            age_str = f"{delta.seconds // 60} minutes ago"
+        else:
+            age_str = "just now"
+
+        typer.echo(f"Index already exists for {site_name} (created {age_str}).")
+        confirm = typer.confirm("Do you want to rebuild it?")
+        if not confirm:
+            typer.echo("Cancelled.")
+            return
 
     typer.echo(f"Building index for {site_name}...")
 
