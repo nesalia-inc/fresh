@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse, quote
 
-from .config import SyncConfig, SyncResult
+from .config import SyncResult
 
 
 def create_sync_result(url: str) -> SyncResult:

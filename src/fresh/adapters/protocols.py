@@ -6,7 +6,6 @@ allowing easy mocking and testing of business logic.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Protocol
 
 
