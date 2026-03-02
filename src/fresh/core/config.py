@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 
 # Type aliases for limited choices
@@ -22,13 +22,13 @@ class SyncConfig:
     """Configuration for sync command."""
 
     url: str
-    output_dir: Path | None = None
+    output_dir: Optional[Path] = None
     max_pages: int = 100
     depth: int = 3
     workers: int = 1
     force: bool = False
     incremental: bool = True
-    pattern: str | None = None
+    pattern: Optional[str] = None
     verbose: bool = False
 
 
@@ -57,9 +57,9 @@ class SearchConfig:
     regex: bool = False
     context_lines: int = 1
     verbose: bool = False
-    result_limit: int | None = None
+    result_limit: Optional[int] = None
     source: SearchSource = "auto"
-    parallel: bool | None = None
+    parallel: Optional[bool] = None
     fuzzy: bool = False
 
 
@@ -90,11 +90,11 @@ class GetConfig:
 
     url: str
     timeout: int = 30
-    header: str | None = None
+    header: Optional[str] = None
     no_follow: bool = False
     skip_scripts: bool = False
     no_cache: bool = False
-    cache_ttl: int | None = None
+    cache_ttl: Optional[int] = None
     retry: int = 3
     dry_run: bool = False
     local: bool = False
@@ -107,9 +107,9 @@ class GetResult:
 
     url: str
     resolved_url: str
-    content: str | None = None
+    content: Optional[str] = None
     success: bool = False
-    error: str | None = None
+    error: Optional[str] = None
 
 
 @dataclass
@@ -118,7 +118,7 @@ class ListConfig:
 
     url: str
     max_pages: int = 100
-    pattern: str | None = None
+    pattern: Optional[str] = None
     verbose: bool = False
     sort: ListSort = "path"
 
@@ -137,7 +137,7 @@ class IndexConfig:
     """Configuration for index build command."""
 
     site: str
-    pages_dir: Path | None = None
+    pages_dir: Optional[Path] = None
     force: bool = False
 
 

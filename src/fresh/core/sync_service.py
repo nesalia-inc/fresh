@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import re
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urlparse, quote
 
 from .config import SyncResult
@@ -28,7 +29,7 @@ def create_sync_result(url: str) -> SyncResult:
 
 def should_skip_url(
     url: str,
-    pattern: str | None,
+    pattern: Optional[str],
     robots_allowed: bool,
     is_binary: bool,
     is_unchanged: bool,
@@ -143,7 +144,7 @@ def extract_domain(url: str) -> str:
     return parsed.netloc.replace(":", "_").replace(".", "_")
 
 
-def filter_urls_by_pattern(urls: list[str], pattern: str | None) -> list[str]:
+def filter_urls_by_pattern(urls: list[str], pattern: Optional[str]) -> list[str]:
     """Filter URLs by a pattern.
 
     Args:
