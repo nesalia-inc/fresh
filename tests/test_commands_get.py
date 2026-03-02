@@ -4,7 +4,6 @@ import tempfile
 from pathlib import Path
 from unittest import mock
 
-import pytest
 from typer.testing import CliRunner
 
 from fresh import app

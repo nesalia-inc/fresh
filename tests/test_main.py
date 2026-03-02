@@ -1,9 +1,8 @@
 """Tests for fresh."""
 
-import pytest
 from typer.testing import CliRunner
 
-from fresh import app, main
+from fresh import app
 
 runner = CliRunner()
 

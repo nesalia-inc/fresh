@@ -1,9 +1,7 @@
 """Tests for fresh.commands.update module."""
 
-import sys
 from unittest.mock import patch, MagicMock
 
-import pytest
 from typer.testing import CliRunner
 
 from fresh.commands.update import app, get_latest_version

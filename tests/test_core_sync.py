@@ -1,8 +1,6 @@
 """Tests for core sync service - pure business logic."""
 
-import pytest
 from pathlib import Path
-from unittest.mock import MagicMock
 
 from fresh.core.sync import (
     create_sync_result,

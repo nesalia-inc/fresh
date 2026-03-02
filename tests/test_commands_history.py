@@ -1,10 +1,8 @@
 """Tests for fresh.commands.history module."""
 
 from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from fresh.commands.history import history_app
@@ -87,7 +85,7 @@ class TestHistoryExport:
 
     def test_export(self, tmp_path):
         """Should export history."""
-        with patch('fresh.history.export_history') as mock_export:
+        with patch('fresh.history.export_history'):
             output_file = tmp_path / "export.json"
             runner = CliRunner()
             result = runner.invoke(history_app, ["export", str(output_file)])

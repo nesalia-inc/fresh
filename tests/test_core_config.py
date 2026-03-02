@@ -1,7 +1,5 @@
 """Tests for core config dataclasses."""
 
-import pytest
-from pathlib import Path
 
 from fresh.core.config import (
     GetConfig,

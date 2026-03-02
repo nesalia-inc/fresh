@@ -82,12 +82,14 @@ class Sync:
         Returns:
             Tuple of (should_skip: bool, reason: str)
         """
-        try:
-            pattern_re = re.compile(self.config.pattern.replace("*", ".*"))
-            if not pattern_re.search(url):
-                return True, "pattern"
-        except re.error:
-            pass
+        pattern = self.config.pattern
+        if pattern:
+            try:
+                pattern_re = re.compile(pattern.replace("*", ".*"))
+                if not pattern_re.search(url):
+                    return True, "pattern"
+            except re.error:
+                pass
         return False, ""
 
     def compute_path(self, url: str, pages_dir: Path) -> Path:

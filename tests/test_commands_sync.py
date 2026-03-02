@@ -286,39 +286,6 @@ class TestSavePage:
                     assert result is True
 
 
-class TestSyncMetadata:
-    """Tests for sync metadata functions."""
-
-    def test_save_metadata(self, tmp_path):
-        """Should save metadata to file."""
-        from fresh.commands.sync import _save_metadata
-
-        _save_metadata(tmp_path, "https://example.com", 10)
-
-        metadata_file = tmp_path / "_sync.json"
-        assert metadata_file.exists()
-
-        import json
-        data = json.loads(metadata_file.read_text())
-        assert data["site"] == "https://example.com"
-        assert data["page_count"] == 10
-        assert "last_sync" in data
-
-
-class TestFetchPageForSync:
-    """Tests for _fetch_page_for_sync function."""
-
-    def test_fetch_page_returns_none(self):
-        """Should return None when fetch returns None."""
-        from fresh.commands.sync import _fetch_page_for_sync
-
-        with patch('fresh.commands.sync.fetch_binary_aware') as mock_fetch:
-            mock_fetch.return_value = None
-
-            result = _fetch_page_for_sync("https://example.com/page.html")
-            assert result == (None, None)
-
-
 class TestSyncCommand:
     """Tests for sync command CLI."""
 

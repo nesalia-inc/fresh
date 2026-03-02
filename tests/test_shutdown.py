@@ -1,7 +1,6 @@
 """Tests for fresh.shutdown module."""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from fresh.shutdown import register_shutdown_callback, is_interrupted, cleanup, setup_signal_handlers
 
 

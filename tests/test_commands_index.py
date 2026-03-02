@@ -1,9 +1,8 @@
 """Tests for fresh.commands.index module."""
 
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from fresh.commands.index import index_app
@@ -96,7 +95,7 @@ class TestIndexBuild:
 
         with patch('fresh.commands.index.get_index_age', return_value=None):
             runner = CliRunner()
-            result = runner.invoke(index_app, ["build", "test-site", "-d", "/tmp/pages", "--force"])
+            _ = runner.invoke(index_app, ["build", "test-site", "-d", "/tmp/pages", "--force"])
             # Should complete (may have other issues but shouldn't crash)
 
     @patch('fresh.commands.index.get_index_age')
@@ -110,7 +109,7 @@ class TestIndexBuild:
 
         runner = CliRunner()
         # With --force it should rebuild without asking
-        result = runner.invoke(index_app, ["build", "test-site", "-d", "/tmp/pages", "--force"])
+        _ = runner.invoke(index_app, ["build", "test-site", "-d", "/tmp/pages", "--force"])
         # Should either rebuild or ask (depending on implementation)
 
 
@@ -123,7 +122,7 @@ class TestIndexRebuild:
         mock_rebuild.return_value = 15
 
         runner = CliRunner()
-        result = runner.invoke(index_app, ["rebuild", "test-site", "-d", "/tmp/pages"])
+        _ = runner.invoke(index_app, ["rebuild", "test-site", "-d", "/tmp/pages"])
         # Should complete
 
 
@@ -141,13 +140,13 @@ class TestIndexStatus:
         }
 
         runner = CliRunner()
-        result = runner.invoke(index_app, ["status", "test_site"])
+        _ = runner.invoke(index_app, ["status", "test_site"])
         # Should show status
 
     def test_status_all(self):
         """Should show status for all sites."""
         runner = CliRunner()
-        result = runner.invoke(index_app, ["status"])
+        _ = runner.invoke(index_app, ["status"])
         # Should show all statuses
 
 
@@ -177,7 +176,7 @@ class TestIndexSearch:
         ]
 
         runner = CliRunner()
-        result = runner.invoke(index_app, ["search", "test-site", "query"])
+        _ = runner.invoke(index_app, ["search", "test-site", "query"])
         # Should show results
 
 
@@ -243,7 +242,8 @@ class TestIndexStatusErrors:
             mock_dir.exists.return_value = True
             mock_dir.glob.return_value = []
             result = runner.invoke(index_app, ["status", "nonexistent"])
-            # Should handle the case
+            # Should handle the case - result should be valid
+            assert result.exit_code == 0
 
 
 class TestIndexDeleteErrors:
