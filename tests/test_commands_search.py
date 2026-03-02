@@ -449,3 +449,103 @@ class TestParallelSearch:
         pages_1 = 1
         workers_1 = min(DEFAULT_MAX_WORKERS, pages_1)
         assert workers_1 == 1
+
+
+class TestSearchFreshness:
+    """Tests for freshness functions in search module."""
+
+    def test_format_freshness_age_seconds(self):
+        """Should format seconds correctly."""
+        from datetime import datetime, timezone
+        from fresh.commands.search import _format_freshness_age
+
+        # Current time
+        result = _format_freshness_age(datetime.now(timezone.utc).isoformat())
+        assert "just now" in result
+
+    def test_format_freshness_age_minutes(self):
+        """Should format minutes correctly."""
+        from datetime import datetime, timezone, timedelta
+        from fresh.commands.search import _format_freshness_age
+
+        # 5 minutes ago
+        timestamp = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+        result = _format_freshness_age(timestamp)
+        assert "m ago" in result
+
+    def test_format_freshness_age_hours(self):
+        """Should format hours correctly."""
+        from datetime import datetime, timezone, timedelta
+        from fresh.commands.search import _format_freshness_age
+
+        # 2 hours ago
+        timestamp = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+        result = _format_freshness_age(timestamp)
+        assert "h ago" in result
+
+    def test_format_freshness_age_days(self):
+        """Should format days correctly."""
+        from datetime import datetime, timezone, timedelta
+        from fresh.commands.search import _format_freshness_age
+
+        # 2 days ago
+        timestamp = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
+        result = _format_freshness_age(timestamp)
+        assert "d ago" in result
+
+    def test_format_freshness_age_weeks(self):
+        """Should format weeks correctly."""
+        from datetime import datetime, timezone, timedelta
+        from fresh.commands.search import _format_freshness_age
+
+        # 2 weeks ago
+        timestamp = (datetime.now(timezone.utc) - timedelta(weeks=2)).isoformat()
+        result = _format_freshness_age(timestamp)
+        assert "w ago" in result
+
+    def test_format_freshness_age_invalid(self):
+        """Should return unknown for invalid timestamp."""
+        from fresh.commands.search import _format_freshness_age
+
+        result = _format_freshness_age("invalid-timestamp")
+        assert result == "unknown"
+
+    def test_format_freshness_age_with_z_suffix(self):
+        """Should handle timestamp with Z suffix."""
+        from fresh.commands.search import _format_freshness_age
+
+        result = _format_freshness_age("2024-01-01T12:00:00Z")
+        # Should handle Z suffix properly
+        assert isinstance(result, str)
+
+
+class TestSearchSyncDir:
+    """Tests for sync directory functions."""
+
+    def test_get_sync_dir_for_url(self):
+        """Should get sync directory for URL."""
+        original_sync_dir = search.DEFAULT_SYNC_DIR
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            search.DEFAULT_SYNC_DIR = Path(tmpdir)
+
+            try:
+                result = search._get_sync_dir_for_url("https://example.com/page.html")
+                assert "example_com" in str(result)
+                assert "pages" in str(result)
+            finally:
+                search.DEFAULT_SYNC_DIR = original_sync_dir
+
+
+class TestSearchConstants:
+    """Tests for search constants."""
+
+    def test_parallel_threshold_exists(self):
+        """PARALLEL_THRESHOLD should be defined."""
+        from fresh.commands.search import PARALLEL_THRESHOLD
+        assert PARALLEL_THRESHOLD > 0
+
+    def test_default_max_workers_exists(self):
+        """DEFAULT_MAX_WORKERS should be defined."""
+        from fresh.commands.search import DEFAULT_MAX_WORKERS
+        assert DEFAULT_MAX_WORKERS > 0

@@ -1,6 +1,7 @@
 """Tests for fresh.shutdown module."""
 
-from fresh.shutdown import register_shutdown_callback
+import pytest
+from fresh.shutdown import register_shutdown_callback, is_interrupted, cleanup, setup_signal_handlers
 
 
 class TestShutdown:
@@ -36,3 +37,64 @@ class TestShutdown:
         register_shutdown_callback(callback1)
         register_shutdown_callback(callback2)
         # Note: We can't easily test the callback execution without mocking signals
+
+
+class TestShutdownFunctions:
+    """Tests for shutdown module functions."""
+
+    def test_setup_signal_handlers(self):
+        """Should set up signal handlers without error."""
+        # Should not raise
+        setup_signal_handlers()
+
+    def test_cleanup_empty(self):
+        """Should handle empty callbacks."""
+        # Clear callbacks
+        from fresh import shutdown
+        shutdown._shutdown_callbacks.clear()
+
+        # Should not raise
+        cleanup()
+
+    def test_cleanup_with_callback(self):
+        """Should call registered callbacks during cleanup."""
+        from fresh import shutdown
+
+        # Save original callbacks
+        original_callbacks = shutdown._shutdown_callbacks.copy()
+        shutdown._shutdown_callbacks.clear()
+
+        try:
+            callback_called = []
+
+            def callback():
+                callback_called.append(True)
+
+            register_shutdown_callback(callback)
+            cleanup()
+
+            # Callback should have been called
+            assert len(callback_called) > 0
+        finally:
+            # Restore original callbacks
+            shutdown._shutdown_callbacks = original_callbacks
+
+    def test_cleanup_callback_error(self):
+        """Should handle callback errors gracefully."""
+        from fresh import shutdown
+
+        # Save original callbacks
+        original_callbacks = shutdown._shutdown_callbacks.copy()
+        shutdown._shutdown_callbacks.clear()
+
+        try:
+            def bad_callback():
+                raise Exception("Test error")
+
+            register_shutdown_callback(bad_callback)
+
+            # Should not raise even if callback fails
+            cleanup()
+        finally:
+            # Restore original callbacks
+            shutdown._shutdown_callbacks = original_callbacks

@@ -142,3 +142,81 @@ class TestGuideFunctions:
 
         # Test invalid timestamp
         assert guide._format_age("invalid") == "unknown"
+
+
+class TestGuideWindows:
+    """Tests for Windows-specific functions."""
+
+    def test_is_windows(self):
+        """Should check platform correctly."""
+        import platform
+        from fresh.commands.guide import _is_windows
+
+        expected = platform.system() == "Windows"
+        assert _is_windows() == expected
+
+    def test_create_console(self):
+        """Should create a Console object."""
+        from fresh.commands.guide import _create_console
+
+        console = _create_console()
+        assert console is not None
+
+
+class TestGuideLoadErrors:
+    """Tests for guide loading error handling."""
+
+    def test_load_guide_invalid_json(self):
+        """Should handle invalid JSON gracefully."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            original_guides_dir = guide.GUIDES_DIR
+            guide.GUIDES_DIR = Path(tmpdir)
+
+            try:
+                # Create a file with invalid JSON
+                guide_file = Path(tmpdir) / "invalid.json"
+                guide_file.write_text("not valid json")
+
+                result = guide._load_guide("invalid")
+                assert result is None
+            finally:
+                guide.GUIDES_DIR = original_guides_dir
+
+    def test_list_guides_invalid_json(self):
+        """Should skip invalid JSON files when listing."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            original_guides_dir = guide.GUIDES_DIR
+            guide.GUIDES_DIR = Path(tmpdir)
+
+            try:
+                # Create a valid guide
+                valid_guide = {"title": "Valid", "content": "Content", "created": "2026-01-01T00:00:00+00:00", "updated": "2026-01-01T00:00:00+00:00"}
+                guide._save_guide("valid", valid_guide)
+
+                # Create an invalid JSON file
+                invalid_file = Path(tmpdir) / "invalid.json"
+                invalid_file.write_text("not valid json")
+
+                # Should still list the valid guide
+                guides = guide._list_guides()
+                names = [g[0] for g in guides]
+                assert "valid" in names
+            finally:
+                guide.GUIDES_DIR = original_guides_dir
+
+
+class TestGuideConstants:
+    """Tests for guide constants."""
+
+    def test_guides_dir_exists(self):
+        """GUIDES_DIR should be defined."""
+        assert guide.GUIDES_DIR is not None
+
+    def test_invalid_name_chars(self):
+        """INVALID_NAME_CHARS should contain path separators."""
+        assert "/" in guide.INVALID_NAME_CHARS
+        assert "\\" in guide.INVALID_NAME_CHARS
+
+    def test_max_name_length(self):
+        """MAX_NAME_LENGTH should be defined."""
+        assert guide.MAX_NAME_LENGTH > 0
