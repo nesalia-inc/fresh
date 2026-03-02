@@ -9,11 +9,14 @@ from .config import (
     IndexResult,
     ListConfig,
     ListResult,
+    ListSort,
     SearchConfig,
     SearchResult,
     SearchResultItem,
+    SearchSource,
     SyncConfig,
     SyncResult,
+    ResultSource,
 )
 
 __all__ = [
@@ -23,9 +26,12 @@ __all__ = [
     "IndexResult",
     "ListConfig",
     "ListResult",
+    "ListSort",
     "SearchConfig",
     "SearchResult",
     "SearchResultItem",
+    "SearchSource",
     "SyncConfig",
     "SyncResult",
+    "ResultSource",
 ]

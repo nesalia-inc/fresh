@@ -8,6 +8,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Literal
+
+
+# Type aliases for limited choices
+SearchSource = Literal["auto", "local", "remote"]
+ResultSource = Literal["local", "remote"]
+ListSort = Literal["path", "alpha", "random"]
 
 
 @dataclass
@@ -51,7 +58,7 @@ class SearchConfig:
     context_lines: int = 1
     verbose: bool = False
     result_limit: int | None = None
-    source: str = "auto"  # "auto", "local", "remote"
+    source: SearchSource = "auto"
     parallel: bool | None = None
     fuzzy: bool = False
 
@@ -64,7 +71,7 @@ class SearchResultItem:
     title: str
     snippet: str
     url: str
-    source: str = "local"  # "local" or "remote"
+    source: ResultSource = "local"
 
 
 @dataclass
@@ -113,7 +120,7 @@ class ListConfig:
     max_pages: int = 100
     pattern: str | None = None
     verbose: bool = False
-    sort: str = "path"
+    sort: ListSort = "path"
 
 
 @dataclass
