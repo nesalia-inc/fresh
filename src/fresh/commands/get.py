@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import sys
@@ -12,10 +11,10 @@ from pathlib import Path
 from urllib.parse import urlparse, quote
 
 import typer
-from markdownify import markdownify as md
 
 from ..config import resolve_alias
 from ..console import echo_error, print_summary, reset_console, set_verbose
+from ..core import Get, GetConfig
 from ..scraper.http import fetch_with_retry, validate_url
 from ..ui import CHECK_MARK, CROSS_MARK
 from .guide import _save_guide
@@ -30,71 +29,56 @@ CACHE_TTL_DAYS = 30
 DEFAULT_SYNC_DIR = Path.home() / ".fresh" / "docs"
 
 
+# Initialize Get entity for command-level functions
+_get_entity = Get(GetConfig(url=""))
+
+
 def get_sync_dir() -> Path:
     """Get the default sync directory.
 
     Returns:
         Path to the sync directory
     """
-    return DEFAULT_SYNC_DIR
+    return _get_entity.get_sync_dir()
 
 
-def url_to_sync_path(url: str) -> Path | None:
+def url_to_sync_path(url: str, sync_dir: Path | None = None) -> Path | None:
     """Convert a URL to its potential sync file path.
 
     Args:
         url: The URL to convert
+        sync_dir: Optional custom sync directory (defaults to command's DEFAULT_SYNC_DIR)
 
     Returns:
         The potential path in the sync directory, or None if the URL cannot be mapped
     """
-    parsed = urlparse(url)
-    domain = parsed.netloc.replace(":", "_").replace(".", "_")
-    path = parsed.path.lstrip("/")
-
-    if not path or path.endswith("/"):
-        path = path + "index.html"
-
-    # Sanitize filename
-    filename = quote(path, safe="")
-    if len(filename) > 200:
-        filename = filename[:200]
-
-    sync_dir = DEFAULT_SYNC_DIR / domain / "pages"
-    file_path = sync_dir / filename
-
-    return file_path
+    return _get_entity.url_to_sync_path(url, sync_dir or DEFAULT_SYNC_DIR)
 
 
-def get_local_content(url: str) -> str | None:
+def get_local_content(url: str, sync_dir: Path | None = None) -> str | None:
     """Get locally synced content for a URL.
 
     Args:
         url: The URL to get local content for
+        sync_dir: Optional custom sync directory (defaults to command's DEFAULT_SYNC_DIR)
 
     Returns:
         Local HTML content or None if not available locally
     """
-    sync_path = url_to_sync_path(url)
-    if sync_path and sync_path.exists():
-        try:
-            return sync_path.read_text(encoding="utf-8")
-        except (OSError, IOError):
-            return None
-    return None
+    return _get_entity.get_local_content(url, sync_dir or DEFAULT_SYNC_DIR)
 
 
-def local_content_exists(url: str) -> bool:
+def local_content_exists(url: str, sync_dir: Path | None = None) -> bool:
     """Check if local synced content exists for a URL.
 
     Args:
         url: The URL to check
+        sync_dir: Optional custom sync directory (defaults to command's DEFAULT_SYNC_DIR)
 
     Returns:
         True if local content exists, False otherwise
     """
-    sync_path = url_to_sync_path(url)
-    return sync_path is not None and sync_path.exists()
+    return _get_entity.local_content_exists(url, sync_dir or DEFAULT_SYNC_DIR)
 
 
 def html_to_markdown(html: str, skip_scripts: bool = False) -> str:
@@ -107,11 +91,7 @@ def html_to_markdown(html: str, skip_scripts: bool = False) -> str:
     Returns:
         Markdown formatted string
     """
-    if skip_scripts:
-        # Remove script tags and their content
-        html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
-
-    return md(html, heading_style="ATX")
+    return Get.html_to_markdown(html, skip_scripts)
 
 
 def get_cache_dir() -> Path:
@@ -120,9 +100,7 @@ def get_cache_dir() -> Path:
     Returns:
         Path to the cache directory
     """
-    cache_dir = Path.home() / ".fresh" / "cache"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    return cache_dir
+    return _get_entity.get_cache_dir()
 
 
 def get_cached_content(url: str, ttl_days: int | None = None) -> str | None:
@@ -135,25 +113,7 @@ def get_cached_content(url: str, ttl_days: int | None = None) -> str | None:
     Returns:
         Cached content or None if not cached or expired
     """
-    # Create a hash of the URL for the filename
-    url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
-    cache_file = get_cache_dir() / f"{url_hash}.md"
-
-    if not cache_file.exists():
-        return None
-
-    # Check TTL if not disabled
-    if ttl_days is not None and ttl_days > 0:
-        import time
-
-        ttl_seconds = ttl_days * 24 * 60 * 60
-        file_age = time.time() - cache_file.stat().st_mtime
-        if file_age > ttl_seconds:
-            # Cache expired, remove it
-            cache_file.unlink()
-            return None
-
-    return cache_file.read_text(encoding="utf-8")
+    return _get_entity.get_cached_content(url, ttl_days)
 
 
 def save_to_cache(url: str, content: str) -> None:
@@ -165,16 +125,13 @@ def save_to_cache(url: str, content: str) -> None:
     """
     # Enforce cache limits before saving
     _enforce_cache_limits()
-
-    url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
-    cache_file = get_cache_dir() / f"{url_hash}.md"
-    cache_file.write_text(content, encoding="utf-8")
+    _get_entity.save_to_cache(url, content)
 
 
 def _get_cache_size() -> int:
     """Get total cache size in bytes."""
-    total = 0
     cache_dir = get_cache_dir()
+    total = 0
     if cache_dir.exists():
         for file in cache_dir.glob("*.md"):
             total += file.stat().st_size

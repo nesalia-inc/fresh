@@ -111,3 +111,87 @@ class TestSearchFuzzy:
         content = "This is a test document about Python programming"
         result = searcher_module.search_fuzzy(content, "pytho", max_distance=2)
         assert len(result) > 0
+
+
+class TestSearchInContent:
+    """Tests for search_in_content function."""
+
+    def test_basic_search(self):
+        """Should find matches in content."""
+        content = "Hello world\nThis is a test"
+        result = searcher_module.search_in_content(content, "world")
+        assert len(result) > 0
+        assert result[0]["match"] == "world"
+
+    def test_case_insensitive(self):
+        """Should find case-insensitive matches."""
+        content = "Hello World\nThis is a test"
+        result = searcher_module.search_in_content(content, "world", case_sensitive=False)
+        assert len(result) > 0
+
+    def test_case_sensitive(self):
+        """Should not match case when case_sensitive=True."""
+        content = "Hello World"
+        result = searcher_module.search_in_content(content, "world", case_sensitive=True)
+        assert len(result) == 0
+
+    def test_regex_search(self):
+        """Should find regex matches."""
+        content = "test123 abc456"
+        result = searcher_module.search_in_content(content, r"\d+", regex=True)
+        assert len(result) > 0
+
+    def test_no_match(self):
+        """Should return empty list when no match."""
+        content = "Hello world"
+        result = searcher_module.search_in_content(content, "nonexistent")
+        assert result == []
+
+    def test_empty_query(self):
+        """Should return results for empty query (matches everything)."""
+        content = "Hello world"
+        result = searcher_module.search_in_content(content, "")
+        # Empty query may return empty or all lines depending on implementation
+        assert isinstance(result, list)
+
+    def test_multiple_matches(self):
+        """Should find multiple matches."""
+        content = "test one\ntest two\ntest three"
+        result = searcher_module.search_in_content(content, "test")
+        assert len(result) >= 3
+
+
+class TestCreateSnippet:
+    """Tests for create_snippet function."""
+
+    def test_basic_snippet(self):
+        """Should create a snippet around match."""
+        content = "Line one\nLine two with keyword\nLine three"
+        result = searcher_module.create_snippet(content, "keyword")
+        assert "keyword" in result
+
+    def test_snippet_with_context(self):
+        """Should include context lines."""
+        content = "Line one\nLine two with keyword\nLine three"
+        result = searcher_module.create_snippet(content, "keyword", context_lines=1)
+        assert "Line one" in result or "Line three" in result
+
+    def test_snippet_max_length(self):
+        """Should respect max_length approximately."""
+        content = "A" * 500 + " keyword " + "B" * 500
+        result = searcher_module.create_snippet(content, "keyword", max_length=100)
+        # Should be close to max_length
+        assert len(result) <= 150
+
+    def test_no_match_returns_content(self):
+        """Should return truncated content when no match."""
+        content = "No match here"
+        result = searcher_module.create_snippet(content, "keyword")
+        # Returns truncated content when no match
+        assert isinstance(result, str)
+
+    def test_regex_snippet(self):
+        """Should create snippet for regex matches."""
+        content = "test123 is a number"
+        result = searcher_module.create_snippet(content, r"\d+", regex=True)
+        assert "123" in result

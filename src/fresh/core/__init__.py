@@ -19,6 +19,7 @@ from .config import (
     ResultSource,
 )
 from .get import (
+    Get,
     get_cache_dir,
     get_cached_content,
     get_sync_dir,
@@ -28,6 +29,7 @@ from .get import (
 )
 from .get import local_content_exists as get_local_content_exists
 from .list import (
+    List,
     discover_pages,
     filter_by_pattern,
     sort_entries,
@@ -38,6 +40,7 @@ from .list import (
 )
 from .search import (
     DEFAULT_MAX_WORKERS,
+    Search,
     discover_documentation_urls,
     discover_local_urls,
     extract_words_for_suggestions,
@@ -48,9 +51,20 @@ from .sync import Sync
 
 __all__ = [
     "DEFAULT_MAX_WORKERS",
+    "Get",
     "GetConfig",
     "GetResult",
+    "List",
     "PARALLEL_THRESHOLD",
+    "Search",
+    "SearchConfig",
+    "SearchResult",
+    "SearchResultItem",
+    "SearchSource",
+    "Sync",
+    "SyncConfig",
+    "SyncResult",
+    "ResultSource",
     "create_entry",
     "discover_documentation_urls",
     "discover_local_urls",
@@ -72,14 +86,6 @@ __all__ = [
     "ListSort",
     "save_to_cache",
     "search_in_local",
-    "SearchConfig",
-    "SearchResult",
-    "SearchResultItem",
-    "SearchSource",
     "sort_entries",
-    "Sync",
-    "SyncConfig",
-    "SyncResult",
-    "ResultSource",
     "url_to_sync_path",
 ]
