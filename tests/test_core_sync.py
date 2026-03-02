@@ -4,7 +4,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from fresh.core.sync_service import (
+from fresh.core.sync import (
     create_sync_result,
     should_skip_url,
     compute_sync_path,

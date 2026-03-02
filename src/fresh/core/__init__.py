@@ -18,7 +18,7 @@ from .config import (
     SyncResult,
     ResultSource,
 )
-from .sync_service import Sync
+from .sync import Sync
 
 __all__ = [
     "GetConfig",
