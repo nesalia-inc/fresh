@@ -190,6 +190,24 @@ class TestFilterUrlsByPattern:
         result = filter_urls_by_pattern(urls, r"[invalid")
         assert result == urls
 
+    def test_empty_urls(self):
+        """Should handle empty URL list."""
+        result = filter_urls_by_pattern([], "pattern")
+        assert result == []
+
+
+    """Tests for normalize_url edge cases."""
+
+    def test_empty_url(self):
+        """Should handle empty URL."""
+        result = normalize_url("", "https://example.com")
+        assert result == "https://example.com"
+
+    def test_protocol_relative(self):
+        """Should handle protocol-relative URLs."""
+        result = normalize_url("//cdn.example.com/script.js", "https://example.com")
+        assert result.startswith("https:")
+
 
 class TestLimitUrls:
     """Tests for limit_urls function."""
