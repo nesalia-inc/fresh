@@ -97,6 +97,19 @@ class TestShouldSkipUrl:
         assert should_skip is False
         assert reason == ""
 
+    def test_skip_pattern_invalid_regex(self):
+        """Should not skip when pattern is invalid regex."""
+        should_skip, reason = should_skip_url(
+            "https://example.com/about.html",
+            r"[invalid",
+            robots_allowed=True,
+            is_binary=False,
+            is_unchanged=False,
+        )
+
+        # Invalid regex should be ignored (not skip)
+        assert should_skip is False
+
 
 class TestComputeSyncPath:
     """Tests for compute_sync_path function."""
@@ -130,6 +143,17 @@ class TestComputeSyncPath:
         )
 
         assert "index.html" in str(path)
+
+    def test_long_path(self):
+        """Should handle long paths with hashing."""
+        path = compute_sync_path(
+            "https://example.com/" + "a" * 200 + ".html",
+            "https://example.com",
+            Path("/tmp/pages"),
+        )
+
+        # Should contain hash suffix
+        assert "_" in str(path)
 
 
 class TestNormalizeUrl:

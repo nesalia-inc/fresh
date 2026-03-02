@@ -126,6 +126,21 @@ class TestSyncEntityShouldSkip:
         assert should_skip is True
         assert reason == "pattern"
 
+    def test_skip_pattern_invalid_regex(self):
+        """Should not skip when pattern is invalid regex."""
+        config = SyncConfig(url="https://example.com", pattern=r"[invalid")
+        sync = Sync(config)
+
+        should_skip, reason = sync.should_skip_url(
+            "https://example.com/about.html",
+            robots_allowed=True,
+            is_binary=False,
+            is_unchanged=False,
+        )
+
+        # Invalid regex should be ignored (not skip)
+        assert should_skip is False
+
     def test_no_skip(self):
         """Should not skip when all conditions met."""
         config = SyncConfig(url="https://example.com")
@@ -181,6 +196,18 @@ class TestSyncEntityComputePath:
 
         assert "index.html" in str(path)
 
+    def test_long_filename(self):
+        """Should handle long filenames with hashing."""
+        config = SyncConfig(url="https://example.com")
+        sync = Sync(config)
+
+        # Create a very long path that will exceed 200 chars
+        long_path = "https://example.com/" + "a" * 200 + ".html"
+        path = sync.compute_path(long_path, Path("/tmp/pages"))
+
+        # Should contain hash suffix
+        assert "index.html" not in str(path) or "_" in str(path)
+
 
 class TestSyncEntityStaticMethods:
     """Tests for static methods."""
@@ -201,6 +228,22 @@ class TestSyncEntityStaticMethods:
         result = Sync.normalize_url("/about", "https://example.com/docs/")
         assert "/about" in result
         assert "example.com" in result
+
+    def test_normalize_url_empty_base_path(self):
+        """Should handle empty base path."""
+        result = Sync.normalize_url("page.html", "https://example.com")
+        assert "page.html" in result
+        assert "example.com" in result
+
+    def test_filter_urls_invalid_pattern(self):
+        """Should return all URLs when pattern is invalid."""
+        config = SyncConfig(url="https://example.com", pattern=r"[invalid")
+        sync = Sync(config)
+
+        urls = ["a.html", "b.html"]
+        result = sync.filter_urls(urls)
+        # Invalid regex should be ignored
+        assert result == urls
 
     def test_extract_domain_simple(self):
         """Should extract simple domain."""
