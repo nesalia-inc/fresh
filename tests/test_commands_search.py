@@ -537,6 +537,122 @@ class TestSearchSyncDir:
                 search.DEFAULT_SYNC_DIR = original_sync_dir
 
 
+class TestExtractWordsForSuggestions:
+    """Tests for extract_words_for_suggestions function."""
+
+    @mock.patch('fresh.commands.search.fetch_binary_aware')
+    @mock.patch('fresh.commands.search.discover_documentation_urls')
+    def test_extract_words_basic(self, mock_discover, mock_fetch):
+        """Should extract words from HTML content."""
+        mock_discover.return_value = ["https://example.com/page1.html"]
+        mock_fetch.return_value = mock.MagicMock(
+            text="<html><body><p>Hello world test page</p></body></html>"
+        )
+
+        from fresh.commands.search import extract_words_for_suggestions
+        result = extract_words_for_suggestions("https://example.com", max_pages=1)
+
+        # Should contain extracted words (filtered by common words)
+        assert isinstance(result, list)
+
+    @mock.patch('fresh.commands.search.fetch_binary_aware')
+    @mock.patch('fresh.commands.search.discover_documentation_urls')
+    def test_extract_words_verbose(self, mock_discover, mock_fetch):
+        """Should work in verbose mode."""
+        mock_discover.return_value = ["https://example.com/page1.html"]
+        mock_fetch.return_value = mock.MagicMock(
+            text="<html><body><p>Test content</p></body></html>"
+        )
+
+        from fresh.commands.search import extract_words_for_suggestions
+        # Should not raise in verbose mode
+        result = extract_words_for_suggestions("https://example.com", max_pages=1, verbose=True)
+        assert isinstance(result, list)
+
+    @mock.patch('fresh.commands.search.fetch_binary_aware')
+    @mock.patch('fresh.commands.search.discover_documentation_urls')
+    def test_extract_words_empty_response(self, mock_discover, mock_fetch):
+        """Should handle empty response."""
+        mock_discover.return_value = ["https://example.com/page1.html"]
+        mock_fetch.return_value = None
+
+        from fresh.commands.search import extract_words_for_suggestions
+        result = extract_words_for_suggestions("https://example.com", max_pages=1)
+        assert isinstance(result, list)
+
+    @mock.patch('fresh.commands.search.fetch_binary_aware')
+    @mock.patch('fresh.commands.search.discover_documentation_urls')
+    def test_extract_words_non_text_response(self, mock_discover, mock_fetch):
+        """Should handle non-text response."""
+        mock_discover.return_value = ["https://example.com/page1.html"]
+        mock_fetch.return_value = "string response"
+
+        from fresh.commands.search import extract_words_for_suggestions
+        result = extract_words_for_suggestions("https://example.com", max_pages=1)
+        assert isinstance(result, list)
+
+    @mock.patch('fresh.commands.search.fetch_binary_aware')
+    @mock.patch('fresh.commands.search.discover_documentation_urls')
+    def test_extract_words_filters_common(self, mock_discover, mock_fetch):
+        """Should filter common words."""
+        mock_discover.return_value = ["https://example.com/page1.html"]
+        mock_fetch.return_value = mock.MagicMock(
+            text="<html><body><p>the and for are but not you all can had</p></body></html>"
+        )
+
+        from fresh.commands.search import extract_words_for_suggestions
+        result = extract_words_for_suggestions("https://example.com", max_pages=1)
+
+        # Common words should be filtered out
+        assert "the" not in result
+        assert "and" not in result
+
+
+class TestShowSuggestions:
+    """Tests for show_suggestions function."""
+
+    @mock.patch('fresh.commands.search.extract_words_for_suggestions')
+    @mock.patch('fresh.commands.search.find_fuzzy_suggestions')
+    def test_show_suggestions_with_results(self, mock_fuzzy, mock_extract):
+        """Should show suggestions when found."""
+        mock_extract.return_value = ["react", "redux", "router"]
+        mock_fuzzy.return_value = [("reach", 2), ("react", 0)]
+
+        from fresh.commands.search import show_suggestions
+        # Should not raise
+        show_suggestions("react", "https://example.com")
+
+    @mock.patch('fresh.commands.search.extract_words_for_suggestions')
+    def test_show_suggestions_no_words(self, mock_extract):
+        """Should handle no words found."""
+        mock_extract.return_value = []
+
+        from fresh.commands.search import show_suggestions
+        # Should not raise
+        show_suggestions("test", "https://example.com")
+
+    @mock.patch('fresh.commands.search.extract_words_for_suggestions')
+    @mock.patch('fresh.commands.search.find_fuzzy_suggestions')
+    def test_show_suggestions_error(self, mock_fuzzy, mock_extract):
+        """Should handle errors gracefully."""
+        mock_extract.side_effect = Exception("Test error")
+
+        from fresh.commands.search import show_suggestions
+        # Should not raise even on error
+        show_suggestions("test", "https://example.com")
+
+    @mock.patch('fresh.commands.search.extract_words_for_suggestions')
+    @mock.patch('fresh.commands.search.find_fuzzy_suggestions')
+    def test_show_suggestions_verbose(self, mock_fuzzy, mock_extract):
+        """Should work in verbose mode."""
+        mock_extract.return_value = ["react", "redux"]
+        mock_fuzzy.return_value = []
+
+        from fresh.commands.search import show_suggestions
+        # Should not raise
+        show_suggestions("test", "https://example.com", verbose=True)
+
+
 class TestSearchConstants:
     """Tests for search constants."""
 
