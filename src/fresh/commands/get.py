@@ -15,7 +15,7 @@ import typer
 
 from ..config import resolve_alias
 from ..console import echo_error, print_summary, reset_console, set_verbose
-from ..core import Get, GetConfig
+from ..core import Get, GetConfig, Webpage
 from ..core import (
     get_cache_dir,
     get_cached_content,
@@ -229,7 +229,7 @@ def fetch_single_url(
     dry_run: bool = False,
     local: bool = False,
     remote: bool = False,
-) -> dict | None:
+) -> Webpage:
     """Fetch a single URL and return the result.
 
     Args:
@@ -256,13 +256,12 @@ def fetch_single_url(
 
     # Validate URL
     if not validate_url(resolved_url):
-        return {
-            "url": url,
-            "resolved_url": resolved_url,
-            "content": None,
-            "success": False,
-            "error": f"Invalid URL: {resolved_url}",
-        }
+        return Webpage(
+            url=url,
+            resolved_url=resolved_url,
+            success=False,
+            error=f"Invalid URL: {resolved_url}",
+        )
 
     # Determine fetch strategy
     use_local_only = local
@@ -283,13 +282,12 @@ def fetch_single_url(
 
     # If --local was specified but no local content found
     if use_local_only and content is None:
-        return {
-            "url": url,
-            "resolved_url": resolved_url,
-            "content": None,
-            "success": False,
-            "error": "Local content not found. Run 'fresh sync' first.",
-        }
+        return Webpage(
+            url=url,
+            resolved_url=resolved_url,
+            success=False,
+            error="Local content not found. Run 'fresh sync' first.",
+        )
 
     # Try cache if not local-only
     if content is None and not use_local_only and not no_cache:
@@ -303,34 +301,31 @@ def fetch_single_url(
     if content is None and not use_local_only:
         if dry_run:
             typer.echo(f"Would fetch: {resolved_url}")
-            return {
-                "url": url,
-                "resolved_url": resolved_url,
-                "content": None,
-                "success": True,
-                "dry_run": True,
-            }
+            return Webpage(
+                url=url,
+                resolved_url=resolved_url,
+                success=True,
+                dry_run=True,
+            )
 
         # Prepare headers
         headers = {}
         if header:
             if ":" not in header:
-                return {
-                    "url": url,
-                    "resolved_url": resolved_url,
-                    "content": None,
-                    "success": False,
-                    "error": "Header must be in format 'Key: Value'",
-                }
+                return Webpage(
+                    url=url,
+                    resolved_url=resolved_url,
+                    success=False,
+                    error="Header must be in format 'Key: Value'",
+                )
             key, value = header.split(":", 1)
             if re.search("[\r\n]", key) or re.search("[\r\n]", value):
-                return {
-                    "url": url,
-                    "resolved_url": resolved_url,
-                    "content": None,
-                    "success": False,
-                    "error": "Header must not contain newline characters",
-                }
+                return Webpage(
+                    url=url,
+                    resolved_url=resolved_url,
+                    success=False,
+                    error="Header must not contain newline characters",
+                )
             headers[key.strip()] = value.strip()
 
         if verbose:
@@ -346,13 +341,12 @@ def fetch_single_url(
         )
 
         if response is None:
-            return {
-                "url": url,
-                "resolved_url": resolved_url,
-                "content": None,
-                "success": False,
-                "error": f"Failed to fetch page after {retry} attempts",
-            }
+            return Webpage(
+                url=url,
+                resolved_url=resolved_url,
+                success=False,
+                error=f"Failed to fetch page after {retry} attempts",
+            )
 
         if hasattr(response, "text"):
             html_content = response.text
@@ -374,20 +368,19 @@ def fetch_single_url(
                 typer.echo(f"{CHECK_MARK} Saved to cache")
 
     if content is None:
-        return {
-            "url": url,
-            "resolved_url": resolved_url,
-            "content": None,
-            "success": False,
-            "error": "No content retrieved",
-        }
+        return Webpage(
+            url=url,
+            resolved_url=resolved_url,
+            success=False,
+            error="No content retrieved",
+        )
 
-    return {
-        "url": url,
-        "resolved_url": resolved_url,
-        "content": content,
-        "success": True,
-    }
+    return Webpage(
+        url=url,
+        resolved_url=resolved_url,
+        content=content,
+        success=True,
+    )
 
 
 @app.command(name="get")
@@ -461,7 +454,7 @@ def get(
         raise typer.Exit(1)
 
     # Fetch all URLs
-    results: list[dict] = []
+    results: list[Webpage] = []
     for url_item in urls_to_fetch:
         result = fetch_single_url(
             url_item,
@@ -484,7 +477,7 @@ def get(
     if format == "json":
         # JSON output for all results
         output_data = [
-            {"url": r["url"], "content": r["content"], "success": r["success"], "error": r.get("error")}
+            {"url": r.url, "content": r.content, "success": r.success, "error": r.error}
             for r in results
         ]
         typer.echo(json.dumps(output_data, indent=2))
@@ -495,9 +488,9 @@ def get(
         output_dir.mkdir(parents=True, exist_ok=True)
         success_count = 0
         for result in results:
-            if result["success"] and result["content"]:
+            if result.success and result.content:
                 # Generate filename from URL
-                parsed = urlparse(result["resolved_url"])
+                parsed = urlparse(result.resolved_url)
                 path = parsed.path.lstrip("/")
                 if not path or path.endswith("/"):
                     path = path + "index.md"
@@ -512,7 +505,7 @@ def get(
 
                 file_path = output_dir / filename
                 file_path.parent.mkdir(parents=True, exist_ok=True)
-                file_path.write_text(result["content"], encoding="utf-8")
+                file_path.write_text(result.content, encoding="utf-8")
                 success_count += 1
                 if verbose:
                     typer.echo(f"{CHECK_MARK} Written to {file_path}")
@@ -526,24 +519,24 @@ def get(
         result = results[0]
 
         # Handle dry_run case
-        if result.get("dry_run"):
-            typer.echo(f"Would fetch: {result['resolved_url']}")
+        if result.dry_run:
+            typer.echo(f"Would fetch: {result.resolved_url}")
             return
 
-        if not result["success"]:
+        if not result.success:
             echo_error(
-                message=result.get("error", "Failed to fetch page"),
-                url=result.get("resolved_url"),
+                message=result.error or "Failed to fetch page",
+                url=result.resolved_url,
                 code="FETCH_FAILED",
             )
             raise typer.Exit(1)
-        if result["content"]:
+        if result.content:
             # Save as guide if requested
             if save_guide:
                 guide_data = {
-                    "title": result.get("url", "Untitled"),
-                    "content": result["content"],
-                    "source_url": result.get("resolved_url", result["url"]),
+                    "title": result.url or "Untitled",
+                    "content": result.content,
+                    "source_url": result.resolved_url or result.url,
                     "tags": ["fetched"],
                 }
                 now = datetime.now(timezone.utc).isoformat()
@@ -557,30 +550,30 @@ def get(
             if output:
                 output_path = Path(output)
                 output_path.parent.mkdir(parents=True, exist_ok=True)
-                output_path.write_text(result["content"], encoding="utf-8")
+                output_path.write_text(result.content, encoding="utf-8")
                 if verbose:
                     typer.echo(f"{CHECK_MARK} Written to {output}")
             else:
                 # Only output to stdout if not saving as guide
                 if not save_guide:
-                    typer.echo(result["content"])
+                    typer.echo(result.content)
             if verbose:
-                typer.echo(f"{CHECK_MARK} Done ({len(result['content'])} chars)")
+                typer.echo(f"{CHECK_MARK} Done ({len(result.content)} chars)")
         else:
             echo_error(
                 message="No content retrieved",
-                url=result.get("resolved_url"),
+                url=result.resolved_url,
                 code="NO_CONTENT",
             )
             raise typer.Exit(1)
     else:
         # Multiple URLs without special output option - show summary
-        success_count = sum(1 for r in results if r["success"])
+        success_count = sum(1 for r in results if r.success)
         typer.echo(f"Fetched {success_count}/{len(results)} pages successfully")
         if verbose:
             for result in results:
-                status = CHECK_MARK if result["success"] else CROSS_MARK
-                typer.echo(f"  {status} {result['url']}")
+                status = CHECK_MARK if result.success else CROSS_MARK
+                typer.echo(f"  {status} {result.url}")
 
     # Print error/warning summary
     print_summary()

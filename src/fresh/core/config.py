@@ -113,6 +113,37 @@ class GetResult:
 
 
 @dataclass
+class Webpage:
+    """Represents a fetched webpage with its content and metadata."""
+
+    url: str
+    resolved_url: str
+    content: Optional[str] = None
+    success: bool = False
+    error: Optional[str] = None
+    dry_run: bool = False
+
+    def is_success(self) -> bool:
+        """Check if the fetch was successful."""
+        return self.success and self.content is not None
+
+    def is_error(self) -> bool:
+        """Check if there was an error."""
+        return not self.success or self.error is not None
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for serialization."""
+        return {
+            "url": self.url,
+            "resolved_url": self.resolved_url,
+            "content": self.content,
+            "success": self.success,
+            "error": self.error,
+            "dry_run": self.dry_run,
+        }
+
+
+@dataclass
 class ListConfig:
     """Configuration for list command."""
 
