@@ -4,12 +4,107 @@ import tempfile
 from pathlib import Path
 from unittest import mock
 
+import pytest
 from typer.testing import CliRunner
 
 from fresh import app
 from fresh.commands import get as get_module
 
 runner = CliRunner()
+
+
+class TestUrlToSyncPath:
+    """Tests for url_to_sync_path function."""
+
+    def test_url_to_sync_path_basic(self):
+        """Should convert URL to sync path."""
+        result = get_module.url_to_sync_path("https://example.com/docs/page.html")
+        assert result is not None
+        assert "example_com" in str(result)
+
+    def test_url_to_sync_path_index(self):
+        """Should handle index paths."""
+        result = get_module.url_to_sync_path("https://example.com/docs/")
+        assert result is not None
+        assert "index.html" in str(result)
+
+    def test_url_to_sync_path_no_path(self):
+        """Should handle URLs without path."""
+        result = get_module.url_to_sync_path("https://example.com")
+        assert result is not None
+        assert "index.html" in str(result)
+
+
+class TestGetSyncDir:
+    """Tests for get_sync_dir function."""
+
+    def test_get_sync_dir(self):
+        """Should return default sync directory."""
+        result = get_module.get_sync_dir()
+        assert result is not None
+        assert ".fresh" in str(result)
+
+
+class TestGetCacheDir:
+    """Tests for get_cache_dir function."""
+
+    def test_get_cache_dir(self):
+        """Should return cache directory."""
+        result = get_module.get_cache_dir()
+        assert result is not None
+        assert ".fresh" in str(result)
+
+
+class TestSaveToCache:
+    """Tests for save_to_cache function."""
+
+    def test_save_to_cache(self, tmp_path):
+        """Should save content to cache."""
+        # Mock cache dir
+        with mock.patch.object(get_module, 'get_cache_dir', return_value=tmp_path):
+            get_module.save_to_cache("https://example.com/test", "# Test content")
+            # Check file was created
+            files = list(tmp_path.glob("*.md"))
+            assert len(files) > 0
+
+
+class TestGetCachedContent:
+    """Tests for get_cached_content function."""
+
+    def test_get_cached_content(self, tmp_path):
+        """Should get cached content."""
+        with mock.patch.object(get_module, 'get_cache_dir', return_value=tmp_path):
+            # Save content first
+            get_module.save_to_cache("https://example.com/test", "# Test content")
+            # Get it back
+            result = get_module.get_cached_content("https://example.com/test")
+            assert result == "# Test content"
+
+    def test_get_cached_content_not_found(self, tmp_path):
+        """Should return None for non-existent cache."""
+        with mock.patch.object(get_module, 'get_cache_dir', return_value=tmp_path):
+            result = get_module.get_cached_content("https://nonexistent.com/test")
+            assert result is None
+
+
+class TestCleanExpiredCache:
+    """Tests for clean_expired_cache function."""
+
+    def test_clean_expired_cache(self, tmp_path):
+        """Should clean expired cache entries."""
+        with mock.patch.object(get_module, 'get_cache_dir', return_value=tmp_path):
+            # Create a mock old file
+            cache_file = tmp_path / "test.md"
+            cache_file.write_text("# Test")
+
+            import time
+            import os
+            # Make file appear old
+            old_time = time.time() - (31 * 24 * 60 * 60)  # 31 days old
+            os.utime(cache_file, (old_time, old_time))
+
+            result = get_module.clean_expired_cache()
+            assert result >= 0
 
 
 class TestHtmlToMarkdown:
