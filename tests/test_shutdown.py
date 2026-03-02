@@ -1,6 +1,7 @@
 """Tests for fresh.shutdown module."""
 
 import pytest
+from unittest.mock import patch, MagicMock
 from fresh.shutdown import register_shutdown_callback, is_interrupted, cleanup, setup_signal_handlers
 
 
@@ -9,34 +10,46 @@ class TestShutdown:
 
     def test_register_callback(self):
         """Should register a shutdown callback."""
-        callback_called = []
+        from fresh import shutdown
+        original_callbacks = shutdown._shutdown_callbacks.copy()
+        shutdown._shutdown_callbacks.clear()
 
-        def callback():
-            callback_called.append(True)
+        try:
+            callback_called = []
 
-        register_shutdown_callback(callback)
-        # Note: We can't easily test the callback execution without mocking signals
+            def callback():
+                callback_called.append(True)
+
+            register_shutdown_callback(callback)
+            assert len(shutdown._shutdown_callbacks) == 1
+        finally:
+            shutdown._shutdown_callbacks = original_callbacks
 
     def test_is_interrupted_default(self):
         """Should return False by default."""
-        # Note: This test may not work correctly if signals have been triggered
-        # The function is designed to track SIGINT/SIGTERM
-        pass  # Just ensure no errors
+        from fresh import shutdown
+        # Reset the interrupted state
+        shutdown._interrupted = False
+        assert is_interrupted() is False
 
     def test_multiple_callbacks(self):
         """Should register multiple callbacks."""
-        callback1_called = []
-        callback2_called = []
+        from fresh import shutdown
+        original_callbacks = shutdown._shutdown_callbacks.copy()
+        shutdown._shutdown_callbacks.clear()
 
-        def callback1():
-            callback1_called.append(True)
+        try:
+            def callback1():
+                pass
 
-        def callback2():
-            callback2_called.append(True)
+            def callback2():
+                pass
 
-        register_shutdown_callback(callback1)
-        register_shutdown_callback(callback2)
-        # Note: We can't easily test the callback execution without mocking signals
+            register_shutdown_callback(callback1)
+            register_shutdown_callback(callback2)
+            assert len(shutdown._shutdown_callbacks) == 2
+        finally:
+            shutdown._shutdown_callbacks = original_callbacks
 
 
 class TestShutdownFunctions:
@@ -98,3 +111,41 @@ class TestShutdownFunctions:
         finally:
             # Restore original callbacks
             shutdown._shutdown_callbacks = original_callbacks
+
+
+class TestSignalHandler:
+    """Tests for signal handler function."""
+
+    @patch('fresh.shutdown.signal.signal')
+    def test_setup_signal_handlers_calls_signal(self, mock_signal):
+        """Should register signal handlers."""
+        setup_signal_handlers()
+        # Should have called signal.signal at least twice (SIGINT and SIGTERM)
+        assert mock_signal.call_count >= 2
+
+    @patch('sys.exit')
+    def test_signal_handler_execution(self, mock_exit):
+        """Should execute callbacks when signal is received."""
+        from fresh import shutdown
+
+        # Save original state
+        original_callbacks = shutdown._shutdown_callbacks.copy()
+        original_interrupted = shutdown._interrupted
+        shutdown._shutdown_callbacks.clear()
+
+        try:
+            callback_called = []
+
+            def callback():
+                callback_called.append(True)
+
+            register_shutdown_callback(callback)
+
+            # Manually call the signal handler
+            shutdown._signal_handler(2, None)
+
+            # Callback should have been called
+            assert len(callback_called) > 0
+        finally:
+            shutdown._shutdown_callbacks = original_callbacks
+            shutdown._interrupted = original_interrupted

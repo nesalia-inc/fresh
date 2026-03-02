@@ -190,3 +190,105 @@ class TestCreateConsole:
 
         console = _create_console()
         assert console is not None
+
+
+class TestIndexBuildErrors:
+    """Tests for index build error cases."""
+
+    def test_build_index_missing_pages_dir(self):
+        """Should fail when pages directory doesn't exist."""
+        runner = CliRunner()
+        result = runner.invoke(index_app, ["build", "test-site", "-d", "/nonexistent/path"])
+        assert result.exit_code == 1
+        assert "not found" in result.output.lower()
+
+    @patch('fresh.commands.index.build_index_from_directory')
+    @patch('fresh.commands.index.get_index_age')
+    def test_build_index_no_html_files(self, mock_age, mock_build):
+        """Should fail when no HTML files found."""
+        mock_age.return_value = None
+        mock_build.return_value = 0
+
+        runner = CliRunner()
+        with patch('pathlib.Path.exists', return_value=True):
+            with patch('pathlib.Path.rglob', return_value=[]):
+                result = runner.invoke(index_app, ["build", "test-site", "-d", "/tmp/pages", "--force"])
+                assert result.exit_code == 1
+
+
+class TestIndexRebuildErrors:
+    """Tests for index rebuild error cases."""
+
+    def test_rebuild_index_missing_pages_dir(self):
+        """Should fail when pages directory doesn't exist."""
+        runner = CliRunner()
+        result = runner.invoke(index_app, ["rebuild", "test-site", "-d", "/nonexistent/path"])
+        assert result.exit_code == 1
+
+
+class TestIndexStatusErrors:
+    """Tests for index status error cases."""
+
+    def test_status_no_index_dir(self):
+        """Should show message when no index directory."""
+        runner = CliRunner()
+        with patch('fresh.commands.index.DEFAULT_INDEX_DIR', Path("/nonexistent")):
+            result = runner.invoke(index_app, ["status"])
+            assert "no indexes" in result.output.lower()
+
+    def test_status_site_not_found(self):
+        """Should show message when site not found."""
+        runner = CliRunner()
+        with patch('fresh.commands.index.DEFAULT_INDEX_DIR') as mock_dir:
+            mock_dir.exists.return_value = True
+            mock_dir.glob.return_value = []
+            result = runner.invoke(index_app, ["status", "nonexistent"])
+            # Should handle the case
+
+
+class TestIndexDeleteErrors:
+    """Tests for index delete error cases."""
+
+    @patch('fresh.commands.index.delete_index')
+    def test_delete_not_found(self, mock_delete):
+        """Should fail when index not found."""
+        mock_delete.return_value = False
+
+        runner = CliRunner()
+        result = runner.invoke(index_app, ["delete", "nonexistent", "--force"])
+        assert result.exit_code == 1
+
+
+class TestIndexSearchErrors:
+    """Tests for index search error cases."""
+
+    @patch('fresh.indexer.get_index_stats')
+    def test_search_index_not_found(self, mock_stats):
+        """Should fail when index not found."""
+        mock_stats.return_value = None
+
+        runner = CliRunner()
+        result = runner.invoke(index_app, ["search", "nonexistent", "query"])
+        assert result.exit_code == 1
+
+    @patch('fresh.indexer.search_index')
+    @patch('fresh.commands.index.get_index_stats')
+    def test_search_no_results(self, mock_stats, mock_search):
+        """Should handle no results."""
+        mock_stats.return_value = {"page_count": 100}
+        mock_search.return_value = []
+
+        runner = CliRunner()
+        result = runner.invoke(index_app, ["search", "test-site", "nonexistent"])
+        assert "no results" in result.output.lower()
+
+
+class TestIsWindows:
+    """Tests for _is_windows function."""
+
+    def test_is_windows(self):
+        """Should check platform."""
+        from fresh.commands.index import _is_windows
+
+        result = _is_windows()
+        assert isinstance(result, bool)

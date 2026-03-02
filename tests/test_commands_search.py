@@ -4,6 +4,7 @@ import re
 import tempfile
 from pathlib import Path
 from unittest import mock
+from unittest.mock import patch, MagicMock
 
 import pytest
 from typer.testing import CliRunner
@@ -665,3 +666,71 @@ class TestSearchConstants:
         """DEFAULT_MAX_WORKERS should be defined."""
         from fresh.commands.search import DEFAULT_MAX_WORKERS
         assert DEFAULT_MAX_WORKERS > 0
+
+
+class TestGetResultFreshness:
+    """Tests for _get_result_freshness function."""
+
+    def test_get_result_freshness_with_data(self):
+        """Should get freshness data when available."""
+        with patch('fresh.commands.search.get_page_freshness') as mock_freshness:
+            mock_freshness.return_value = {"synced_at": "2024-01-01T00:00:00Z"}
+
+            result = search._get_result_freshness("https://example.com/page.html", "https://example.com")
+            assert result is not None
+
+    def test_get_result_freshness_no_data(self):
+        """Should return None when no freshness data."""
+        with patch('fresh.commands.search.get_page_freshness') as mock_freshness:
+            mock_freshness.return_value = None
+
+            result = search._get_result_freshness("https://example.com/page.html", "https://example.com")
+            assert result is None
+
+
+class TestDiscoverDocumentationUrls:
+    """Tests for discover_documentation_urls function."""
+
+    @patch('fresh.commands.search.sitemap.discover_sitemap')
+    @patch('fresh.commands.search.sitemap.fetch_with_retry')
+    @patch('fresh.commands.search.sitemap.parse_sitemap')
+    def test_discover_with_sitemap(self, mock_parse, mock_fetch, mock_discover):
+        """Should discover URLs from sitemap."""
+        mock_discover.return_value = "https://example.com/sitemap.xml"
+        mock_fetch.return_value = "<sitemap></sitemap>"
+        mock_parse.return_value = [
+            "https://example.com/page1.html",
+            "https://example.com/page2.html",
+        ]
+
+        result = search.discover_documentation_urls("https://example.com", max_pages=10)
+        assert len(result) > 0
+
+    @patch('fresh.commands.search.crawler.crawl')
+    @patch('fresh.commands.search.sitemap.discover_sitemap')
+    def test_discover_fallback_to_crawler(self, mock_discover, mock_crawl):
+        """Should fall back to crawler when no sitemap."""
+        mock_discover.return_value = None
+        mock_crawl.return_value = {"https://example.com/page1.html"}
+
+        result = search.discover_documentation_urls("https://example.com", max_pages=10)
+        assert len(result) > 0
+
+
+class TestSearchPageContent:
+    """Tests for _search_page_content function."""
+
+    @patch('fresh.commands.search.fetch_binary_aware')
+    def test_search_page_content_returns_result(self, mock_fetch):
+        """Should return result structure."""
+        mock_fetch.return_value = "<html><body>test content</body></html>"
+
+        result = search._search_page_content(
+            "https://example.com/page.html",
+            "test",
+            case_sensitive=False,
+            regex=False,
+            context_lines=1,
+        )
+
+        assert result is not None
