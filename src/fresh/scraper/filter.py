@@ -122,6 +122,25 @@ def extract_name_from_url(url: str) -> str:
     return name if name else url
 
 
+def _normalize_for_comparison(
+    url: str,
+    strip_query: bool = True,
+    strip_fragment: bool = True,
+) -> str:
+    """Normalize URL for comparison (V2: extracted for testability)."""
+    normalized = url.rstrip("/").lower()
+
+    # Remove fragment for comparison
+    if strip_fragment:
+        normalized = normalized.split("#")[0]
+
+    # Remove query string for comparison
+    if strip_query:
+        normalized = normalized.split("?")[0]
+
+    return normalized
+
+
 def deduplicate(
     urls: Sequence[str],
     strip_query: bool = True,
@@ -142,16 +161,7 @@ def deduplicate(
     result = []
 
     for url in urls:
-        # Normalize: remove trailing slash and lowercase
-        normalized = url.rstrip("/").lower()
-
-        # Remove fragment for comparison
-        if strip_fragment:
-            normalized = normalized.split("#")[0]
-
-        # Remove query string for comparison
-        if strip_query:
-            normalized = normalized.split("?")[0]
+        normalized = _normalize_for_comparison(url, strip_query, strip_fragment)
 
         if normalized not in seen:
             seen.add(normalized)

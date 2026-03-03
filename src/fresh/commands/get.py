@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import json
 import re
 import sys
@@ -82,6 +83,22 @@ DEFAULT_SYNC_DIR = Path.home() / ".fresh" / "docs"
 _get_entity = Get(GetConfig(url=""))
 
 
+# Size thresholds for human-readable format (V2 pattern)
+@dataclass(frozen=True)
+class SizeThreshold:
+    """Threshold for size-based formatting."""
+    bytes_limit: int
+    suffix: str
+    divisor: float
+
+
+SIZE_THRESHOLDS = (
+    SizeThreshold(1024, "B", 1),
+    SizeThreshold(1024 * 1024, "KB", 1024),
+    SizeThreshold(1024 * 1024 * 1024, "MB", 1024 * 1024),
+)
+
+
 def _save_to_cache_with_limits(url: str, content: str) -> None:
     """Save content to cache with limit enforcement."""
     _enforce_cache_limits()
@@ -158,16 +175,16 @@ def _enforce_cache_limits() -> None:
 
 
 def get_cache_size_human() -> str:
-    """Get cache size in human-readable format."""
+    """Get cache size in human-readable format (V2: threshold table pattern)."""
     size = _get_cache_size()
-    if size < 1024:
-        return f"{size} B"
-    elif size < 1024 * 1024:
-        return f"{size / 1024:.1f} KB"
-    elif size < 1024 * 1024 * 1024:
-        return f"{size / (1024 * 1024):.1f} MB"
-    else:
-        return f"{size / (1024 * 1024 * 1024):.2f} GB"
+
+    # Use threshold table to avoid branching
+    for threshold in SIZE_THRESHOLDS:
+        if size < threshold.bytes_limit:
+            return f"{size / threshold.divisor:.1f} {threshold.suffix}"
+
+    # Default: GB
+    return f"{size / (1024 * 1024 * 1024):.2f} GB"
 
 
 def clear_cache() -> int:
