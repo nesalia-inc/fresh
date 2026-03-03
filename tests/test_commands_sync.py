@@ -7,12 +7,17 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import typer.testing
 
 from fresh.commands.sync import (
+    _check_sync_status,
     _get_sync_dir,
     get_sync_metadata,
     is_locally_synced,
 )
+
+# Test runner for CLI commands
+runner = typer.testing.CliRunner()
 
 
 class TestGetSyncDir:
@@ -123,3 +128,51 @@ class TestIsLocallySynced:
 
         assert result is True
         mock_get_metadata.assert_called_once()
+
+
+class TestCheckSyncStatus:
+    """Tests for _check_sync_status function."""
+
+    @patch("fresh.commands.sync.get_sync_metadata")
+    def test_check_sync_status_synced(self, mock_get_metadata):
+        """Test check shows synced status when docs are available."""
+        mock_get_metadata.return_value = {
+            "site": "https://docs.python.org/3/",
+            "page_count": 100,
+            "last_sync": "2026-03-01T10:00:00Z",
+        }
+
+        with patch("fresh.commands.sync._get_sync_dir") as mock_dir:
+            mock_dir.return_value = Path("/fake/path")
+
+            result = _check_sync_status("https://docs.python.org/3/", verbose=False)
+
+            # Function should not raise and should print status
+            assert mock_get_metadata.called
+
+    @patch("fresh.commands.sync.get_sync_metadata")
+    def test_check_sync_status_not_synced(self, mock_get_metadata):
+        """Test check shows not synced when docs are not available."""
+        mock_get_metadata.return_value = None
+
+        with pytest.raises(typer.Exit) as exc_info:
+            _check_sync_status("https://example.com/", verbose=False)
+
+        assert exc_info.value.exit_code == 1
+
+    @patch("fresh.commands.sync.get_sync_metadata")
+    def test_check_sync_status_verbose(self, mock_get_metadata):
+        """Test check shows verbose output when requested."""
+        mock_get_metadata.return_value = {
+            "site": "https://docs.python.org/3/",
+            "page_count": 50,
+            "last_sync": "2026-03-01T10:00:00Z",
+        }
+
+        with patch("fresh.commands.sync._get_sync_dir") as mock_dir:
+            mock_dir.return_value = Path("/fake/path")
+
+            # Should not raise
+            _check_sync_status("https://docs.python.org/3/", verbose=True)
+
+            assert mock_dir.called
