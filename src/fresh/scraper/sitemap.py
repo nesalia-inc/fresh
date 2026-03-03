@@ -18,6 +18,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+def _tag_matches(tag: str, local_name: str) -> bool:
+    """Check if XML tag matches local name with or without namespace (V2: helper)."""
+    return tag.endswith(f"}}{local_name}") or tag == local_name
+
+
 SITEMAP_PATTERNS = [
     "/sitemap.xml",
     "/sitemap-index.xml",
@@ -113,7 +119,7 @@ def parse_sitemap(xml_content: str) -> list[str] | None:
     ]
 
     # Handle sitemap index (contains other sitemaps)
-    if root.tag.endswith("}sitemapindex") or root.tag == "sitemapindex":
+    if _tag_matches(root.tag, "sitemapindex"):
         urls = []
         for ns in namespaces:
             for sitemap in root.findall(f".//{{{ns}}}loc"):
@@ -138,7 +144,7 @@ def parse_sitemap(xml_content: str) -> list[str] | None:
     # Fallback: try to find any loc element regardless of parent
     if not urls:
         for elem in root.iter():
-            if elem.tag.endswith("}loc") or elem.tag == "loc":
+            if _tag_matches(elem.tag, "loc"):
                 if elem.text:
                     urls.append(elem.text)
 
@@ -171,7 +177,7 @@ def parse_sitemap_strict(xml_content: str) -> list[str]:
     ]
 
     # Handle sitemap index (contains other sitemaps)
-    if root.tag.endswith("}sitemapindex") or root.tag == "sitemapindex":
+    if _tag_matches(root.tag, "sitemapindex"):
         urls = []
         for ns in namespaces:
             for sitemap in root.findall(f".//{{{ns}}}loc"):
