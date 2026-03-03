@@ -846,13 +846,16 @@ def search(
                     )
                     raise typer.Exit(1)
 
+    # Show local search usage when applicable (not just verbose)
+    if source == "local":
+        typer.echo("Using local search (documentation available offline)")
+
     # Show performance warning when not using local
     if source == "remote" and verbose:
         echo_warning(
             message="Searching remote - this will be slower than local search",
             suggestions=["Run fresh sync <URL> for faster future searches"],
         )
-                # In auto mode, will fall back to remote
 
     # Single URL or multiple URLs
     if len(resolved_urls) == 1:
