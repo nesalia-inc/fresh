@@ -6,6 +6,7 @@ following an entity-oriented architecture pattern.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import hashlib
 import re
 from pathlib import Path
@@ -21,6 +22,24 @@ DEFAULT_SYNC_DIR = Path.home() / ".fresh" / "docs"
 # Parallel search settings
 PARALLEL_THRESHOLD = 10
 DEFAULT_MAX_WORKERS = 4
+
+
+@dataclass(frozen=True)
+class TimeThreshold:
+    """Threshold for time-based formatting."""
+    seconds: int
+    suffix: str
+    divisor: int
+
+
+# Threshold table for formatting relative time (V2 pattern)
+TIME_THRESHOLDS = (
+    TimeThreshold(60, "now", 1),         # < 60s: "just now"
+    TimeThreshold(3600, "m", 60),        # < 60m: "Xm ago"
+    TimeThreshold(86400, "h", 3600),     # < 24h: "Xh ago"
+    TimeThreshold(604800, "d", 86400),   # < 7d: "Xd ago"
+    TimeThreshold(2592000, "w", 604800), # < 30d: "Xw ago"
+)
 
 
 class Search:
@@ -56,7 +75,7 @@ class Search:
         return DEFAULT_SYNC_DIR / domain / "pages"
 
     def _format_freshness_age(self, timestamp: str) -> str:
-        """Format a timestamp as relative age."""
+        """Format a timestamp as relative age using threshold table (V2 pattern)."""
         from datetime import datetime, timezone
 
         try:
@@ -65,21 +84,18 @@ class Search:
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
             delta = now - dt
+            total_seconds = delta.total_seconds()
 
-            if delta.total_seconds() < 60:
-                return "just now"
-            elif delta.total_seconds() < 3600:
-                minutes = int(delta.total_seconds() / 60)
-                return f"{minutes}m ago"
-            elif delta.total_seconds() < 86400:
-                hours = int(delta.total_seconds() / 3600)
-                return f"{hours}h ago"
-            elif delta.total_seconds() < 604800:
-                days = int(delta.total_seconds() / 86400)
-                return f"{days}d ago"
-            else:
-                weeks = int(delta.total_seconds() / 604800)
-                return f"{weeks}w ago"
+            # Use threshold table to avoid branching
+            for threshold in TIME_THRESHOLDS:
+                if total_seconds < threshold.seconds:
+                    value = int(total_seconds // threshold.divisor)
+                    if threshold.suffix == "now":
+                        return "just now"
+                    return f"{value}{threshold.suffix} ago"
+
+            # Default: weeks
+            return f"{int(total_seconds // 604800)}w ago"
         except (ValueError, TypeError):
             return "unknown"
 
