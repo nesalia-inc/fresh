@@ -156,6 +156,10 @@ def list_urls(
     else:
         entries.sort(key=lambda e: e["name"])
 
+    # Always show count prominently (unless --count is used for count-only)
+    if not count:
+        typer.echo(f"Found {len(entries)} documentation pages")
+
     # Handle count-only mode
     if count:
         typer.echo(len(entries))
