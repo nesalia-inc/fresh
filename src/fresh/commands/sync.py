@@ -312,6 +312,49 @@ def _check_sync_status(url: str, verbose: bool = False) -> None:
         raise typer.Exit(1)
 
 
+def _build_index_for_sync(base_url: str, sync_dir: Path, verbose: bool = False) -> None:
+    """
+    Build search index for synced documentation.
+
+    Args:
+        base_url: The base URL of the documentation
+        sync_dir: The sync directory path
+        verbose: Show progress details
+    """
+    try:
+        from ..indexer import build_index_from_directory
+        from urllib.parse import urlparse
+
+        # Get site name from domain
+        parsed = urlparse(base_url)
+        site_name = parsed.netloc.replace(":", "_").replace(".", "_")
+
+        pages_dir = sync_dir / "pages"
+        if not pages_dir.exists():
+            if verbose:
+                typer.echo("No pages directory found, skipping index build")
+            return
+
+        # Count HTML files
+        html_files = list(pages_dir.rglob("*.html"))
+        if not html_files:
+            if verbose:
+                typer.echo("No HTML files found, skipping index build")
+            return
+
+        if verbose:
+            typer.echo(f"Building search index for {site_name}...")
+
+        count = build_index_from_directory(site_name, pages_dir)
+
+        if verbose:
+            typer.echo(f"Successfully indexed {count} pages.")
+    except Exception as e:
+        if verbose:
+            typer.echo(f"Warning: Failed to build index: {e}")
+        # Don't fail the sync if index build fails
+
+
 @app.command(name="sync")
 def sync(
     url: str = typer.Argument(..., help="The URL or alias of the documentation website"),
@@ -326,6 +369,7 @@ def sync(
     pattern: str | None = typer.Option(None, "--pattern", "-p", help="Filter paths matching pattern"),
     workers: int = typer.Option(1, "--workers", "-w", help="Number of parallel workers (1 = sequential, >1 = parallel)"),
     check: bool = typer.Option(False, "--check", help="Only check if documentation is synced locally, don't sync"),
+    with_index: bool = typer.Option(False, "--with-index", help="Build search index after sync for faster local searches"),
 ) -> None:
     """Download entire documentation for offline use."""
     # Initialize console with verbose mode
@@ -547,6 +591,10 @@ def sync(
 
     # Save metadata
     _save_metadata(sync_dir, resolved_url, success_count)
+
+    # Build search index if requested
+    if with_index and success_count > 0:
+        _build_index_for_sync(resolved_url, sync_dir, verbose)
 
     # Summary
     typer.echo("\nSync complete!")
