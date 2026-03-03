@@ -16,11 +16,10 @@ from rich.console import Console
 from rich.table import Table
 
 from pathlib import Path
-import hashlib
-from urllib.parse import urlparse, quote
 
 from ..config import resolve_alias
 from ..console import echo_error, print_summary, reset_console, set_verbose
+from ..core import Search, SearchConfig
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import fetch_binary_aware, validate_url
 from ..scraper.searcher import (
@@ -66,9 +65,13 @@ logger = logging.getLogger(__name__)
 # Default sync directory (same as get.py)
 DEFAULT_SYNC_DIR = Path.home() / ".fresh" / "docs"
 
+# Initialize Search entity for command-level functions
+_search_entity = Search(SearchConfig(query="", url=""))
+
 
 def _get_sync_dir_for_url(url: str) -> Path:
     """Get the sync directory for a URL's domain."""
+    from urllib.parse import urlparse
     parsed = urlparse(url)
     domain = parsed.netloc.replace(":", "_").replace(".", "_")
     return DEFAULT_SYNC_DIR / domain / "pages"
@@ -76,31 +79,7 @@ def _get_sync_dir_for_url(url: str) -> Path:
 
 def _format_freshness_age(timestamp: str) -> str:
     """Format a timestamp as relative age."""
-    from datetime import datetime, timezone
-
-    try:
-        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-        now = datetime.now(timezone.utc)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        delta = now - dt
-
-        if delta.total_seconds() < 60:
-            return "just now"
-        elif delta.total_seconds() < 3600:
-            minutes = int(delta.total_seconds() / 60)
-            return f"{minutes}m ago"
-        elif delta.total_seconds() < 86400:
-            hours = int(delta.total_seconds() / 3600)
-            return f"{hours}h ago"
-        elif delta.total_seconds() < 604800:
-            days = int(delta.total_seconds() / 86400)
-            return f"{days}d ago"
-        else:
-            weeks = int(delta.total_seconds() / 604800)
-            return f"{weeks}w ago"
-    except (ValueError, TypeError):
-        return "unknown"
+    return _search_entity._format_freshness_age(timestamp)
 
 
 def _get_result_freshness(url: str, base_url: str) -> str | None:
@@ -120,23 +99,7 @@ def _url_to_local_path(url: str) -> Path | None:
     Returns:
         The potential path in the sync directory, or None if the URL cannot be mapped
     """
-    parsed = urlparse(url)
-    path = parsed.path.lstrip("/")
-
-    if not path or path.endswith("/"):
-        path = path + "index.html"
-
-    # Sanitize filename - use hash to avoid collisions from truncation
-    filename = quote(path, safe="")
-    if len(filename) > 200:
-        # Use hash prefix to ensure uniqueness after truncation
-        hash_suffix = hashlib.sha256(path.encode()).hexdigest()[:8]
-        filename = filename[:191] + "_" + hash_suffix + ".html"
-
-    sync_dir = _get_sync_dir_for_url(url)
-    file_path = sync_dir / filename
-
-    return file_path
+    return _search_entity._url_to_local_path(url)
 
 
 def get_local_content(url: str) -> str | None:
@@ -148,13 +111,7 @@ def get_local_content(url: str) -> str | None:
     Returns:
         Local HTML content or None if not available locally
     """
-    local_path = _url_to_local_path(url)
-    if local_path and local_path.exists():
-        try:
-            return local_path.read_text(encoding="utf-8")
-        except (OSError, IOError):
-            return None
-    return None
+    return _search_entity.get_local_content(url)
 
 
 def local_content_exists(url: str) -> bool:
@@ -166,8 +123,7 @@ def local_content_exists(url: str) -> bool:
     Returns:
         True if local content exists, False otherwise
     """
-    local_path = _url_to_local_path(url)
-    return local_path is not None and local_path.exists()
+    return _search_entity.local_content_exists(url)
 
 
 def discover_local_urls(base_url: str, max_pages: int = 50) -> list[str]:

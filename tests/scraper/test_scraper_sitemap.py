@@ -2,6 +2,7 @@
 
 from unittest import mock
 
+import pytest
 
 from fresh.scraper import sitemap as sitemap_module
 
@@ -140,6 +141,29 @@ class TestParseSitemap:
         assert result is not None
         assert len(result) == 1
         assert "https://example.com/page1" in result
+
+
+class TestParseSitemapStrict:
+    """Tests for parse_sitemap_strict function."""
+
+    def test_valid_xml(self):
+        """Should parse valid XML."""
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
+        <urlset>
+            <url>
+                <loc>https://example.com/page1</loc>
+            </url>
+        </urlset>"""
+
+        result = sitemap_module.parse_sitemap_strict(xml)
+        assert "https://example.com/page1" in result
+
+    def test_invalid_xml_raises_error(self):
+        """Should raise SitemapError on invalid XML."""
+        xml = "not valid xml <<<"
+
+        with pytest.raises(sitemap_module.SitemapError):
+            sitemap_module.parse_sitemap_strict(xml)
 
 
 class TestNormalizeUrls:

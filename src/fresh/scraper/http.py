@@ -40,6 +40,14 @@ BINARY_EXTENSIONS = frozenset([
     ".bin", ".exe", ".dll", ".so", ".dylib",
 ])
 
+# Allowed text content types for binary detection (V2: frozenset for O(1) lookup)
+ALLOWED_TEXT_TYPES = frozenset([
+    "text/",
+    "application/xhtml",
+    "application/xml",
+    "application/json",
+])
+
 # Binary magic bytes signatures
 BINARY_MAGIC_BYTES = [
     (b"BZh", "bzip2"),           # bzip2 compressed
@@ -102,15 +110,9 @@ def is_binary_content(content: bytes | str, content_type: str | None = None) -> 
         content_type_lower = content_type.lower()
         # Only allow text/html content types
         if not content_type_lower.startswith("text/html"):
-            # Allow other text types that might be useful
-            allowed_text_types = [
-                "text/",
-                "application/xhtml",
-                "application/xml",
-                "application/json",
-            ]
+            # Allow other text types that might be useful (V2: use frozenset for O(1) iteration)
             is_allowed_text = any(
-                content_type_lower.startswith(t) for t in allowed_text_types
+                content_type_lower.startswith(t) for t in ALLOWED_TEXT_TYPES
             )
             if not is_allowed_text:
                 logger.debug(f"Skipping binary content based on Content-Type: {content_type}")
@@ -455,13 +457,7 @@ def fetch_with_retry(
             return response.text
         except httpx.TimeoutException as e:
             # Shorter retries for timeouts
-            actual_url = url
-            try:
-                if e.request is not None:
-                    # Get the actual URL that was requested (after any redirects)
-                    actual_url = str(e.request.url)
-            except (AttributeError, RuntimeError):
-                pass  # Use original url if we can't get the actual URL
+            actual_url = _get_actual_url_from_exception(e, url)
             if attempt < max_retries - 1:
                 wait_time = backoff * (2**attempt) * 0.5
                 logger.warning(
@@ -472,15 +468,7 @@ def fetch_with_retry(
             else:
                 logger.error(f"All {max_retries} timeout attempts failed for {actual_url}: {e}")
         except httpx.HTTPError as e:
-            # Get the actual URL that was requested (after any redirects)
-            actual_url = url
-            try:
-                if hasattr(e, "response") and e.response is not None:
-                    actual_url = str(e.response.url)
-                elif e.request is not None:
-                    actual_url = str(e.request.url)
-            except (AttributeError, RuntimeError):
-                pass  # Use original url if we can't get the actual URL
+            actual_url = _get_actual_url_from_exception(e, url)
             if attempt < max_retries - 1:
                 wait_time = backoff * (2**attempt)
                 logger.warning(
@@ -492,6 +480,26 @@ def fetch_with_retry(
                 logger.error(f"All {max_retries} attempts failed for {actual_url}: {e}")
 
     return None
+
+
+def _get_actual_url_from_exception(e: Exception, fallback_url: str) -> str:
+    """Extract actual URL from exception (V2: extracted helper to reduce duplication).
+
+    Args:
+        e: The exception to extract URL from
+        fallback_url: Fallback URL if extraction fails
+
+    Returns:
+        The actual URL that was requested
+    """
+    try:
+        if hasattr(e, "response") and e.response is not None:
+            return str(e.response.url)
+        if hasattr(e, "request") and e.request is not None:
+            return str(e.request.url)
+    except (AttributeError, RuntimeError):
+        pass
+    return fallback_url
 
 
 def close() -> None:

@@ -2,23 +2,72 @@
 
 from __future__ import annotations
 
-import hashlib
+from dataclasses import dataclass
 import json
 import re
 import sys
 import time
+from typing import Any
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse, quote
 
 import typer
-from markdownify import markdownify as md
 
 from ..config import resolve_alias
 from ..console import echo_error, print_summary, reset_console, set_verbose
+from ..core import Get, GetConfig, Webpage
+from ..core import (
+    get_cache_dir,
+    get_cached_content,
+    get_local_content,
+    get_local_content_exists,
+    get_sync_dir,
+    html_to_markdown,
+    save_to_cache,
+    url_to_sync_path,
+)
 from ..scraper.http import fetch_with_retry, validate_url
 from ..ui import CHECK_MARK, CROSS_MARK
 from .guide import _save_guide
+
+
+# Alias for backwards compatibility with tests
+local_content_exists = get_local_content_exists
+
+
+# Explicit exports for backwards compatibility (used by tests)
+__all__ = [
+    "get_cache_dir",
+    "get_cached_content",
+    "get_local_content",
+    "get_local_content_exists",
+    "get_sync_dir",
+    "html_to_markdown",
+    "local_content_exists",
+    "save_to_cache",
+    "url_to_sync_path",
+]
+
+
+# --- Option Validation Helpers ---
+
+def validate_no_conflicting_options(**options: Any) -> None:
+    """Validate that mutually exclusive options are not used together.
+
+    Usage:
+        validate_no_conflicting_options(local=local, remote=remote)
+    """
+    active = [name.replace("_", "-") for name, value in options.items() if value]
+    if len(active) > 1:
+        options_str = ", ".join(f"--{opt}" for opt in active)
+        echo_error(
+            message=f"Cannot use {options_str} together",
+            code="CONFLICTING_OPTIONS",
+            suggestions=[f"Use only one of: {options_str}"],
+        )
+        raise typer.Exit(1)
+
 
 app = typer.Typer(help="Fetch a documentation page and convert to Markdown.")
 
@@ -30,151 +79,36 @@ CACHE_TTL_DAYS = 30
 DEFAULT_SYNC_DIR = Path.home() / ".fresh" / "docs"
 
 
-def get_sync_dir() -> Path:
-    """Get the default sync directory.
-
-    Returns:
-        Path to the sync directory
-    """
-    return DEFAULT_SYNC_DIR
+# Initialize Get entity for cache management
+_get_entity = Get(GetConfig(url=""))
 
 
-def url_to_sync_path(url: str) -> Path | None:
-    """Convert a URL to its potential sync file path.
-
-    Args:
-        url: The URL to convert
-
-    Returns:
-        The potential path in the sync directory, or None if the URL cannot be mapped
-    """
-    parsed = urlparse(url)
-    domain = parsed.netloc.replace(":", "_").replace(".", "_")
-    path = parsed.path.lstrip("/")
-
-    if not path or path.endswith("/"):
-        path = path + "index.html"
-
-    # Sanitize filename
-    filename = quote(path, safe="")
-    if len(filename) > 200:
-        filename = filename[:200]
-
-    sync_dir = DEFAULT_SYNC_DIR / domain / "pages"
-    file_path = sync_dir / filename
-
-    return file_path
+# Size thresholds for human-readable format (V2 pattern)
+@dataclass(frozen=True)
+class SizeThreshold:
+    """Threshold for size-based formatting."""
+    bytes_limit: int
+    suffix: str
+    divisor: float
 
 
-def get_local_content(url: str) -> str | None:
-    """Get locally synced content for a URL.
-
-    Args:
-        url: The URL to get local content for
-
-    Returns:
-        Local HTML content or None if not available locally
-    """
-    sync_path = url_to_sync_path(url)
-    if sync_path and sync_path.exists():
-        try:
-            return sync_path.read_text(encoding="utf-8")
-        except (OSError, IOError):
-            return None
-    return None
+SIZE_THRESHOLDS = (
+    SizeThreshold(1024, "B", 1),
+    SizeThreshold(1024 * 1024, "KB", 1024),
+    SizeThreshold(1024 * 1024 * 1024, "MB", 1024 * 1024),
+)
 
 
-def local_content_exists(url: str) -> bool:
-    """Check if local synced content exists for a URL.
-
-    Args:
-        url: The URL to check
-
-    Returns:
-        True if local content exists, False otherwise
-    """
-    sync_path = url_to_sync_path(url)
-    return sync_path is not None and sync_path.exists()
-
-
-def html_to_markdown(html: str, skip_scripts: bool = False) -> str:
-    """Convert HTML to Markdown.
-
-    Args:
-        html: The HTML content to convert
-        skip_scripts: If True, remove script tags before conversion
-
-    Returns:
-        Markdown formatted string
-    """
-    if skip_scripts:
-        # Remove script tags and their content
-        html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
-
-    return md(html, heading_style="ATX")
-
-
-def get_cache_dir() -> Path:
-    """Get the cache directory for fresh.
-
-    Returns:
-        Path to the cache directory
-    """
-    cache_dir = Path.home() / ".fresh" / "cache"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    return cache_dir
-
-
-def get_cached_content(url: str, ttl_days: int | None = None) -> str | None:
-    """Get cached content for a URL.
-
-    Args:
-        url: The URL to get cached content for
-        ttl_days: Cache TTL in days (None = use default)
-
-    Returns:
-        Cached content or None if not cached or expired
-    """
-    # Create a hash of the URL for the filename
-    url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
-    cache_file = get_cache_dir() / f"{url_hash}.md"
-
-    if not cache_file.exists():
-        return None
-
-    # Check TTL if not disabled
-    if ttl_days is not None and ttl_days > 0:
-        import time
-
-        ttl_seconds = ttl_days * 24 * 60 * 60
-        file_age = time.time() - cache_file.stat().st_mtime
-        if file_age > ttl_seconds:
-            # Cache expired, remove it
-            cache_file.unlink()
-            return None
-
-    return cache_file.read_text(encoding="utf-8")
-
-
-def save_to_cache(url: str, content: str) -> None:
-    """Save content to cache.
-
-    Args:
-        url: The URL the content was fetched from
-        content: The Markdown content to cache
-    """
-    # Enforce cache limits before saving
+def _save_to_cache_with_limits(url: str, content: str) -> None:
+    """Save content to cache with limit enforcement."""
     _enforce_cache_limits()
-
-    url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
-    cache_file = get_cache_dir() / f"{url_hash}.md"
-    cache_file.write_text(content, encoding="utf-8")
+    _get_entity.save_to_cache(url, content)
 
 
 def _get_cache_size() -> int:
     """Get total cache size in bytes."""
-    total = 0
     cache_dir = get_cache_dir()
+    total = 0
     if cache_dir.exists():
         for file in cache_dir.glob("*.md"):
             total += file.stat().st_size
@@ -241,16 +175,16 @@ def _enforce_cache_limits() -> None:
 
 
 def get_cache_size_human() -> str:
-    """Get cache size in human-readable format."""
+    """Get cache size in human-readable format (V2: threshold table pattern)."""
     size = _get_cache_size()
-    if size < 1024:
-        return f"{size} B"
-    elif size < 1024 * 1024:
-        return f"{size / 1024:.1f} KB"
-    elif size < 1024 * 1024 * 1024:
-        return f"{size / (1024 * 1024):.1f} MB"
-    else:
-        return f"{size / (1024 * 1024 * 1024):.2f} GB"
+
+    # Use threshold table to avoid branching
+    for threshold in SIZE_THRESHOLDS:
+        if size < threshold.bytes_limit:
+            return f"{size / threshold.divisor:.1f} {threshold.suffix}"
+
+    # Default: GB
+    return f"{size / (1024 * 1024 * 1024):.2f} GB"
 
 
 def clear_cache() -> int:
@@ -312,7 +246,7 @@ def fetch_single_url(
     dry_run: bool = False,
     local: bool = False,
     remote: bool = False,
-) -> dict | None:
+) -> Webpage:
     """Fetch a single URL and return the result.
 
     Args:
@@ -339,13 +273,12 @@ def fetch_single_url(
 
     # Validate URL
     if not validate_url(resolved_url):
-        return {
-            "url": url,
-            "resolved_url": resolved_url,
-            "content": None,
-            "success": False,
-            "error": f"Invalid URL: {resolved_url}",
-        }
+        return Webpage(
+            url=url,
+            resolved_url=resolved_url,
+            success=False,
+            error=f"Invalid URL: {resolved_url}",
+        )
 
     # Determine fetch strategy
     use_local_only = local
@@ -355,7 +288,7 @@ def fetch_single_url(
     html_content: str | None = None
 
     # Check local synced content first
-    if not skip_local and local_content_exists(resolved_url):
+    if not skip_local and get_local_content_exists(resolved_url):
         if verbose:
             typer.echo("Found local synced content...")
         html_content = get_local_content(resolved_url)
@@ -366,13 +299,12 @@ def fetch_single_url(
 
     # If --local was specified but no local content found
     if use_local_only and content is None:
-        return {
-            "url": url,
-            "resolved_url": resolved_url,
-            "content": None,
-            "success": False,
-            "error": "Local content not found. Run 'fresh sync' first.",
-        }
+        return Webpage(
+            url=url,
+            resolved_url=resolved_url,
+            success=False,
+            error="Local content not found. Run 'fresh sync' first.",
+        )
 
     # Try cache if not local-only
     if content is None and not use_local_only and not no_cache:
@@ -386,34 +318,31 @@ def fetch_single_url(
     if content is None and not use_local_only:
         if dry_run:
             typer.echo(f"Would fetch: {resolved_url}")
-            return {
-                "url": url,
-                "resolved_url": resolved_url,
-                "content": None,
-                "success": True,
-                "dry_run": True,
-            }
+            return Webpage(
+                url=url,
+                resolved_url=resolved_url,
+                success=True,
+                dry_run=True,
+            )
 
         # Prepare headers
         headers = {}
         if header:
             if ":" not in header:
-                return {
-                    "url": url,
-                    "resolved_url": resolved_url,
-                    "content": None,
-                    "success": False,
-                    "error": "Header must be in format 'Key: Value'",
-                }
+                return Webpage(
+                    url=url,
+                    resolved_url=resolved_url,
+                    success=False,
+                    error="Header must be in format 'Key: Value'",
+                )
             key, value = header.split(":", 1)
             if re.search("[\r\n]", key) or re.search("[\r\n]", value):
-                return {
-                    "url": url,
-                    "resolved_url": resolved_url,
-                    "content": None,
-                    "success": False,
-                    "error": "Header must not contain newline characters",
-                }
+                return Webpage(
+                    url=url,
+                    resolved_url=resolved_url,
+                    success=False,
+                    error="Header must not contain newline characters",
+                )
             headers[key.strip()] = value.strip()
 
         if verbose:
@@ -429,13 +358,12 @@ def fetch_single_url(
         )
 
         if response is None:
-            return {
-                "url": url,
-                "resolved_url": resolved_url,
-                "content": None,
-                "success": False,
-                "error": f"Failed to fetch page after {retry} attempts",
-            }
+            return Webpage(
+                url=url,
+                resolved_url=resolved_url,
+                success=False,
+                error=f"Failed to fetch page after {retry} attempts",
+            )
 
         if hasattr(response, "text"):
             html_content = response.text
@@ -452,25 +380,24 @@ def fetch_single_url(
 
         # Save to cache
         if not no_cache:
-            save_to_cache(resolved_url, content)
+            _save_to_cache_with_limits(resolved_url, content)
             if verbose:
                 typer.echo(f"{CHECK_MARK} Saved to cache")
 
     if content is None:
-        return {
-            "url": url,
-            "resolved_url": resolved_url,
-            "content": None,
-            "success": False,
-            "error": "No content retrieved",
-        }
+        return Webpage(
+            url=url,
+            resolved_url=resolved_url,
+            success=False,
+            error="No content retrieved",
+        )
 
-    return {
-        "url": url,
-        "resolved_url": resolved_url,
-        "content": content,
-        "success": True,
-    }
+    return Webpage(
+        url=url,
+        resolved_url=resolved_url,
+        content=content,
+        success=True,
+    )
 
 
 @app.command(name="get")
@@ -501,21 +428,8 @@ def get(
     use only local content, or --remote to force remote fetching.
     """
     # Validate mutually exclusive options
-    if local and remote:
-        echo_error(
-            message="Cannot use both --local and --remote flags",
-            code="CONFLICTING_OPTIONS",
-            suggestions=["Use either --local or --remote, not both"],
-        )
-        raise typer.Exit(1)
-
-    if output and (output_dir or format == "json"):
-        echo_error(
-            message="Cannot use --output with --output-dir or --format",
-            code="CONFLICTING_OPTIONS",
-            suggestions=["Use either --output, --output-dir, or --format"],
-        )
-        raise typer.Exit(1)
+    validate_no_conflicting_options(local=local, remote=remote)
+    validate_no_conflicting_options(output=output, output_dir=output_dir, json_format=format == "json")
 
     # Initialize console with verbose mode
     set_verbose(verbose)
@@ -557,7 +471,7 @@ def get(
         raise typer.Exit(1)
 
     # Fetch all URLs
-    results: list[dict] = []
+    results: list[Webpage] = []
     for url_item in urls_to_fetch:
         result = fetch_single_url(
             url_item,
@@ -580,7 +494,7 @@ def get(
     if format == "json":
         # JSON output for all results
         output_data = [
-            {"url": r["url"], "content": r["content"], "success": r["success"], "error": r.get("error")}
+            {"url": r.url, "content": r.content, "success": r.success, "error": r.error}
             for r in results
         ]
         typer.echo(json.dumps(output_data, indent=2))
@@ -591,9 +505,9 @@ def get(
         output_dir.mkdir(parents=True, exist_ok=True)
         success_count = 0
         for result in results:
-            if result["success"] and result["content"]:
+            if result.success and result.content:
                 # Generate filename from URL
-                parsed = urlparse(result["resolved_url"])
+                parsed = urlparse(result.resolved_url)
                 path = parsed.path.lstrip("/")
                 if not path or path.endswith("/"):
                     path = path + "index.md"
@@ -608,7 +522,7 @@ def get(
 
                 file_path = output_dir / filename
                 file_path.parent.mkdir(parents=True, exist_ok=True)
-                file_path.write_text(result["content"], encoding="utf-8")
+                file_path.write_text(result.content, encoding="utf-8")
                 success_count += 1
                 if verbose:
                     typer.echo(f"{CHECK_MARK} Written to {file_path}")
@@ -622,24 +536,24 @@ def get(
         result = results[0]
 
         # Handle dry_run case
-        if result.get("dry_run"):
-            typer.echo(f"Would fetch: {result['resolved_url']}")
+        if result.dry_run:
+            typer.echo(f"Would fetch: {result.resolved_url}")
             return
 
-        if not result["success"]:
+        if not result.success:
             echo_error(
-                message=result.get("error", "Failed to fetch page"),
-                url=result.get("resolved_url"),
+                message=result.error or "Failed to fetch page",
+                url=result.resolved_url,
                 code="FETCH_FAILED",
             )
             raise typer.Exit(1)
-        if result["content"]:
+        if result.content:
             # Save as guide if requested
             if save_guide:
                 guide_data = {
-                    "title": result.get("url", "Untitled"),
-                    "content": result["content"],
-                    "source_url": result.get("resolved_url", result["url"]),
+                    "title": result.url or "Untitled",
+                    "content": result.content,
+                    "source_url": result.resolved_url or result.url,
                     "tags": ["fetched"],
                 }
                 now = datetime.now(timezone.utc).isoformat()
@@ -653,30 +567,30 @@ def get(
             if output:
                 output_path = Path(output)
                 output_path.parent.mkdir(parents=True, exist_ok=True)
-                output_path.write_text(result["content"], encoding="utf-8")
+                output_path.write_text(result.content, encoding="utf-8")
                 if verbose:
                     typer.echo(f"{CHECK_MARK} Written to {output}")
             else:
                 # Only output to stdout if not saving as guide
                 if not save_guide:
-                    typer.echo(result["content"])
+                    typer.echo(result.content)
             if verbose:
-                typer.echo(f"{CHECK_MARK} Done ({len(result['content'])} chars)")
+                typer.echo(f"{CHECK_MARK} Done ({len(result.content)} chars)")
         else:
             echo_error(
                 message="No content retrieved",
-                url=result.get("resolved_url"),
+                url=result.resolved_url,
                 code="NO_CONTENT",
             )
             raise typer.Exit(1)
     else:
         # Multiple URLs without special output option - show summary
-        success_count = sum(1 for r in results if r["success"])
+        success_count = sum(1 for r in results if r.success)
         typer.echo(f"Fetched {success_count}/{len(results)} pages successfully")
         if verbose:
             for result in results:
-                status = CHECK_MARK if result["success"] else CROSS_MARK
-                typer.echo(f"  {status} {result['url']}")
+                status = CHECK_MARK if result.success else CROSS_MARK
+                typer.echo(f"  {status} {result.url}")
 
     # Print error/warning summary
     print_summary()

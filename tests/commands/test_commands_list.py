@@ -288,3 +288,22 @@ class TestListCommand:
         assert result.exit_code == 0
         # Should have pages beyond default limit (100)
         assert "page100" in result.output
+
+    @mock.patch("fresh.commands.list.resolve_alias")
+    @mock.patch("fresh.commands.list.crawler.crawl")
+    @mock.patch("fresh.commands.list.sitemap.discover_sitemap")
+    def test_list_verbose_with_alias_resolution(
+        self, mock_discover, mock_crawl, mock_resolve
+    ):
+        """Should show resolved alias in verbose mode."""
+        mock_resolve.return_value = "https://example.com/docs"
+        mock_discover.return_value = None
+        mock_crawl.return_value = {"https://example.com/docs/page1"}
+
+        result = runner.invoke(
+            app, ["list", "myalias", "--verbose"]
+        )
+
+        assert result.exit_code == 0
+        # Should show resolved alias
+        assert "myalias" in result.output or "example.com" in result.output

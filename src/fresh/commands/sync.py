@@ -399,30 +399,31 @@ def sync(
             typer.echo(f"[{i + 1}/{total_pages}] Syncing: {page_url}")
 
             skip, reason = _should_skip_page(page_url, incremental, resolved_url, sitemap_domain, pages_dir)
-            if skip:
-                if reason == "robots.txt":
-                    skipped_robots += 1
-                    typer.echo(f"  Skipped (robots.txt): {page_url}")
-                elif reason == "unchanged":
-                    skipped_unchanged += 1
-                    typer.echo(f"  Skipped (unchanged): {page_url}")
+            # V2: inverted if to reduce nesting
+            if not skip:
+                # Fetch and save the page
+                try:
+                    result = _save_page(page_url, pages_dir)
+                    if result is True:
+                        success_count += 1
+                    elif result is None:
+                        skipped_binary += 1
+                        typer.echo(f"  Skipped (binary): {page_url}")
+                    else:
+                        fail_count += 1
+                        typer.echo(f"  Failed (empty response): {page_url}")
+                except Exception as e:
+                    fail_count += 1
+                    typer.echo(f"  Error: {page_url} - {e}")
                 continue
 
-            # Fetch and save the page
-            try:
-                result = _save_page(page_url, pages_dir)
-                if result is True:
-                    success_count += 1
-                elif result is None:
-                    # Binary file - skipped
-                    skipped_binary += 1
-                    typer.echo(f"  Skipped (binary): {page_url}")
-                else:
-                    fail_count += 1
-                    typer.echo(f"  Failed (empty response): {page_url}")
-            except Exception as e:
-                fail_count += 1
-                typer.echo(f"  Error: {page_url} - {e}")
+            # Handle skip reasons (after continue, no extra nesting needed)
+            if reason == "robots.txt":
+                skipped_robots += 1
+                typer.echo(f"  Skipped (robots.txt): {page_url}")
+            elif reason == "unchanged":
+                skipped_unchanged += 1
+                typer.echo(f"  Skipped (unchanged): {page_url}")
 
     elif is_interactive():
         # Interactive mode: show progress bar
@@ -439,56 +440,58 @@ def sync(
 
             for page_url in urls_to_sync:
                 skip, reason = _should_skip_page(page_url, incremental, resolved_url, sitemap_domain, pages_dir)
-                if skip:
-                    if reason == "robots.txt":
-                        skipped_robots += 1
-                    elif reason == "unchanged":
-                        skipped_unchanged += 1
+                # V2: inverted if to reduce nesting
+                if not skip:
+                    # Fetch and save the page
+                    try:
+                        result = _save_page(page_url, pages_dir)
+                        if result is True:
+                            success_count += 1
+                        elif result is None:
+                            skipped_binary += 1
+                        else:
+                            fail_count += 1
+                    except Exception:
+                        fail_count += 1
+
+                    progress.update(
+                        task,
+                        description=f"Syncing pages ({success_count}/{total_pages})...",
+                    )
                     progress.advance(task)
                     continue
 
-                # Fetch and save the page
-                try:
-                    result = _save_page(page_url, pages_dir)
-                    if result is True:
-                        success_count += 1
-                    elif result is None:
-                        # Binary file - skipped
-                        skipped_binary += 1
-                    else:
-                        fail_count += 1
-                except Exception:
-                    fail_count += 1
-
-                progress.update(
-                    task,
-                    description=f"Syncing pages ({success_count}/{total_pages})...",
-                )
+                # Handle skip reasons
+                if reason == "robots.txt":
+                    skipped_robots += 1
+                elif reason == "unchanged":
+                    skipped_unchanged += 1
                 progress.advance(task)
 
     else:
         # Non-interactive mode: simple progress without spinner
         for page_url in urls_to_sync:
             skip, reason = _should_skip_page(page_url, incremental, resolved_url, sitemap_domain, pages_dir)
-            if skip:
-                if reason == "robots.txt":
-                    skipped_robots += 1
-                elif reason == "unchanged":
-                    skipped_unchanged += 1
+            # V2: inverted if to reduce nesting
+            if not skip:
+                # Fetch and save the page
+                try:
+                    result = _save_page(page_url, pages_dir)
+                    if result is True:
+                        success_count += 1
+                    elif result is None:
+                        skipped_binary += 1
+                    else:
+                        fail_count += 1
+                except Exception:
+                    fail_count += 1
                 continue
 
-            # Fetch and save the page
-            try:
-                result = _save_page(page_url, pages_dir)
-                if result is True:
-                    success_count += 1
-                elif result is None:
-                    # Binary file - skipped
-                    skipped_binary += 1
-                else:
-                    fail_count += 1
-            except Exception:
-                fail_count += 1
+            # Handle skip reasons
+            if reason == "robots.txt":
+                skipped_robots += 1
+            elif reason == "unchanged":
+                skipped_unchanged += 1
 
     # Save metadata
     _save_metadata(sync_dir, resolved_url, success_count)

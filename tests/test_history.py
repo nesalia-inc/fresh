@@ -123,6 +123,28 @@ class TestHistoryModule:
                 assert stats["search_count"] == 3
                 assert stats["unique_urls"] == 2
 
+    def test_get_access_history_empty(self):
+        """Test getting access history when empty."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_db = Path(tmpdir) / "test_history.db"
+
+            with mock.patch.object(history, "get_history_db", return_value=test_db):
+                history.init_db()
+
+                records = history.get_access_history(limit=10)
+                assert records == []
+
+    def test_get_access_history_with_url(self):
+        """Test getting access history with URL filter."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_db = Path(tmpdir) / "test_history.db"
+
+            with mock.patch.object(history, "get_history_db", return_value=test_db):
+                history.init_db()
+
+                records = history.get_access_history(limit=10, url="example.com")
+                assert isinstance(records, list)
+
     def test_export_import_history(self):
         """Test exporting and importing history."""
         with tempfile.TemporaryDirectory() as tmpdir:

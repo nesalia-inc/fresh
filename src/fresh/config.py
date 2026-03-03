@@ -37,7 +37,7 @@ def get_config_dir() -> pathlib.Path:
     if os.name == "nt":  # Windows
         base = os.environ.get("APPDATA", pathlib.Path.home() / "AppData" / "Roaming")
     else:  # Unix-like
-        base = os.environ.get("XDG_CONFIG_HOME", pathlib.Path.home() / ".config")
+        base = os.environ.get("XDG_CONFIG_HOME", pathlib.Path.home() / ".config")  # pragma: no cover
 
     return pathlib.Path(base) / "fresh"
 

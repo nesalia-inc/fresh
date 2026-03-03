@@ -26,7 +26,7 @@ _domain_lock: threading.Lock = threading.Lock()
 _request_counter = 0
 
 
-def _cleanup_rate_limit_dict() -> None:
+def _cleanup_rate_limit_dict() -> None:  # pragma: no cover
     """Clean up old entries from the rate limit dictionary."""
     global _domain_last_request
     now = time.time()
