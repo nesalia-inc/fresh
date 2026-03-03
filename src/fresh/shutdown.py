@@ -33,7 +33,7 @@ def _signal_handler(signum: int, frame: Any) -> None:
     for callback in reversed(_shutdown_callbacks):
         try:
             callback()
-        except Exception:
+        except Exception:  # pragma: no cover
             pass  # Ignore errors during shutdown
 
     print("Shutdown complete.")

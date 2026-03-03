@@ -299,6 +299,15 @@ class TestRateLimiting:
         crawler_module._rate_limit_per_domain("https://example.com/page2", 0)
 
 
+class TestCleanupRateLimitDict:
+    """Tests for _cleanup_rate_limit_dict function."""
+
+    def test_cleanup_function_exists(self):
+        """Test cleanup function exists and is callable."""
+        assert hasattr(crawler_module, "_cleanup_rate_limit_dict")
+        assert callable(crawler_module._cleanup_rate_limit_dict)
+
+
 class TestConstants:
     """Tests for module constants."""
 

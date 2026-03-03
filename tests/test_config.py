@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import pathlib
 import tempfile
+from unittest.mock import patch
 
 import pytest
 
@@ -162,3 +163,31 @@ class TestSearchAliases:
         results = config.search_aliases("js")
         aliases = [alias for alias, _ in results]
         assert aliases == sorted(aliases)
+
+
+class TestGetConfigDir:
+    """Tests for get_config_dir function."""
+
+    def test_get_config_dir_returns_path_object(self):
+        """Test that get_config_dir returns a valid path."""
+        result = config.get_config_dir()
+        assert isinstance(result, pathlib.Path)
+        assert result.name == "fresh"
+
+
+class TestSaveAliasesEdgeCases:
+    """Edge case tests for save_aliases."""
+
+    def test_save_aliases_corrupted_existing_file(self, temp_config_dir):
+        """Test save_aliases handles corrupted existing file gracefully."""
+        aliases_file = temp_config_dir / "aliases.json"
+        # Create a corrupted existing file
+        aliases_file.write_text("{invalid json")
+
+        # Should not raise, should handle gracefully
+        config.save_aliases({"newalias": "https://new.com"})
+
+        # New alias should still be saved
+        with open(aliases_file) as f:
+            data = json.load(f)
+        assert "newalias" in data["aliases"]

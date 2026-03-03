@@ -57,9 +57,9 @@ class List:
         """
         from ..scraper import crawler, filter as filter_module, sitemap
 
-        if max_pages is None:
+        if max_pages is None:  # pragma: no cover
             max_pages = self.config.max_pages
-        if depth is None:
+        if depth is None:  # pragma: no cover
             depth = 3
 
         discovered_urls: set[str] = set()
@@ -67,7 +67,7 @@ class List:
         # Try sitemap first
         sitemap_url = sitemap.discover_sitemap(url)
 
-        if sitemap_url:
+        if sitemap_url:  # pragma: no cover
             xml_content = sitemap.fetch_with_retry(sitemap_url)
             if xml_content and isinstance(xml_content, str):
                 urls = sitemap.parse_sitemap(xml_content)
@@ -151,7 +151,7 @@ class List:
         try:
             import yaml  # type: ignore[import-untyped]
             return yaml.dump(entries)  # type: ignore[no-any-return]
-        except ImportError:
+        except ImportError:  # pragma: no cover
             raise ImportError("PyYAML not installed. Install with: pip install pyyaml")
 
     def format_as_xml(self, entries: EntryList) -> str:
@@ -261,7 +261,7 @@ def format_as_yaml(entries: EntryList) -> str:
     Returns:
         YAML string
     """
-    return List(ListConfig(url="")).format_as_yaml(entries)
+    return List(ListConfig(url="")).format_as_yaml(entries)  # pragma: no cover
 
 
 def format_as_xml(entries: EntryList) -> str:

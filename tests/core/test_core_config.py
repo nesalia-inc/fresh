@@ -13,6 +13,7 @@ from fresh.core.config import (
     SearchResultItem,
     SyncConfig,
     SyncResult,
+    Webpage,
 )
 
 
@@ -161,6 +162,78 @@ class TestGetResult:
         assert result.content is None
         assert result.success is False
         assert result.error is None
+
+
+class TestWebpage:
+    """Tests for Webpage dataclass."""
+
+    def test_is_success_true(self):
+        """Should return True when success is True and content is not None."""
+        webpage = Webpage(
+            url="https://example.com",
+            resolved_url="https://example.com",
+            success=True,
+            content="<html>test</html>",
+        )
+        assert webpage.is_success() is True
+
+    def test_is_success_false_no_content(self):
+        """Should return False when success is True but content is None."""
+        webpage = Webpage(
+            url="https://example.com",
+            resolved_url="https://example.com",
+            success=True,
+            content=None,
+        )
+        assert webpage.is_success() is False
+
+    def test_is_error_true_no_success(self):
+        """Should return True when success is False."""
+        webpage = Webpage(
+            url="https://example.com",
+            resolved_url="https://example.com",
+            success=False,
+        )
+        assert webpage.is_error() is True
+
+    def test_is_error_true_with_error(self):
+        """Should return True when error is set."""
+        webpage = Webpage(
+            url="https://example.com",
+            resolved_url="https://example.com",
+            success=True,
+            error="Some error",
+        )
+        assert webpage.is_error() is True
+
+    def test_is_error_false(self):
+        """Should return False when success is True and no error."""
+        webpage = Webpage(
+            url="https://example.com",
+            resolved_url="https://example.com",
+            success=True,
+            content="<html>test</html>",
+            error=None,
+        )
+        assert webpage.is_error() is False
+
+    def test_to_dict(self):
+        """Should convert to dictionary."""
+        webpage = Webpage(
+            url="https://example.com",
+            resolved_url="https://example.com/resolved",
+            content="<html>test</html>",
+            success=True,
+            error=None,
+            dry_run=False,
+        )
+        d = webpage.to_dict()
+        assert d["url"] == "https://example.com"
+        assert d["resolved_url"] == "https://example.com/resolved"
+        assert d["content"] == "<html>test</html>"
+        assert d["success"] is True
+        assert d["error"] is None
+        assert d["dry_run"] is False
 
 
 class TestListConfig:

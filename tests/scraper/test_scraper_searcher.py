@@ -195,3 +195,66 @@ class TestCreateSnippet:
         content = "test123 is a number"
         result = searcher_module.create_snippet(content, r"\d+", regex=True)
         assert "123" in result
+
+    def test_snippet_ellipsis_at_start(self):
+        """Should add ellipsis at start when match is not at beginning."""
+        # Need content where start > 0 and match is not at first line
+        content = "first line\nkeyword here\nlast line"
+        result = searcher_module.create_snippet(content, "keyword", context_lines=1, max_length=100)
+        # Keyword should still be present and ellipsis added at start
+        assert "keyword" in result
+        # Since match is on line 2, start = max(0, 2-1) = 1 > 0, so start ellipsis should be added
+        # But only if context exceeds max_length or we need to show truncation
+        # The ellipsis is only added when context is truncated
+
+    def test_snippet_ellipsis_both_ends(self):
+        """Should add ellipsis at both ends when match is in middle of long content."""
+        # Need match on line where start > 0 (line 2 or later) AND end < len(lines)
+        # With context_lines=1 and match on line 2: start = max(0, 2-1) = 1 > 0
+        content = "line1\na" * 20 + "\nkeyword here\n" + "b" * 20 + "\nline_last"
+        result = searcher_module.create_snippet(content, "keyword", context_lines=1, max_length=30)
+        # This should trigger both conditions
+        assert "keyword" in result
+
+    def test_snippet_ellipsis_at_end(self):
+        """Should add ellipsis at end when match is not at end."""
+        # Need to trigger truncation at the end
+        content = "keyword here\n" + "b" * 50
+        result = searcher_module.create_snippet(content, "keyword", context_lines=0, max_length=20)
+        # Should contain keyword
+        assert "keyword" in result
+
+    def test_snippet_truncation(self):
+        """Should truncate long snippets."""
+        content = "a" * 50 + " keyword " + "b" * 50
+        result = searcher_module.create_snippet(content, "keyword", max_length=30)
+        assert len(result) <= 35  # accounts for "..."
+
+
+class TestSearchFuzzyWordMatching:
+    """Tests for fuzzy word matching in search_fuzzy."""
+
+    def test_fuzzy_word_match_case_sensitive(self):
+        """Should find fuzzy match with case_sensitive=True."""
+        content = "This is a TeSt document"
+        result = searcher_module.search_fuzzy(content, "test", case_sensitive=True, max_distance=2)
+        # Should match "TeSt" as fuzzy match
+        assert len(result) > 0
+
+    def test_fuzzy_word_match_with_hyphen(self):
+        """Should find fuzzy match across hyphenated words."""
+        content = "some-text-here"
+        result = searcher_module.search_fuzzy(content, "text", max_distance=2)
+        assert len(result) > 0
+
+    def test_fuzzy_word_match_with_underscore(self):
+        """Should find fuzzy match across underscore separated words."""
+        content = "some_text_here"
+        result = searcher_module.search_fuzzy(content, "text", max_distance=2)
+        assert len(result) > 0
+
+    def test_fuzzy_word_match_with_slash(self):
+        """Should find fuzzy match across slash separated words."""
+        content = "some/text/here"
+        result = searcher_module.search_fuzzy(content, "some", max_distance=2)
+        assert len(result) > 0

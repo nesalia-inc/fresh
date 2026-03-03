@@ -118,6 +118,18 @@ class TestUpdateCommand:
 
     @patch('fresh.commands.update.get_latest_version')
     @patch('fresh.commands.update.__version__', '1.0.0')
+    def test_update_confirmation_no(self, mock_version):
+        """Should cancel update when user says no to confirmation."""
+        runner = CliRunner()
+
+        with patch('fresh.commands.update.get_latest_version', return_value='2.0.0'):
+            with patch('fresh.commands.update.typer.confirm', return_value=False):
+                result = runner.invoke(app, [])
+                assert result.exit_code == 0
+                assert "cancelled" in result.output.lower()
+
+    @patch('fresh.commands.update.get_latest_version')
+    @patch('fresh.commands.update.__version__', '1.0.0')
     def test_update_failure(self, mock_version):
         """Should handle update failure."""
         runner = CliRunner()
