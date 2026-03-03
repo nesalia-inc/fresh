@@ -457,13 +457,7 @@ def fetch_with_retry(
             return response.text
         except httpx.TimeoutException as e:
             # Shorter retries for timeouts
-            actual_url = url
-            try:
-                if e.request is not None:
-                    # Get the actual URL that was requested (after any redirects)
-                    actual_url = str(e.request.url)
-            except (AttributeError, RuntimeError):
-                pass  # Use original url if we can't get the actual URL
+            actual_url = _get_actual_url_from_exception(e, url)
             if attempt < max_retries - 1:
                 wait_time = backoff * (2**attempt) * 0.5
                 logger.warning(
@@ -474,15 +468,7 @@ def fetch_with_retry(
             else:
                 logger.error(f"All {max_retries} timeout attempts failed for {actual_url}: {e}")
         except httpx.HTTPError as e:
-            # Get the actual URL that was requested (after any redirects)
-            actual_url = url
-            try:
-                if hasattr(e, "response") and e.response is not None:
-                    actual_url = str(e.response.url)
-                elif e.request is not None:
-                    actual_url = str(e.request.url)
-            except (AttributeError, RuntimeError):
-                pass  # Use original url if we can't get the actual URL
+            actual_url = _get_actual_url_from_exception(e, url)
             if attempt < max_retries - 1:
                 wait_time = backoff * (2**attempt)
                 logger.warning(
@@ -494,6 +480,26 @@ def fetch_with_retry(
                 logger.error(f"All {max_retries} attempts failed for {actual_url}: {e}")
 
     return None
+
+
+def _get_actual_url_from_exception(e: Exception, fallback_url: str) -> str:
+    """Extract actual URL from exception (V2: extracted helper to reduce duplication).
+
+    Args:
+        e: The exception to extract URL from
+        fallback_url: Fallback URL if extraction fails
+
+    Returns:
+        The actual URL that was requested
+    """
+    try:
+        if hasattr(e, "response") and e.response is not None:
+            return str(e.response.url)
+        if hasattr(e, "request") and e.request is not None:
+            return str(e.request.url)
+    except (AttributeError, RuntimeError):
+        pass
+    return fallback_url
 
 
 def close() -> None:
