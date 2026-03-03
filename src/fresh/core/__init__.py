@@ -30,6 +30,7 @@ from .get import (
     url_to_sync_path,
 )
 from .get import local_content_exists as get_local_content_exists
+from .types import Maybe, Result, Try
 from .list import (
     List,
     discover_pages,
@@ -56,6 +57,9 @@ __all__ = [
     "Get",
     "GetConfig",
     "GetResult",
+    "Maybe",
+    "Result",
+    "Try",
     "Webpage",
     "List",
     "PARALLEL_THRESHOLD",
