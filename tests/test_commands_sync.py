@@ -145,7 +145,7 @@ class TestCheckSyncStatus:
         with patch("fresh.commands.sync._get_sync_dir") as mock_dir:
             mock_dir.return_value = Path("/fake/path")
 
-            result = _check_sync_status("https://docs.python.org/3/", verbose=False)
+            _check_sync_status("https://docs.python.org/3/", verbose=False)
 
             # Function should not raise and should print status
             assert mock_get_metadata.called
