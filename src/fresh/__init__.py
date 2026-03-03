@@ -42,7 +42,7 @@ from .commands.history import history_app
 from .commands.index import index_app
 from .commands.list import list_urls
 from .commands.search import search
-from .commands.sync import sync
+from .commands.sync import get_sync_metadata, is_locally_synced, sync
 from .commands.update import update
 
 app = typer.Typer(help="fresh - A CLI application")

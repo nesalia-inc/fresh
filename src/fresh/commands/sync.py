@@ -75,6 +75,24 @@ def get_sync_metadata(base_url: str) -> dict[str, str] | None:
         return None
 
 
+def is_locally_synced(url: str) -> bool:
+    """
+    Check if documentation has been synced locally.
+
+    Args:
+        url: The URL or alias of the documentation
+
+    Returns:
+        True if documentation is available locally, False otherwise
+    """
+    # Resolve alias if needed
+    from ..config import resolve_alias
+
+    resolved_url = resolve_alias(url)
+    metadata = get_sync_metadata(resolved_url)
+    return metadata is not None
+
+
 def get_page_freshness(page_url: str, base_url: str) -> dict[str, str] | None:
     """
     Get freshness metadata for a synced page.
