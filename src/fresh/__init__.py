@@ -32,6 +32,8 @@ __all__ = [
     "FilterError",
     "ConfigError",
     "CLIError",
+    "get_sync_metadata",
+    "is_locally_synced",
 ]
 
 from .commands.alias import alias_app

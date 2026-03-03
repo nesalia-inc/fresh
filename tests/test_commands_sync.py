@@ -6,8 +6,6 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from fresh.commands.sync import (
     _get_sync_dir,
     get_sync_metadata,
