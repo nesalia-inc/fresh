@@ -990,7 +990,17 @@ def _search_single_library(
     show_json = json_output or not show_table
 
     if show_table:
-        show_success_message(f"Found {len(results)} results")
+        # Determine source for feedback
+        sources = set(r.source for r in results)
+        source_info = ""
+        if sources == {"local"}:
+            source_info = " (local)"
+        elif sources == {"remote"}:
+            source_info = " (remote)"
+        elif sources:
+            source_info = f" ({', '.join(sources)})"
+
+        show_success_message(f"Found {len(results)} results{source_info}")
 
         # Create rich table
         table = Table(title="Search Results")
