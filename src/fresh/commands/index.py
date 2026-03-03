@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import typer
@@ -18,6 +19,29 @@ from ..indexer import (
     rebuild_index,
 )
 from .search import DEFAULT_SYNC_DIR, _get_sync_dir_for_url
+
+
+def _format_index_age(timestamp: str | None) -> str:
+    """Format a timestamp as relative age (V2: extracted helper)."""
+    if not timestamp:
+        return "unknown"
+
+    try:
+        dt = datetime.fromisoformat(timestamp)
+        now = datetime.now(timezone.utc)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        delta = now - dt
+
+        if delta.days > 0:
+            return f"{delta.days} days ago"
+        if delta.seconds // 3600 > 0:
+            return f"{delta.seconds // 3600} hours ago"
+        if delta.seconds // 60 > 0:
+            return f"{delta.seconds // 60} minutes ago"
+        return "just now"
+    except Exception:
+        return "unknown"
 
 index_app = typer.Typer(help="Manage search indexes for fast local search.")
 
@@ -76,21 +100,7 @@ def build_index(
     age = get_index_age(site_name)
     if age and not force:
         # Show existing index info and ask for confirmation
-        from datetime import datetime, timezone
-
-        now = datetime.now(timezone.utc)
-        if age.tzinfo is None:
-            age = age.replace(tzinfo=timezone.utc)
-        delta = now - age
-
-        if delta.days > 0:
-            age_str = f"{delta.days} days ago"
-        elif delta.seconds // 3600 > 0:
-            age_str = f"{delta.seconds // 3600} hours ago"
-        elif delta.seconds // 60 > 0:
-            age_str = f"{delta.seconds // 60} minutes ago"
-        else:
-            age_str = "just now"
+        age_str = _format_index_age(age.isoformat())
 
         typer.echo(f"Index already exists for {site_name} (created {age_str}).")
         confirm = typer.confirm("Do you want to rebuild it?")
@@ -185,27 +195,7 @@ def index_status(
     for db_file in db_files:
         stats = get_index_stats(db_file.stem)
         if stats:
-            from datetime import datetime, timezone
-
-            age_str = "unknown"
-            if stats["last_updated"]:
-                try:
-                    dt = datetime.fromisoformat(stats["last_updated"])
-                    now = datetime.now(timezone.utc)
-                    if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
-                    delta = now - dt
-
-                    if delta.days > 0:
-                        age_str = f"{delta.days} days ago"
-                    elif delta.seconds // 3600 > 0:
-                        age_str = f"{delta.seconds // 3600} hours ago"
-                    elif delta.seconds // 60 > 0:
-                        age_str = f"{delta.seconds // 60} minutes ago"
-                    else:
-                        age_str = "just now"
-                except Exception:
-                    pass
+            age_str = _format_index_age(stats.get("last_updated"))
 
             table.add_row(
                 stats["site_name"],
