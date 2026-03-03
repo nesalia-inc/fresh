@@ -347,11 +347,14 @@ def _build_index_for_sync(base_url: str, sync_dir: Path, verbose: bool = False) 
 
         count = build_index_from_directory(site_name, pages_dir)
 
+        # Always show success message since this is important feedback
+        typer.echo(f"Search index built: {count} pages indexed")
+
         if verbose:
             typer.echo(f"Successfully indexed {count} pages.")
     except Exception as e:
-        if verbose:
-            typer.echo(f"Warning: Failed to build index: {e}")
+        # Show a brief notice even in non-verbose mode
+        typer.echo(f"Note: Search index not built (run with --verbose for details)")
         # Don't fail the sync if index build fails
 
 
