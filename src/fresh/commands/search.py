@@ -20,7 +20,7 @@ import hashlib
 from urllib.parse import urlparse, quote
 
 from ..config import resolve_alias
-from ..console import echo_error, print_summary, reset_console, set_verbose
+from ..console import echo_error, echo_warning, print_summary, reset_console, set_verbose
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import fetch_binary_aware, validate_url
 from ..scraper.searcher import (
@@ -722,14 +722,14 @@ def _check_and_prompt_sync(url: str, verbose: bool = False) -> bool:
     Returns:
         True if synced (or sync succeeded), False if not synced
     """
-    from .sync import is_locally_synced, sync as sync_cmd
+    from .sync import is_locally_synced
 
     if is_locally_synced(url):
         return True
 
     # Not synced, offer to sync
     if verbose:
-        typer.echo(f"Documentation not synced locally. Running sync...")
+        typer.echo("Documentation not synced locally. Running sync...")
 
     try:
         # Run sync with minimal settings
