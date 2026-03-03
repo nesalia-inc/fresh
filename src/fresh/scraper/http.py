@@ -40,6 +40,14 @@ BINARY_EXTENSIONS = frozenset([
     ".bin", ".exe", ".dll", ".so", ".dylib",
 ])
 
+# Allowed text content types for binary detection (V2: frozenset for O(1) lookup)
+ALLOWED_TEXT_TYPES = frozenset([
+    "text/",
+    "application/xhtml",
+    "application/xml",
+    "application/json",
+])
+
 # Binary magic bytes signatures
 BINARY_MAGIC_BYTES = [
     (b"BZh", "bzip2"),           # bzip2 compressed
@@ -102,15 +110,9 @@ def is_binary_content(content: bytes | str, content_type: str | None = None) -> 
         content_type_lower = content_type.lower()
         # Only allow text/html content types
         if not content_type_lower.startswith("text/html"):
-            # Allow other text types that might be useful
-            allowed_text_types = [
-                "text/",
-                "application/xhtml",
-                "application/xml",
-                "application/json",
-            ]
+            # Allow other text types that might be useful (V2: use frozenset for O(1) iteration)
             is_allowed_text = any(
-                content_type_lower.startswith(t) for t in allowed_text_types
+                content_type_lower.startswith(t) for t in ALLOWED_TEXT_TYPES
             )
             if not is_allowed_text:
                 logger.debug(f"Skipping binary content based on Content-Type: {content_type}")
