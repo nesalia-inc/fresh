@@ -843,6 +843,13 @@ def search(
                         suggestions=["Run fresh sync without --auto-sync to try remote"],
                     )
                     raise typer.Exit(1)
+
+    # Show performance warning when not using local
+    if source == "remote" and verbose:
+        echo_warning(
+            message="Searching remote - this will be slower than local search",
+            suggestions=["Run fresh sync <URL> for faster future searches"],
+        )
                 # In auto mode, will fall back to remote
 
     # Single URL or multiple URLs
