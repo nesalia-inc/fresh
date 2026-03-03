@@ -737,12 +737,14 @@ def _check_and_prompt_sync(url: str, verbose: bool = False) -> bool:
         from ..scraper import sitemap, crawler
 
         # Discover pages
-        discovered = set()
+        discovered: set[str] = set()
         sitemap_url = sitemap.discover_sitemap(url)
         if sitemap_url:
             content = sitemap.fetch_with_retry(sitemap_url)
-            if content:
-                discovered = set(sitemap.parse_sitemap(content))
+            if content and isinstance(content, str):
+                urls = sitemap.parse_sitemap(content)
+                if urls:
+                    discovered = set(urls)
 
         if not discovered:
             discovered = crawler.crawl(url, max_pages=50, max_depth=2)
