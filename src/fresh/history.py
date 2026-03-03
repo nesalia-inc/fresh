@@ -253,6 +253,7 @@ def import_history(file_path: Path) -> int:
 
     # Validate structure of search_history
     if "search_history" in data:
+        # V2: inverted if to reduce nesting
         if not isinstance(data["search_history"], list):
             raise ValueError("Invalid history format: 'search_history' must be a list")
         for record in data["search_history"]:
@@ -261,6 +262,7 @@ def import_history(file_path: Path) -> int:
 
     # Validate structure of access_history
     if "access_history" in data:
+        # V2: inverted if to reduce nesting
         if not isinstance(data["access_history"], list):
             raise ValueError("Invalid history format: 'access_history' must be a list")
         for record in data["access_history"]:
