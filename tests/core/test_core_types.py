@@ -10,7 +10,7 @@ class TestResult:
 
     def test_ok_creates_successful_result(self):
         """Should create successful result with value."""
-        result = Result.ok("test value")
+        result = Result.Ok("test value")
 
         assert result.ok is True
         assert result.value == "test value"
@@ -19,7 +19,7 @@ class TestResult:
     def test_err_creates_failed_result(self):
         """Should create failed result with error."""
         error = ValueError("test error")
-        result = Result.err(error)
+        result = Result.Err(error)
 
         assert result.ok is False
         assert result.value is None
@@ -27,52 +27,52 @@ class TestResult:
 
     def test_is_ok_true_for_success(self):
         """is_ok should return True for successful result."""
-        result = Result.ok("value")
+        result = Result.Ok("value")
         assert result.is_ok is True
 
     def test_is_ok_false_for_failure(self):
         """is_ok should return False for failed result."""
-        result = Result.err(ValueError("error"))
+        result = Result.Err(ValueError("error"))
         assert result.is_ok is False
 
     def test_is_err_true_for_failure(self):
         """is_err should return True for failed result."""
-        result = Result.err(ValueError("error"))
+        result = Result.Err(ValueError("error"))
         assert result.is_err is True
 
     def test_is_err_false_for_success(self):
         """is_err should return False for successful result."""
-        result = Result.ok("value")
+        result = Result.Ok("value")
         assert result.is_err is False
 
     def test_unwrap_returns_value_on_success(self):
         """unwrap should return value on success."""
-        result = Result.ok("test")
+        result = Result.Ok("test")
         assert result.unwrap() == "test"
 
     def test_unwrap_raises_on_failure(self):
         """unwrap should raise error on failure."""
         error = ValueError("test error")
-        result = Result.err(error)
+        result = Result.Err(error)
 
         with pytest.raises(ValueError):
             result.unwrap()
 
     def test_unwrap_or_returns_default_on_failure(self):
         """unwrap_or should return default on failure."""
-        result = Result.err(ValueError("error"))
+        result = Result.Err(ValueError("error"))
         assert result.unwrap_or("default") == "default"
 
     def test_unwrap_or_returns_value_on_success(self):
         """unwrap_or should return value on success."""
-        result = Result.ok("value")
+        result = Result.Ok("value")
         assert result.unwrap_or("default") == "value"
 
     def test_with_union_error_types(self):
         """Should work with union error types."""
         # This is the V2 pattern: Result[T, E1 | E2 | E3]
         error: str = "validation error"
-        result: Result[str, str] = Result.err(error)
+        result: Result[str, str] = Result.Err(error)
 
         assert result.is_err
         assert result.error == "validation error"

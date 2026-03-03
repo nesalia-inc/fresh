@@ -6,10 +6,8 @@ monads for explicit error handling without exceptions in core business logic.
 
 from __future__ import annotations
 
-from abc import abstractmethod
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, TypeVar, Union
+from typing import Any, Callable, Generic, TypeVar
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -25,39 +23,46 @@ class Result(Generic[T, E]):
     always return Result.
     """
 
-    ok: bool
+    _success: bool
     value: T | None = None
     error: E | None = None
 
     @classmethod
-    def ok(cls, value: T) -> Result[T, E]:
+    def Ok(cls, value: T) -> Result[T, E]:
         """Create a successful result."""
-        return cls(ok=True, value=value)
+        return cls(_success=True, value=value)
 
     @classmethod
-    def err(cls, error: E) -> Result[T, E]:
+    def Err(cls, error: E) -> Result[T, E]:
         """Create a failed result."""
-        return cls(ok=False, error=error)
+        return cls(_success=False, error=error)
+
+    @property
+    def ok(self) -> bool:
+        """Check if result is successful."""
+        return self._success
 
     @property
     def is_ok(self) -> bool:
         """Check if result is successful."""
-        return self.ok
+        return self._success
 
     @property
     def is_err(self) -> bool:
         """Check if result is an error."""
-        return not self.ok
+        return not self._success
 
     def unwrap(self) -> T:
         """Get value or raise."""
-        if self.ok and self.value is not None:
+        if self._success and self.value is not None:
             return self.value
         raise self.error if self.error else ValueError("Result has no value")
 
     def unwrap_or(self, default: T) -> T:
         """Get value or return default."""
-        return self.value if self.ok else default
+        if self.ok:
+            return self.value if self.value is not None else default
+        return default
 
 
 @dataclass
@@ -87,14 +92,14 @@ class Maybe(Generic[T]):
     def map(self, func: Callable[[T], U]) -> Maybe[U]:
         """Apply function if value exists."""
         if self.value is not None:
-            return self.some(func(self.value))
-        return self.none()
+            return Maybe(func(self.value))  # type: ignore[arg-type]
+        return Maybe(None)  # type: ignore[arg-type]
 
     def flat_map(self, func: Callable[[T], Maybe[U]]) -> Maybe[U]:
         """Chain Maybe-returning functions."""
         if self.value is not None:
             return func(self.value)
-        return self.none()
+        return Maybe(None)  # type: ignore[arg-type]
 
     def get_or(self, default: T) -> T:
         """Return value or default."""
