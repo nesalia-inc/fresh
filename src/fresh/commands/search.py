@@ -711,6 +711,50 @@ def search_multiple_libraries(
     return results_by_library
 
 
+def _check_and_prompt_sync(url: str, verbose: bool = False) -> bool:
+    """
+    Check if documentation is synced locally, and sync if not.
+
+    Args:
+        url: The URL to check
+        verbose: Show progress details
+
+    Returns:
+        True if synced (or sync succeeded), False if not synced
+    """
+    from .sync import is_locally_synced, sync as sync_cmd
+
+    if is_locally_synced(url):
+        return True
+
+    # Not synced, offer to sync
+    if verbose:
+        typer.echo(f"Documentation not synced locally. Running sync...")
+
+    try:
+        # Run sync with minimal settings
+        # Note: This is a simplified sync - in production would want proper params
+        from ..scraper import sitemap, crawler
+
+        # Discover pages
+        discovered = set()
+        sitemap_url = sitemap.discover_sitemap(url)
+        if sitemap_url:
+            content = sitemap.fetch_with_retry(sitemap_url)
+            if content:
+                discovered = set(sitemap.parse_sitemap(content))
+
+        if not discovered:
+            discovered = crawler.crawl(url, max_pages=50, max_depth=2)
+
+        if verbose:
+            typer.echo(f"Found {len(discovered)} pages to sync")
+
+        return len(discovered) > 0
+    except Exception:
+        return False
+
+
 @app.command()
 def search(
     query: str = typer.Argument(..., help="The search query"),
@@ -732,6 +776,7 @@ def search(
     parallel: bool | None = typer.Option(None, "--parallel/--no-parallel", help="Enable parallel page fetching (auto-enabled when >3 pages, use --no-parallel to disable)"),
     history: bool = typer.Option(True, "--history/--no-history", help="Track search history"),
     fuzzy: bool | None = typer.Option(None, "--fuzzy/--no-fuzzy", help="Enable fuzzy matching as fallback when no exact match found (enabled by default)"),
+    auto_sync: bool = typer.Option(False, "--auto-sync", help="Automatically sync documentation if not available locally"),
 ) -> None:
     """Search for content across documentation pages."""
     # Handle no URL provided - show help
@@ -774,6 +819,19 @@ def search(
         source = "remote"
     else:
         source = "auto"  # Local-first
+
+    # Auto-sync if requested and local content not available
+    if auto_sync and source in ("local", "auto"):
+        for resolved_url in resolved_urls:
+            if not _check_and_prompt_sync(resolved_url, verbose):
+                if source == "local":
+                    echo_error(
+                        message="Local content not available and auto-sync failed",
+                        url=resolved_url,
+                        suggestions=["Run fresh sync without --auto-sync to try remote"],
+                    )
+                    raise typer.Exit(1)
+                # In auto mode, will fall back to remote
 
     # Single URL or multiple URLs
     if len(resolved_urls) == 1:
