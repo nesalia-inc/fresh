@@ -833,7 +833,10 @@ def search(
                         suggestions=["Run fresh sync without --auto-sync to try remote"],
                     )
                     raise typer.Exit(1)
-                # In auto mode, will fall back to remote
+
+    # Show local search usage when applicable (not just verbose)
+    if source == "local":
+        typer.echo("Using local search (documentation available offline)")
 
     # Single URL or multiple URLs
     if len(resolved_urls) == 1:
