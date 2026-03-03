@@ -198,6 +198,20 @@ def parse_sitemap_strict(xml_content: str) -> list[str]:
     return urls
 
 
+def _decode_url_path(url: str) -> str:
+    """Decode percent-encoded characters in URL path (V2: extracted helper)."""
+    parsed = urllib.parse.urlparse(url)
+    decoded_path = urllib.parse.unquote(parsed.path)
+    return urllib.parse.urlunparse((
+        parsed.scheme,
+        parsed.netloc,
+        decoded_path,
+        parsed.params,
+        parsed.query,
+        parsed.fragment,
+    ))
+
+
 def normalize_urls(urls: Sequence[str], base_url: str) -> list[str]:
     """
     Convert relative URLs to absolute URLs.
@@ -222,20 +236,7 @@ def normalize_urls(urls: Sequence[str], base_url: str) -> list[str]:
 
         # Already absolute
         if url.startswith("http://") or url.startswith("https://"):
-            # Decode URL-encoded characters in the path for absolute URLs
-            parsed = urllib.parse.urlparse(url)
-            # Decode percent-encoded characters in the path (e.g., %7E -> ~)
-            decoded_path = urllib.parse.unquote(parsed.path)
-            # Reconstruct URL with decoded path, preserving query and fragment
-            normalized_url = urllib.parse.urlunparse((
-                parsed.scheme,
-                parsed.netloc,
-                decoded_path,
-                parsed.params,
-                parsed.query,
-                parsed.fragment,
-            ))
-            normalized.append(normalized_url)
+            normalized.append(_decode_url_path(url))
             continue
 
         # Protocol-relative URL
@@ -253,17 +254,6 @@ def normalize_urls(urls: Sequence[str], base_url: str) -> list[str]:
         # Relative path - use urljoin for proper resolution
         # urljoin correctly handles cases where base is a file path vs directory
         joined = urllib.parse.urljoin(base, url)
-        # Decode percent-encoded characters in the path
-        parsed = urllib.parse.urlparse(joined)
-        decoded_path = urllib.parse.unquote(parsed.path)
-        normalized_url = urllib.parse.urlunparse((
-            parsed.scheme,
-            parsed.netloc,
-            decoded_path,
-            parsed.params,
-            parsed.query,
-            parsed.fragment,
-        ))
-        normalized.append(normalized_url)
+        normalized.append(_decode_url_path(joined))
 
     return normalized
