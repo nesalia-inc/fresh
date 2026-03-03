@@ -85,9 +85,6 @@ def is_locally_synced(url: str) -> bool:
     Returns:
         True if documentation is available locally, False otherwise
     """
-    # Resolve alias if needed
-    from ..config import resolve_alias
-
     resolved_url = resolve_alias(url)
     metadata = get_sync_metadata(resolved_url)
     return metadata is not None

@@ -112,12 +112,15 @@ class TestIsLocallySynced:
 
         assert result is False
 
+    @patch("fresh.commands.sync.resolve_alias")
     @patch("fresh.commands.sync.get_sync_metadata")
-    def test_is_locally_synced_with_alias(self, mock_get_metadata):
+    def test_is_locally_synced_with_alias(self, mock_get_metadata, mock_resolve_alias):
         """Test resolves alias before checking."""
+        mock_resolve_alias.return_value = "https://docs.python.org/3/"
         mock_get_metadata.return_value = {"page_count": 50}
 
         result = is_locally_synced("python")
 
         assert result is True
-        mock_get_metadata.assert_called_once()
+        mock_resolve_alias.assert_called_once_with("python")
+        mock_get_metadata.assert_called_once_with("https://docs.python.org/3/")
