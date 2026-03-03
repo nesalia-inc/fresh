@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import json
 import sys
 from datetime import datetime, timezone
@@ -13,6 +14,22 @@ from rich.console import Console
 from rich.table import Table
 
 guide_app = typer.Typer(help="Create and manage persistent documentation guides")
+
+
+# Time thresholds for relative time formatting (V2 pattern)
+@dataclass(frozen=True)
+class _TimeThreshold:
+    """Threshold for time-based formatting."""
+    seconds: int
+    suffix: str
+    divisor: int
+
+
+_GUIDE_TIME_THRESHOLDS = (
+    _TimeThreshold(60, "now", 1),         # < 60s: "just now"
+    _TimeThreshold(3600, "m", 60),        # < 60m: "Xm ago"
+    _TimeThreshold(86400, "h", 3600),     # < 24h: "Xh ago"
+)
 
 
 def _is_windows() -> bool:
@@ -104,25 +121,25 @@ def _validate_guide_name(name: str) -> bool:
 
 
 def _format_age(timestamp: str) -> str:
-    """Format a timestamp as relative age."""
+    """Format a timestamp as relative age (V2: threshold table pattern)."""
     try:
         dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
         now = datetime.now(timezone.utc)
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         delta = now - dt
+        total_seconds = delta.total_seconds()
 
-        if delta.total_seconds() < 60:
-            return "just now"
-        elif delta.total_seconds() < 3600:
-            minutes = int(delta.total_seconds() / 60)
-            return f"{minutes}m ago"
-        elif delta.total_seconds() < 86400:
-            hours = int(delta.total_seconds() / 3600)
-            return f"{hours}h ago"
-        else:
-            days = int(delta.total_seconds() / 86400)
-            return f"{days}d ago"
+        # Use threshold table to avoid branching
+        for threshold in _GUIDE_TIME_THRESHOLDS:
+            if total_seconds < threshold.seconds:
+                value = int(total_seconds // threshold.divisor)
+                if threshold.suffix == "now":
+                    return "just now"
+                return f"{value}{threshold.suffix} ago"
+
+        # Default: days
+        return f"{int(total_seconds // 86400)}d ago"
     except (ValueError, TypeError):
         return "unknown"
 
