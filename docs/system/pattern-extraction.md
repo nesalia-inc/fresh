@@ -919,11 +919,429 @@ The key insight: **Patterns emerge from practice, not from specification.**
 
 ---
 
-## Related Documents
+## Part 8: Automating Algorithm, Performance & Security
 
-- [Code Quality System](./code-quality.md) - Quality enforcement
-- [Training & Verification](./train-verify.md) - Training and verification
-- [Agent Knowledge System](../agent-knowledge-system.md) - Knowledge freshness
+### The Problem: Reinventing the Wheel
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    WE REINVENT TOO MUCH                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   Most algorithmic problems have KNOWN solutions:                 │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ SORTING: Quicksort, Mergesort, Heapsort                 │  │
+│   │ - When to use which is RESEARCHED                       │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ SEARCHING: BFS, DFS, A*, Dijkstra                      │  │
+│   │ - Optimal solutions are PROVEN                         │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ DATA STRUCTURES: Hash tables, Trees, Graphs            │  │
+│   │ - Time/space complexity is KNOWN                     │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ SECURITY: OWASP Top 10, known vulnerabilities          │  │
+│   │ - CVE database has 200k+ entries                      │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ PERFORMANCE: Caching strategies, DB indexing           │  │
+│   │ - Best practices are DOCUMENTED                       │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   Yet agents reinvent these instead of using known solutions      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### The Solution: Automated Knowledge Systems
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    AUTOMATED SYSTEMS FOR ALGORITHMS                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   We can automate:                                                │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ ALGORITHM SELECTION                                      │  │
+│   │ - Analyze the problem                                    │  │
+│   │ - Suggest optimal algorithm                              │  │
+│   │ - Auto-implement if possible                            │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ PERFORMANCE OPTIMIZATION                                 │  │
+│   │ - Detect N+1 queries                                    │  │
+│   │ - Suggest indexing                                      │  │
+│   │ - Detect missing caches                                │  │
+│   │ - Suggest query optimization                           │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ SECURITY SCANNING                                       │  │
+│   │ - Detect known vulnerability patterns                   │  │
+│   │ - Suggest fixes                                         │  │
+│   │ - Block PRs with CVEs                                  │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ COMPLEXITY ANALYSIS                                     │  │
+│   │ - Detect O(n²) in loops                                 │  │
+│   │ - Suggest optimization                                  │  │
+│   │ - Flag algorithmic debt                                │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 1. Algorithm Selection System
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ALGORITHM SELECTION AUTOMATION                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   INPUT: "I need to find if a user exists"                     │
+│                                                                 │
+│   SYSTEM ANALYZES:                                              │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 1. Operation type: SEARCH                               │  │
+│   │ 2. Data size: Unknown (assume < 10M)                  │  │
+│   │ 3. Frequency: Frequent                                  │  │
+│   │ 4. Consistency: Strong required                        │  │
+│   │ 5. Query pattern: Exact match                          │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   OUTPUT:                                                       │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ RECOMMENDED: Hash table / HashMap                       │  │
+│   │                                                            │ │
+│   │ Time complexity: O(1) average, O(n) worst             │  │
+│   │ Space complexity: O(n)                                  │  │
+│   │                                                            │ │
+│   │ Implementation:                                          │ │
+│   │ const userExists = new Set(users).has(userId);        │ │
+│   │                                                            │ │
+│   │ OR (for persistence):                                    │ │
+│   │ SELECT 1 FROM users WHERE id = ? LIMIT 1; (indexed)   │ │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 2. Performance Optimization Rules
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PERFORMANCE RULES THAT CAN BE AUTOMATED              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   RULE 1: N+1 Query Detection                                   │
+│   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                 │
+│   DETECT:                                                       │
+│   ┌─────────────────────────────────────────────────────────┐ │
+│   │ for (const user of users) {                             │ │
+│   │   const posts = await db.posts.find({ user: user.id });│ │
+│   │ }                                                        │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   SUGGEST:                                                      │
+│   └─────────────────────────────────────────────────────────┐ │
+│   │ const posts = await db.posts.find({                     │ │
+│   │   user: { $in: users.map(u => u.id) }                 │ │
+│   │ });                                                     │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   ─────────────────────────────────────────────────────────   │
+│                                                                 │
+│   RULE 2: Missing Index Detection                                │
+│   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                 │
+│   DETECT:                                                       │
+│   ┌─────────────────────────────────────────────────────────┐ │
+│   │ WHERE email = 'user@example.com'                        │ │
+│   │ (no index on email column)                             │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   SUGGEST:                                                      │
+│   └─────────────────────────────────────────────────────────┐ │
+│   │ CREATE INDEX idx_users_email ON users(email);           │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   ─────────────────────────────────────────────────────────   │
+│                                                                 │
+│   RULE 3: Missing Cache                                         │
+│   ━━━━━━━━━━━━━━━━━━━━━                                         │
+│   DETECT:                                                       │
+│   ┌─────────────────────────────────────────────────────────┐ │
+│   │ function getConfig() {                                   │ │
+│   │   return fetch('/api/config').then(r => r.json());     │ │
+│   │ }                                                        │ │
+│   │ // Called on every request                              │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   SUGGEST:                                                      │
+│   └─────────────────────────────────────────────────────────┐ │
+│   │ const getConfig = memoize(() =>                         │ │
+│   │   fetch('/api/config').then(r => r.json())            │ │
+│   │ );                                                       │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 3. Security Vulnerability Detection
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SECURITY RULES THAT CAN BE AUTOMATED                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   RULE 1: SQL Injection                                         │
+│   ━━━━━━━━━━━━━━━━━━━━                                         │
+│   DETECT:                                                       │
+│   ┌─────────────────────────────────────────────────────────┐ │
+│   │ db.query(`SELECT * FROM users WHERE id = ${userId}`)  │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   SUGGEST:                                                      │
+│   └─────────────────────────────────────────────────────────┐ │
+│   │ db.query('SELECT * FROM users WHERE id = $1', [userId])│ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   ─────────────────────────────────────────────────────────   │
+│                                                                 │
+│   RULE 2: XSS Prevention                                        │
+│   ━━━━━━━━━━━━━━━━━━━━━━                                        │
+│   DETECT:                                                       │
+│   ┌─────────────────────────────────────────────────────────┐ │
+│   │ element.innerHTML = userInput;                         │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   SUGGEST:                                                      │
+│   └─────────────────────────────────────────────────────────┐ │
+│   │ element.textContent = userInput; // Safe               │ │
+│   │ // OR:                                                 │ │
+│   │ element.innerHTML = sanitize(userInput);               │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   ─────────────────────────────────────────────────────────   │
+│                                                                 │
+│   RULE 3: Hardcoded Secrets                                     │
+│   ━━━━━━━━━━━━━━━━━━━━━━━━                                        │
+│   DETECT:                                                       │
+│   ┌─────────────────────────────────────────────────────────┐ │
+│   │ const API_KEY = 'sk-1234567890abcdef';                 │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   SUGGEST:                                                      │
+│   └─────────────────────────────────────────────────────────┐ │
+│   │ const API_KEY = process.env.API_KEY; // From env        │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   ─────────────────────────────────────────────────────────   │
+│                                                                 │
+│   RULE 4: Command Injection                                     │
+│   ━━━━━━━━━━━━━━━━━━━━━━━━━━                                      │
+│   DETECT:                                                       │
+│   ┌─────────────────────────────────────────────────────────┐ │
+│   │ exec(`ls ${directory}`);                                │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   SUGGEST:                                                      │
+│   └─────────────────────────────────────────────────────────┐ │
+│   │ execFile('ls', [directory]); // Safe version          │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 4. Complexity Analysis
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    COMPLEXITY ANALYSIS AUTOMATION                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   RULE: Detect O(n²) or worse                                   │
+│   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                  │
+│   DETECT:                                                       │
+│   ┌─────────────────────────────────────────────────────────┐ │
+│   │ for (const a of items) {                               │ │
+│   │   for (const b of items) {                             │ │
+│   │     if (a.id === b.id) ... // O(n²)                   │ │
+│   │   }                                                    │ │
+│   │ }                                                        │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   SUGGEST:                                                      │
+│   └─────────────────────────────────────────────────────────┐ │
+│   │ const itemsById = new Map(items.map(i => [i.id, i])); │ │
+│   │ // Lookup is O(1)                                      │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   ─────────────────────────────────────────────────────────   │
+│                                                                 │
+│   RULE: Detect unnecessary iterations                            │
+│   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                            │
+│   DETECT:                                                       │
+│   ┌─────────────────────────────────────────────────────────┐ │
+│   │ const allExist = items.every(item =>                   │ │
+│   │   otherItems.find(o => o.id === item.id)              │ │
+│   │ ); // O(n × m)                                         │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   SUGGEST:                                                      │
+│   └─────────────────────────────────────────────────────────┐ │
+│   │ const otherIds = new Set(otherItems.map(i => i.id));  │ │
+│   │ const allExist = items.every(item => otherIds.has(item.id)); │ │
+│   │ // O(n + m)                                             │ │
+│   └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 5. Tool Integration Points
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    WHERE TO INTEGRATE THESE CHECKS                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 1. CLI TOOLS (pre-commit, pre-push)                    │  │
+│   │                                                       │  │
+│   │   fresh analyze --performance --security              │  │
+│   │   # Runs before commit                                │  │
+│   │   # Blocks if critical issues found                  │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 2. LANGUAGE SERVER (IDE integration)                   │  │
+│   │                                                       │  │
+│   │   - VS Code extension                                 │  │
+│   │   - Inline warnings                                   │  │
+│   │   - Quick fixes suggestions                           │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 3. COMPILER/TRANSFORMER                                │  │
+│   │                                                       │  │
+│   │   - AST-based analysis                                │  │
+│   │   - Auto-fix where possible                          │  │
+│   │   - TypeScript plugin                                 │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 4. CI/CD PIPELINE                                     │  │
+│   │                                                       │  │
+│   │   - GitHub Actions                                    │  │
+│   │   - GitLab CI                                         │  │
+│   │   - Block merge if critical issues                    │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 5. DEPENDENCY SCANNER                                  │  │
+│   │                                                       │  │
+│   │   - npm audit, snyk, dependabot                       │  │
+│   │   - CVE matching                                      │  │
+│   │   - Auto-update suggestions                           │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 6. Known Research That Can Be Automated
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    RESEARCH AREAS THAT CAN BE AUTOMATED                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   DATA STRUCTURES & ALGORITHMS                                   │
+│   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                              │
+│   - Time/space complexity analysis                               │
+│   - Algorithm selection based on data characteristics           │
+│   - Auto-vectorization hints                                    │
+│   - Parallelization opportunities                               │
+│                                                                 │
+│   DATABASE                                                       │
+│   ━━━━━━━━━━━━                                                   │
+│   - Query optimization (JOIN order, index hints)               │
+│   - Index recommendation                                         │
+│   - Denormalization suggestions                                  │
+│   - Sharding/partitioning strategies                            │
+│                                                                 │
+│   CACHING                                                        │
+│   ━━━━━━━━━                                                       │
+│   - Cache invalidation patterns                                 │
+│   - TTL recommendations                                         │
+│   - Cache-aside vs write-through selection                     │
+│   - Redis/Memcached optimization                                │
+│                                                                 │
+│   SECURITY                                                       │
+│   ━━━━━━━━━                                                       │
+│   - OWASP Top 10 detection                                      │
+│   - CVE scanning                                                │
+│   - Dependency vulnerability scanning                           │
+│   - Static analysis (SAST)                                      │
+│   - Dynamic analysis (DAST)                                     │
+│   - Secret scanning                                            │
+│                                                                 │
+│   CODE QUALITY                                                   │
+│   ━━━━━━━━━━━━━                                                  │
+│   - Cyclomatic complexity                                       │
+│   - Coupling analysis                                           │
+│   - Technical debt quantification                               │
+│   - Code smell detection                                        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 7. The Automated Analysis Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    COMPLETE AUTOMATED ANALYSIS PIPELINE                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   CODE → ┌──────────┐ → ┌──────────┐ → ┌──────────┐          │
+│          │ Syntax   │   │ Analysis │   │ Security │          │
+│          │ Check    │   │ Engine   │   │ Scan     │          │
+│          └────┬─────┘   └────┬─────┘   └────┬─────┘          │
+│               │               │               │                  │
+│               ▼               ▼               ▼                  │
+│          ┌──────────┐   ┌──────────┐   ┌──────────┐          │
+│          │ Types    │   │ Perf     │   │ CVE      │          │
+│          │ Check    │   │ Optim.   │   │ Scan     │          │
+│          └────┬─────┘   └────┬─────┘   └────┬─────┘          │
+│               │               │               │                  │
+│               ▼               ▼               ▼                  │
+│          ┌──────────┐   ┌──────────┐   ┌──────────┐          │
+│          │ Tests    │   │ Complex. │   │ Secrets  │          │
+│          │ Run      │   │ Analysis │   │ Scan     │          │
+│          └────┬─────┘   └────┬─────┘   └────┬─────┘          │
+│               │               │               │                  │
+│               └───────────────┼───────────────┘                  │
+│                               ▼                                  │
+│                      ┌──────────────┐                           │
+│                      │ Quality Gate │                           │
+│                      │              │                           │
+│                      │ Block if:   │                           │
+│                      │ - Failures  │                           │
+│                      │ - CVEs      │                           │
+│                      │ - Perf issues│                           │
+│                      │ - Complexity │                           │
+│                      └──────────────┘                           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Related Documents
 
 ---
 
