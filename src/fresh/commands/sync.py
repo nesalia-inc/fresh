@@ -278,6 +278,37 @@ def _save_page(page_url: str, pages_dir: Path) -> bool | None:
     return True
 
 
+def _check_sync_status(url: str, verbose: bool = False) -> None:
+    """
+    Check if documentation has been synced locally.
+
+    Args:
+        url: The URL or alias to check
+        verbose: Show detailed information
+    """
+    from ..config import resolve_alias
+
+    # Resolve alias
+    resolved_url = resolve_alias(url)
+
+    # Check if synced
+    metadata = get_sync_metadata(resolved_url)
+
+    if metadata:
+        page_count = metadata.get("page_count", "unknown")
+        last_sync = metadata.get("last_sync", "unknown")
+
+        typer.echo(f"Already synced: {page_count} pages")
+        typer.echo(f"Last sync: {last_sync}")
+
+        if verbose:
+            sync_dir = _get_sync_dir(resolved_url, None)
+            typer.echo(f"Location: {sync_dir}")
+    else:
+        typer.echo(f"Not synced. Run: fresh sync {url}")
+        raise typer.Exit(1)
+
+
 @app.command(name="sync")
 def sync(
     url: str = typer.Argument(..., help="The URL or alias of the documentation website"),
@@ -291,11 +322,17 @@ def sync(
     incremental: bool = typer.Option(True, "--incremental/--no-incremental", help="Only sync changed pages (uses etag/last-modified)"),
     pattern: str | None = typer.Option(None, "--pattern", "-p", help="Filter paths matching pattern"),
     workers: int = typer.Option(1, "--workers", "-w", help="Number of parallel workers (1 = sequential, >1 = parallel)"),
+    check: bool = typer.Option(False, "--check", help="Only check if documentation is synced locally, don't sync"),
 ) -> None:
     """Download entire documentation for offline use."""
     # Initialize console with verbose mode
     set_verbose(verbose)
     reset_console()
+
+    # Handle --check flag
+    if check:
+        _check_sync_status(url, verbose)
+        return
 
     # Resolve alias to URL
     resolved_url = resolve_alias(url)
