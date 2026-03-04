@@ -4,28 +4,52 @@ A comprehensive analysis of the challenges facing AI agents in maintaining accur
 
 ---
 
-## Executive Summary
+## Core Philosophy: Zero Trust
 
-AI agents suffer from two fundamental knowledge problems: **stale training data** and **median-quality code patterns**. This document proposes a layered system architecture to ensure agents have access to current, high-quality information for accurate responses.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    FUNDAMENTAL PRINCIPLE                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐    │
+│   │                                                         │    │
+│   │   TRAINING DATA = UNTRUSTED BY DEFAULT                 │    │
+│   │                                                         │    │
+│   │   • Never assume training data is correct              │    │
+│   │   • Never be confident about internal knowledge        │    │
+│   │   • Always defer to external knowledge system          │    │
+│   │   • If system lacks info → fetch and enrich           │    │
+│   │                                                         │    │
+│   └─────────────────────────────────────────────────────────┘    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### The Three Rules
+
+| Rule | Description |
+|------|-------------|
+| **1. Zero Trust** | Never trust training data, always doubt |
+| **2. External Source** | All knowledge must come from centralized system |
+| **3. Continuous Enrichment** | If info is missing, fetch it and update |
 
 ---
 
 ## The Problem
 
-### Two Critical Flaws
+### Training Data Is Unreliable
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    AGENT KNOWLEDGE FLAWS                        │
+│                    TRAINING DATA REALITY                         │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ❌ STALE KNOWLEDGE          ❌ MEDIAN QUALITY                  │
-│  ━━━━━━━━━━━━━━━━━          ━━━━━━━━━━━━━━━━━                  │
-│  - Training data is old      - Code in datasets is average     │
-│  - Post-training cutoff      - Shows patterns, not best        │
-│  - No freshness awareness    - Misses modern practices         │
+│  ❌ STALE:   Training data has cutoff date                     │
+│  ❌ MEDIOCRE: Shows average patterns, not best practices       │
+│  ❌ INCOMPLETE: Missing recent frameworks/tools                 │
+│  ❌ UNVERIFIED: No source attribution or dates                │
 │                                                                 │
-│  RESULT: Agents confidently give outdated or suboptimal advice  │
+│  RESULT: Agents CANNOT and SHOULD NOT trust this data           │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -35,16 +59,16 @@ AI agents suffer from two fundamental knowledge problems: **stale training data*
 ```
 USER: "How do I manage state in React in 2024?"
 
-AGENT (internal knowledge):
+AGENT (training data - WRONG):
   "You can use Redux for global state..."
-  ↑ This might be 3+ years old advice
+  ↑ CONFIDENT but likely 3+ years old
 
-MODERN REALITY:
-  TanStack Query + Zustand + signals are preferred
-  ↑ What the user actually needs
+AGENT (proper - CORRECT):
+  "I need to check my knowledge system..."
+  ↑ NEVER confident about training data
 ```
 
-**The core issue**: Agents don't know they should externalize their knowledge.
+**The core issue**: Agents must treat ALL training data as untrusted.
 
 ---
 
@@ -382,32 +406,52 @@ Agent learns: not just "how" but "why" and "when"
 │            │                                                    │
 │            ▼                                                    │
 │   ┌─────────────────────────────────────────────────────┐      │
-│   │ 1. KNOWLEDGE CHECK                                   │      │
-│   │    - Is my training data fresh enough?             │      │
-│   │    - Do I have verified sources?                   │      │
-│   │    → If NO: Use external tool                      │      │
+│   │ 1. ZERO TRUST CHECK                                 │      │
+│   │    - My training data is UNTRUSTED                 │      │
+│   │    - Check external knowledge system FIRST          │      │
+│   │    - If info exists → verify freshness             │      │
+│   │    - If info missing → fetch and enrich            │      │
 │   └─────────────────────────────────────────────────────┘      │
 │            │                                                    │
 │            ▼                                                    │
 │   ┌─────────────────────────────────────────────────────┐      │
-│   │ 2. DEPTH ASSESSMENT                                 │      │
-│   │    - Does user want basics or deep dive?           │      │
-│   │    - Do I need cross-domain context?               │      │
-│   │    → If DEEP: Follow learning path                 │      │
+│   │ 2. FRESHNESS VERIFICATION                            │      │
+│   │    - Display source date for every fact             │      │
+│   │    - Show confidence based on freshness             │      │
+│   │    - Warn if data is stale (>30 days)               │      │
 │   └─────────────────────────────────────────────────────┘      │
 │            │                                                    │
 │            ▼                                                    │
 │   ┌─────────────────────────────────────────────────────┐      │
-│   │ 3. SOURCE SYNTHESIS                                 │      │
-│   │    - Fetch latest docs                              │      │
-│   │    - Cross-reference with best practices            │      │
-│   │    - Show working, modern examples                  │      │
+│   │ 3. ENRICHMENT (if needed)                           │      │
+│   │    - Fetch latest docs from external sources        │      │
+│   │    - Update knowledge system with new info          │      │
+│   │    - Cross-reference with authoritative sources    │      │
 │   └─────────────────────────────────────────────────────┘      │
 │            │                                                    │
 │            ▼                                                    │
-│   OUTPUT: Accurate, deep, verified answer                      │
+│   OUTPUT: Answer with explicit source + freshness             │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
+```
+
+### Example Response Format
+
+```
+User: "How to fetch data in React?"
+
+Agent Response:
+  Based on my knowledge system (fresh: 2 days old):
+
+  RECOMMENDED (2024): TanStack Query
+  - Source: tanstack.com/query (fresh: 3 days ago)
+  - Provides: caching, deduping, optimistic updates
+
+  ALTERNATIVE: useEffect + fetch
+  - Source: react.dev (fresh: 5 days ago)
+  - Use only for simple cases
+
+  NEVER use: class component lifecycle methods (outdated)
 ```
 
 ---
