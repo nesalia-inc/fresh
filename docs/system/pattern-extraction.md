@@ -597,6 +597,312 @@ Use chunked: Files > 100MB, unreliable networks
 
 ---
 
+## Part 7: Reducing Mental Load Through Determinism
+
+### The Problem: Cognitive Overhead
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    COGNITIVE LOAD IS THE ENEMY                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   When an agent (or human) writes code, they must think about:   │
+│                                                                 │
+│   - What is this function supposed to do?                        │
+│   - What are the edge cases?                                    │
+│   - How does this handle errors?                                │
+│   - What happens if X is null?                                  │
+│   - What if the API call fails?                                │
+│   - How does this scale?                                        │
+│   - What if the database is down?                              │
+│   - ...and 1000 other things                                   │
+│                                                                 │
+│   This is EXHAUSTING and leads to:                              │
+│                                                                 │
+│   - Forgotten edge cases                                        │
+│   - Silent failures                                             │
+│   - Incomplete error handling                                   │
+│   - Bugs                                                        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### The Solution: Deterministic Patterns
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    REDUCE MENTAL LOAD THROUGH DETERMINISM            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   Goal: Make the "right thing" the EASY thing                    │
+│                                                                 │
+│   How: Use patterns where there are fewer decisions to make     │
+│                                                                 │
+│   Example:                                                    │
+│                                                                 │
+│   BEFORE: Agent must remember to:                               │
+│   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                         │
+│   - Handle loading state                                       │
+│   - Handle error state                                         │
+│   - Handle empty state                                         │
+│   - Handle success state                                       │
+│   - Implement retry logic                                      │
+│   - Implement caching                                          │
+│   - Invalidate cache on mutation                               │
+│                                                                 │
+│   AFTER: Using TanStack Query:                                 │
+│   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                             │
+│   const { data, isLoading, error } = useQuery(...)            │
+│                                                                 │
+│   All of the above is automatically handled                     │
+│   Agent just uses the data                                      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Applying Category Theory & Automata
+
+#### Category Theory: Composition as the Core
+
+```
+CATEGORY THEORY PRINCIPLE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If A → B and B → C, then we should have A → C
+
+In code:
+━━━━━━━
+
+If:
+  - fetchUser(id) → User
+  - enrichUser(user) → EnrichedUser
+
+Then we should be able to:
+  - compose(fetchUser, enrichUser)(id) → EnrichedUser
+
+┌─────────────────────────────────────────────────────────────┐
+│ BENEFIT FOR AGENTS                                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ Instead of writing:                                         │
+│                                                             │
+│ async function getEnrichedUser(id) {                       │
+│   const user = await fetchUser(id);                       │
+│   return await enrichUser(user);                          │
+│ }                                                          │
+│                                                             │
+│ Agent writes:                                               │
+│                                                             │
+│ const getEnrichedUser = compose(enrichUser, fetchUser);    │
+│                                                             │
+│ Less thinking, more correct                                │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Automata Theory: State Machines
+
+```
+AUTOMATA PRINCIPLE:
+━━━━━━━━━━━━━━━━━━━━
+
+Every system can be modeled as a finite state machine
+
+In code:
+━━━━━━━
+
+Instead of ad-hoc state management:
+
+  const [status, setStatus] = useState('idle');
+  // Then: loading, success, error, retrying...
+  // Can be: idle → loading → error → loading → success
+  // Or: idle → loading → success → refreshing → success
+  // Or: idle → loading → error → retrying → loading → ...
+
+Use explicit state machine:
+
+  type State =
+    | { status: 'idle' }
+    | { status: 'loading' }
+    | { status: 'success'; data: Data }
+    | { status: 'error'; error: Error; retryCount: number };
+
+  type Event =
+    | { type: 'FETCH' }
+    | { type: 'SUCCESS'; data: Data }
+    | { type: 'ERROR'; error: Error }
+    | { type: 'RETRY' };
+
+┌─────────────────────────────────────────────────────────────┐
+│ BENEFIT FOR AGENTS                                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ Instead of:                                                 │
+│                                                             │
+│ const [data, setData] = useState(null);                   │
+│ const [loading, setLoading] = useState(false);            │
+│ const [error, setError] = useState(null);                 │
+│ // What are all the valid states?                         │
+│ // What are the valid transitions?                         │
+│                                                             │
+│ Agent writes:                                               │
+│                                                             │
+│ const [state, send] = useMachine(machine);               │
+│ // State is exhaustive - all cases handled                │
+│ // Transitions are explicit - no invalid states           │
+│ // Easier to reason about                                 │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Practical Deterministic Patterns
+
+#### Pattern 1: Railway-Oriented Programming
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ RAILWAY-ORIENTED PROGRAMMING                                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ Instead of:                                                 │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ function processUser(input) {                          │ │
+│ │   const user = validate(input);                        │ │
+│ │   if (!user.valid) return null;                        │ │
+│ │   const saved = save(user);                           │ │
+│ │   if (!saved) return null;                            │ │
+│ │   const enriched = enrich(saved);                      │ │
+│ │   if (!enriched) return null;                         │ │
+│ │   return enriched;                                     │ │
+│ │ }                                                      │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ Write:                                                      │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ const processUser = (input) =>                         │ │
+│ │   Result.of(input)                                     │ │
+│ │     .map(validate)                                     │ │
+│ │     .map(save)                                         │ │
+│ │     .map(enrich)                                       │ │
+│ │     .extract();                                        │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ Benefits:                                                   │
+│ ✓ No null checks scattered everywhere                      │
+│ ✓ Explicit error handling                                  │
+│ ✓ Composable                                                │
+│ ✓ Agent can't forget error handling                        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Pattern 2: Contract-Based Design
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ CONTRACT-BASED DESIGN                                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ Define input/output contracts explicitly:                   │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ interface UserService {                                │ │
+│ │   // PRECONDITIONS:                                    │ │
+│ │   // - id must be non-empty string                     │ │
+│ │   // - caller must have 'read:users' permission        │ │
+│ │   getUser(id: string): Promise<User>;                 │ │
+│ │                                                            │ │
+│ │   // PRECONDITIONS:                                    │ │
+│ │   // - user must pass validation                       │ │
+│ │   // - caller must have 'write:users' permission      │ │
+│ │   createUser(data: CreateUserDTO): Promise<User>;      │ │
+│ │                                                            │ │
+│ │   // PRECONDITIONS:                                    │ │
+│ │   // - id must be non-empty string                     │ │
+│ │   // - data must pass validation                       │ │
+│ │   // - caller must have 'write:users' permission       │ │
+│ │   updateUser(id: string, data: UpdateUserDTO):         │ │
+│ │     Promise<User>;                                      │ │
+│ │ }                                                      │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ Benefits:                                                   │
+│ ✓ Agent knows exactly what to validate                     │
+│ ✓ Agent knows exactly what permissions needed               │
+│ ✓ No guessing                                               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Pattern 3: Effect Schema
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ EFFECT SCHEMA (cf. fx.ts, io-ts)                           │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ Declare effects as data, not as implementation:             │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ const Effects = {                                       │ │
+│ │   fetchUser: t.function([t.string], User),             │ │
+│ │   saveUser: t.function([User], User),                 │ │
+│ │   sendEmail: t.function([Email], void),               │ │
+│ │ };                                                     │ │
+│ │                                                         │ │
+│ │ // Runtime validates:                                  │ │
+│ │ // - fetchUser called with string, returns User       │ │
+│ │ // - saveUser called with User, returns User          │ │
+│ │ // - sendEmail called with Email, returns void        │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ Benefits:                                                   │
+│ ✓ Agent can't call effects with wrong arguments            │
+│ ✓ Effects are testable (inject mocks)                     │
+│ ✓ All effects are explicit                                 │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Summary: Reducing Mental Load
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    HOW TO REDUCE AGENT COGNITIVE LOAD                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   1. USE DETERMINISTIC PATTERNS                                 │
+│      - Same input → same output                                 │
+│      - No hidden state                                          │
+│      - Predictable behavior                                      │
+│                                                                 │
+│   2. USE COMPOSABLE ABSTRACTIONS                                │
+│      - Category theory: compose functions                       │
+│      - Chain transformations                                     │
+│      - Don't write loops when you can compose                   │
+│                                                                 │
+│   3. USE EXPLICIT STATE MACHINES                                │
+│      - All states known upfront                                 │
+│      - All transitions explicit                                 │
+│      - No "impossible" states                                   │
+│                                                                 │
+│   4. USE CONTRACTS                                              │
+│      - Preconditions explicit                                   │
+│      - Postconditions explicit                                  │
+│      - Agent knows what to validate                             │
+│                                                                 │
+│   5. USE EFFECT SYSTEMS                                         │
+│      - Effects declared as data                                 │
+│      - Runtime validation                                       │
+│      - Easier testing                                           │
+│                                                                 │
+│   RESULT: Agent focuses on BUSINESS LOGIC, not boilerplate     │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Conclusion
 
 The pragmatic approach:
