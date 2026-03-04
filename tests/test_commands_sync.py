@@ -10,6 +10,7 @@ import pytest
 import typer.testing
 
 from fresh.commands.sync import (
+    _build_index_for_sync,
     _check_sync_status,
     _get_sync_dir,
     get_sync_metadata,
@@ -176,3 +177,26 @@ class TestCheckSyncStatus:
             _check_sync_status("https://docs.python.org/3/", verbose=True)
 
             assert mock_dir.called
+
+
+class TestBuildIndexForSync:
+    """Tests for _build_index_for_sync function."""
+
+    @patch("fresh.commands.sync._build_index_for_sync")
+    def test_build_index_for_sync_no_pages_dir(self, mock_func, tmp_path):
+        """Test index build when no pages directory exists."""
+        # No pages dir - should return early without calling build
+        _build_index_for_sync("https://example.com/", tmp_path, verbose=False)
+
+        # Function should handle this gracefully (no exception)
+
+    def test_build_index_for_sync_with_pages(self, tmp_path, capsys):
+        """Test index build with pages directory exists."""
+        pages_dir = tmp_path / "pages"
+        pages_dir.mkdir()
+        (pages_dir / "test.html").write_text("<html><body>Test</body></html>")
+
+        _build_index_for_sync("https://docs.python.org/3/", tmp_path, verbose=False)
+
+        captured = capsys.readouterr()
+        assert "Search index built" in captured.out or "indexed" in captured.out
