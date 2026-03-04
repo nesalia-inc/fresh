@@ -20,7 +20,7 @@ import hashlib
 from urllib.parse import urlparse, quote
 
 from ..config import resolve_alias
-from ..console import echo_error, print_summary, reset_console, set_verbose
+from ..console import echo_error, echo_warning, print_summary, reset_console, set_verbose
 from ..scraper import crawler, filter as filter_module, sitemap
 from ..scraper.http import fetch_binary_aware, validate_url
 from ..scraper.searcher import (
@@ -849,6 +849,13 @@ def search(
     # Show local search usage when applicable (not just verbose)
     if source == "local":
         typer.echo("Using local search (documentation available offline)")
+
+    # Show performance warning when not using local
+    if source == "remote" and verbose:
+        echo_warning(
+            message="Searching remote - this will be slower than local search",
+            suggestions=["Run fresh sync <URL> for faster future searches"],
+        )
 
     # Single URL or multiple URLs
     if len(resolved_urls) == 1:
