@@ -822,6 +822,18 @@ def search(
     else:
         source = "auto"  # Local-first
 
+    # Smart default: In auto mode, check if local content exists and prefer it
+    if source == "auto":
+        has_local = False
+        for resolved_url in resolved_urls:
+            if local_content_exists(resolved_url):
+                has_local = True
+                break
+        if has_local:
+            source = "local"
+            if verbose:
+                typer.echo("Using local search (documentation available offline)")
+
     # Auto-sync if requested and local content not available
     if auto_sync and source in ("local", "auto"):
         for resolved_url in resolved_urls:
@@ -983,7 +995,17 @@ def _search_single_library(
     show_json = json_output or not show_table
 
     if show_table:
-        show_success_message(f"Found {len(results)} results")
+        # Determine source for feedback
+        sources = set(r.source for r in results)
+        source_info = ""
+        if sources == {"local"}:
+            source_info = " (local)"
+        elif sources == {"remote"}:
+            source_info = " (remote)"
+        elif sources:
+            source_info = f" ({', '.join(sources)})"
+
+        show_success_message(f"Found {len(results)} results{source_info}")
 
         # Create rich table
         table = Table(title="Search Results")
