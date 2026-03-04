@@ -1606,6 +1606,324 @@ REACT-DOCTOR APPROACH:
 
 ---
 
+## Part 10: Domain-Specific Gates & The Framework Approach
+
+### The Vision: Everything Has Gates
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ABSOLUTELY EVERY DOMAIN NEEDS GATES                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   It's not just security and performance:                          │
+│                                                                 │
+│   FRONTEND GATES:                                                │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - CSS performance (unused CSS, large CSS bundles)        │  │
+│   │ - Layout shifts (CLS - Cumulative Layout Shift)         │  │
+│   │ - Image optimization (WebP, lazy loading)               │  │
+│   │ - JavaScript bundle size                                 │  │
+│   │ - Accessibility (ARIA, keyboard nav)                    │  │
+│   │ - First contentful paint                                │  │
+│   │ - Time to interactive                                    │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   BACKEND GATES:                                                │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - API response times                                     │  │
+│   │ - Database query efficiency                              │  │
+│   │ - Error handling completeness                           │  │
+│   │ - Rate limiting                                        │  │
+│   │ - Authentication/Authorization enforcement              │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   SECURITY GATES:                                               │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - Vulnerability scanning                                │  │
+│   │ - Secret detection                                     │  │
+│   │ - Dependency CVEs                                       │  │
+│   │ - Input validation                                     │  │
+│   │ - Output encoding                                      │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   BUSINESS LOGIC GATES:                                          │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - Role/permission enforcement                          │  │
+│   │ - Business rule validation                             │  │
+│   │ - Audit trail completeness                             │  │
+│   │ - Data consistency                                     │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Example: RBAC as Primitive
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    RBAC AS FRAMEWORK PRIMITIVE                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   THE PROBLEM:                                                   │
+│                                                                 │
+│   Every new feature needs to ask:                                │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - What roles can access this?                           │  │
+│   │ - What permissions are needed?                         │  │
+│   │ - Are they correctly implemented?                      │  │
+│   │ - Did we forget any checks?                            │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   THE SOLUTION: RBAC as primitive:                               │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 1. DEFINE permissions as code:                         │  │
+│   │                                                          │  │
+│   │   const Permissions = {                                  │  │
+│   │     USER_READ: 'user:read',                            │  │
+│   │     USER_CREATE: 'user:create',                        │  │
+│   │     USER_UPDATE: 'user:update',                        │  │
+│   │     USER_DELETE: 'user:delete',                        │  │
+│   │     ORDER_CREATE: 'order:create',                      │  │
+│   │     ORDER_READ: 'order:read',                           │  │
+│   │     ORDER_REFUND: 'order:refund',                      │  │
+│   │   };                                                    │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 2. DEFINE roles:                                        │  │
+│   │                                                          │  │
+│   │   const Roles = {                                       │  │
+│   │     ADMIN: ['*'],                                      │  │
+│   │     MANAGER: [                                         │  │
+│   │       Permissions.USER_READ,                           │  │
+│   │       Permissions.USER_CREATE,                         │  │
+│   │       Permissions.USER_UPDATE,                         │  │
+│   │       Permissions.ORDER_CREATE,                        │  │
+│   │       Permissions.ORDER_READ,                           │  │
+│   │       Permissions.ORDER_REFUND,                        │  │
+│   │     ],                                                 │  │
+│   │     USER: [Permissions.USER_READ],                    │  │
+│   │   };                                                   │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 3. VERIFY at compile time:                              │  │
+│   │                                                          │  │
+│   │   // Every endpoint MUST declare required permissions  │  │
+│   │   @RequirePermission(Permissions.USER_CREATE)         │  │
+│   │   async function createUser(req) { ... }              │  │
+│   │                                                          │  │
+│   │   // Gate automatically verifies:                      │  │
+│   │   // - Permission exists                               │  │
+│   │   // - Role has permission                            │  │
+│   │   // - User has role                                  │  │
+│   │   // - User has permission (via role)                 │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 4. VERIFY at runtime:                                   │  │
+│   │                                                          │  │
+│   │   Gate intercepts every request:                       │  │
+│   │   - Check user has required permission                │  │
+│   │   - Log access attempt                                 │  │
+│   │   - Block if denied                                    │  │
+│   │   - Return 403 if no permission                       │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 5. VERIFY at PR time (AST gate):                       │  │
+│   │                                                          │  │
+│   │   - Every @RequirePermission must have a test         │  │
+│   │   - Every permission must be used at least once       │  │
+│   │   - No hardcoded permission checks                     │  │
+│   │   - All roles tested                                   │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Example: Frontend Performance as Primitive
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    FRONTEND PERFORMANCE AS PRIMITIVE                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   THE PROBLEM:                                                   │
+│   - CLS (Layout shifts) are introduced without anyone noticing  │
+│   - Large CSS bundles slow down FCP                             │
+│   - Images are not optimized                                    │
+│   - JavaScript bundles grow infinitely                          │
+│                                                                 │
+│   THE SOLUTION: Performance primitives:                          │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 1. Layout Shift Detection (automated):                   │  │
+│   │                                                          │  │
+│   │   // Every component MUST declare its dimensions        │  │
+│   │   <Image src="..." width={800} height={600} />         │  │
+│   │                                                          │  │
+│   │   // Gate verifies:                                      │  │
+│   │   - Has width/height                                    │  │
+│   │   - Has loading="lazy" for below-fold                  │  │
+│   │   - Uses next/image or equivalent                       │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 2. CSS Performance (automated):                         │  │
+│   │                                                          │  │
+│   │   // Gate verifies:                                      │  │
+│   │   - No unused CSS in bundle                            │  │
+│   │   - Critical CSS inlined                               │  │
+│   │   - No expensive selectors (universal, deep descendant) │  │
+│   │   - No layout thrashing                                │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 3. Bundle Size (automated):                            │  │
+│   │                                                          │  │
+│   │   // Gate verifies:                                      │  │
+│   │   - No new packages > 10KB gzipped                    │  │
+│   │   - No dynamic imports of large modules                │  │
+│   │   - Bundle size < threshold                            │  │
+│   │   - Tree shaking works                                  │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### The Complete Framework Primitive List
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    COMMON FRAMEWORK PRIMITIVES                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   AUTHENTICATION:                                               │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - Login/logout flows                                     │  │
+│   │ - Token management (JWT, refresh, rotation)             │  │
+│   │ - Multi-factor authentication                           │  │
+│   │ - Password reset flows                                  │  │
+│   │ - Session management                                    │  │
+│   │ - Social login (OAuth)                                  │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   AUTHORIZATION (RBAC/ABAC):                                     │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - Permission definitions                                │  │
+│   │ - Role definitions                                     │  │
+│   │ - Policy engine                                        │  │
+│   │ - Permission checks at every layer                    │  │
+│   │ - Audit logging                                        │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   DATA ACCESS:                                                  │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - Repository pattern                                    │  │
+│   │ - Query builders                                        │  │
+│   │ - Pagination                                           │  │
+│   │ - Soft deletes                                         │  │
+│   │ - Optimistic locking                                    │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   VALIDATION:                                                   │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - Input validation (schema-based)                      │  │
+│   │ - Cross-field validation                               │  │
+│   │ - Async validation                                     │  │
+│   │ - Sanitization                                         │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   ERROR HANDLING:                                               │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - Error codes                                           │  │
+│   │ - User-facing errors                                   │  │
+│   │ - Logging                                              │  │
+│   │ - Recovery strategies                                  │  │
+│   │ - Retry patterns                                       │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   CACHING:                                                      │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - Cache strategies (cache-aside, write-through)       │  │
+│   │ - Invalidation patterns                               │  │
+│   │ - TTL management                                      │  │
+│   │ - Distributed cache                                    │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   NOTIFICATIONS:                                                │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - Channel abstraction (email, push, SMS)              │  │
+│   │ - Template system                                     │  │
+│   │ - Preference management                                │  │
+│   │ - Rate limiting                                        │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   PAYMENTS:                                                     │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - Payment provider abstraction                        │  │
+│   │ - Webhook handling                                     │  │
+│   │ - Refund flows                                         │  │
+│   │ - Idempotency                                          │  │
+│   │ - Fraud detection hooks                                │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   SEARCH:                                                       │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ - Query abstraction                                    │  │
+│   │ - Faceted search                                       │  │
+│   │ - Autocomplete                                         │  │
+│   │ - Highlighting                                         │  │
+│   │ - Pagination                                           │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Each Primitive Has Its Gates
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PRIMITIVE + GATES = COMPLETE SYSTEM                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   Every primitive has THREE gates:                               │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ 1. COMPILE TIME:                                        │  │
+│   │    - TypeScript types enforce correct usage            │  │
+│   │    - Decorators check required metadata                 │  │
+│   │    - No invalid configurations                         │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│   │                                                            │
+│   │ 2. RUNTIME:                                              │  │
+│   │    - Middleware intercepts calls                       │  │
+│   │    - Validates permissions                              │  │
+│   │    - Logs all access                                    │  │
+│   │    - Blocks unauthorized access                         │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│   │                                                            │
+│   │ 3. PR TIME (AST):                                       │  │
+│   │    - Verifies all access points use primitive           │  │
+│   │    - No hardcoded bypasses                             │  │
+│   │    - All edge cases tested                             │  │
+│   │    - Permission coverage 100%                          │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│   EXAMPLE: Auth primitive                                       │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │ Compile: @RequireAuth decorator requires auth guard    │  │
+│   │ Runtime: Middleware enforces auth on every request      │  │
+│   │ PR: AST checks all endpoints have @RequireAuth        │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Related Documents
 
 ---
