@@ -91,6 +91,32 @@ Search for content across documentation pages.
 fresh search <QUERY> <URL> [OPTIONS]
 ```
 
+### `fresh websearch`
+Search the general web for any topic. Results can be fetched with `fresh get <URL>`.
+
+```bash
+# Basic search (uses DuckDuckGo HTML, free)
+fresh websearch "python async tutorial"
+
+# With specific number of results
+fresh websearch "react hooks" --count 5
+
+# Table output for human-readable display
+fresh websearch "rust ownership" --table
+
+# Verbose mode shows fallback messages
+fresh websearch "python" --verbose
+```
+
+Options:
+- `-n, --count INTEGER` - Maximum number of results (default: 10)
+- `-e, --engine TEXT` - Search engine: auto, ddg, brave (default: auto)
+- `-j, --json` - Output as JSON (default)
+- `-t, --table` - Output as table
+- `-v, --verbose` - Show verbose output
+
+**Note:** Brave Search API can be used by setting the `BRAVE_API_KEY` environment variable. DuckDuckGo is used by default (free, no API key required).
+
 ### `fresh alias`
 Manage library aliases for quick access.
 
