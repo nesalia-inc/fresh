@@ -349,9 +349,9 @@ def _build_index_for_sync(base_url: str, sync_dir: Path, verbose: bool = False) 
 
         if verbose:
             typer.echo(f"Successfully indexed {count} pages.")
-    except Exception as e:
+    except Exception:
         # Show a brief notice even in non-verbose mode
-        typer.echo(f"Note: Search index not built (run with --verbose for details)")
+        typer.echo("Note: Search index not built (run with --verbose for details)")
         # Don't fail the sync if index build fails
 
 
