@@ -161,7 +161,8 @@ def search_duckduckgo(
         # Check for rate limiting (202 with redirect to challenge)
         if response.status_code == 202:
             # Check if we're being rate limited (challenge page instead of results)
-            if "duckduckgo.com/lite" not in response.url and "result__a" not in response.text:
+            url_str = str(response.url)
+            if "duckduckgo.com/lite" not in url_str and "result__a" not in response.text:
                 logger.warning("DuckDuckGo rate limit detected")
                 raise RateLimitError("DuckDuckGo rate limit reached. Please try again later.")
 
