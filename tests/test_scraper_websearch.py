@@ -1,12 +1,8 @@
 """Tests for scraper.websearch module."""
 
-import pytest
-
 from fresh.scraper.websearch import (
     WebSearchResult,
     _parse_ddg_html,
-    search_brave,
-    search_duckduckgo,
     websearch,
 )
 
