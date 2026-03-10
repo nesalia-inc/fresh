@@ -3,6 +3,8 @@
 from fresh.scraper.websearch import (
     WebSearchResult,
     _parse_ddg_html,
+    search_brave,
+    search_duckduckgo,
     websearch,
 )
 
@@ -94,21 +96,23 @@ class TestParseDDGHTML:
 
 
 class TestSearchDuckDuckGo:
-    """Tests for DuckDuckGo search (mocked)."""
+    """Tests for DuckDuckGo search (requires network)."""
 
-    def test_empty_query(self):
+    def test_empty_query_returns_empty(self):
         """Test that empty query returns empty results."""
-        # This tests the function signature, not actual API call
-        pass
+        # Empty query should return empty list
+        results = search_duckduckgo("")
+        assert results == []
 
 
 class TestSearchBrave:
-    """Tests for Brave search (mocked)."""
+    """Tests for Brave search (requires API key)."""
 
-    def test_no_api_key(self):
+    def test_no_api_key_returns_empty(self):
         """Test that Brave search returns empty without API key."""
-        # This would need mocking for actual tests
-        pass
+        # Without API key, should return empty
+        results = search_brave("test")
+        assert results == []
 
 
 class TestWebsearch:
@@ -123,8 +127,3 @@ class TestWebsearch:
         """Test that whitespace-only query returns empty results."""
         results = websearch("   ")
         assert results == []
-
-    def test_auto_engine_selection_ddg(self):
-        """Test that auto engine uses DuckDuckGo by default."""
-        # This would need mocking for actual tests
-        pass

@@ -28,6 +28,7 @@ def websearch(
     engine: str = typer.Option("auto", "--engine", "-e", help="Search engine: auto, ddg, brave"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output results as JSON"),
     table_output: bool = typer.Option(False, "--table", "-t", help="Output results as table"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show verbose output"),
 ) -> None:
     """Search the web for general queries.
 
@@ -38,6 +39,7 @@ def websearch(
             query=query,
             count=count,
             engine=engine,
+            verbose=verbose,
         )
     except Exception as e:
         typer.echo(f"Search error: {e}", err=True)
@@ -48,8 +50,11 @@ def websearch(
         typer.echo("No results found.")
         return
 
-    # Output
-    if table_output or not json_output:
+    # Output - JSON by default, table only with --table flag
+    show_table = table_output
+    show_json = json_output or not show_table
+
+    if show_table:
         # Table output
         table = Table(title=f"Web Search Results: {query}")
         table.add_column("Title", style="cyan")
@@ -71,7 +76,7 @@ def websearch(
 
         console.print(table)
 
-    if json_output or not table_output:
+    if show_json:
         # JSON output
         output = [r.to_dict() for r in results]
         typer.echo(json.dumps(output, indent=2))

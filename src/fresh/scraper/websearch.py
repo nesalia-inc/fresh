@@ -237,6 +237,7 @@ def websearch(
     query: str,
     count: int = DEFAULT_RESULT_COUNT,
     engine: str = "auto",
+    verbose: bool = False,
 ) -> list[WebSearchResult]:
     """Perform a web search with automatic fallback.
 
@@ -244,6 +245,7 @@ def websearch(
         query: The search query
         count: Maximum number of results to return
         engine: Search engine to use ("auto", "ddg", "brave")
+        verbose: If True, show fallback messages
 
     Returns:
         List of WebSearchResult objects
@@ -270,7 +272,8 @@ def websearch(
         if results:
             return results
         # Fallback to DuckDuckGo if Brave fails
-        logger.info("Brave search failed, falling back to DuckDuckGo")
+        if verbose:
+            logger.info("Brave search failed, falling back to DuckDuckGo")
         return search_duckduckgo(query, count)
 
     elif use_engine == "ddg":
