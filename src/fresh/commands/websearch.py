@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from ..scraper import websearch as websearch_module
+from ..scraper.websearch import RateLimitError
 from ..ui import _is_windows
 
 app = typer.Typer(help="Search the web for general queries.")
@@ -61,6 +62,10 @@ def websearch(
             engine=engine,
             verbose=verbose,
         )
+    except RateLimitError as e:
+        typer.echo(f"Rate limit reached: {e}", err=True)
+        typer.echo("Please try again later or use Brave Search API with BRAVE_API_KEY.", err=True)
+        raise typer.Exit(1)
     except Exception as e:
         typer.echo(f"Search error: {e}", err=True)
         raise typer.Exit(1)

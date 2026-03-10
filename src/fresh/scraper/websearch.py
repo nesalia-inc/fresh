@@ -10,6 +10,13 @@ from dataclasses import dataclass
 
 import httpx
 
+
+class RateLimitError(Exception):
+    """Raised when a search engine rate limit is reached."""
+
+    pass
+
+
 logger = logging.getLogger(__name__)
 
 # DuckDuckGo HTML search URL
@@ -151,11 +158,25 @@ def search_duckduckgo(
         response = client.post(DDG_SEARCH_URL, data=data)
         response.raise_for_status()
 
+        # Check for rate limiting (202 with redirect to challenge)
+        if response.status_code == 202:
+            # Check if we're being rate limited (challenge page instead of results)
+            if "duckduckgo.com/lite" not in response.url and "result__a" not in response.text:
+                logger.warning("DuckDuckGo rate limit detected")
+                raise RateLimitError("DuckDuckGo rate limit reached. Please try again later.")
+
         results = _parse_ddg_html(response.text)
+
+        # If we got an empty response with status 202, likely rate limited
+        if not results and response.status_code == 202:
+            logger.warning("DuckDuckGo rate limit detected")
+            raise RateLimitError("DuckDuckGo rate limit reached. Please try again later.")
 
         # Limit results
         return results[:count]
 
+    except RateLimitError:
+        raise  # Re-raise rate limit errors
     except httpx.HTTPError as e:
         logger.error(f"DuckDuckGo search failed: {e}")
         return []
@@ -268,9 +289,12 @@ def websearch(
 
     # Try the primary engine
     if use_engine == "brave":
-        results = search_brave(query, count)
-        if results:
-            return results
+        try:
+            results = search_brave(query, count)
+            if results:
+                return results
+        except RateLimitError:
+            pass  # Fall through to DuckDuckGo
         # Fallback to DuckDuckGo if Brave fails
         if verbose:
             logger.info("Brave search failed, falling back to DuckDuckGo")
