@@ -46,6 +46,7 @@ from .commands.list import list_urls
 from .commands.search import search
 from .commands.sync import get_sync_metadata, is_locally_synced, sync
 from .commands.update import update
+from .commands.websearch import websearch
 
 app = typer.Typer(help="fresh - A CLI application")
 
@@ -53,6 +54,7 @@ app = typer.Typer(help="fresh - A CLI application")
 app.command(name="list")(list_urls)
 app.command(name="get")(get)
 app.command(name="search")(search)
+app.command(name="websearch")(websearch)
 app.command(name="doc")(doc)
 app.command(name="sync")(sync)
 app.command(name="update")(update)
