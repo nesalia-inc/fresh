@@ -21,10 +21,27 @@ except Exception:
     console = Console(file=sys.stdout, no_color=True, force_terminal=False)
 
 
+def validate_count(count: int) -> int:
+    """Validate count parameter."""
+    if count < 1:
+        raise typer.BadParameter("Count must be at least 1")
+    if count > 20:
+        raise typer.BadParameter("Count cannot exceed 20")
+    return count
+
+
+def validate_engine(engine: str) -> str:
+    """Validate engine parameter."""
+    valid_engines = ["auto", "ddg", "brave"]
+    if engine not in valid_engines:
+        raise typer.BadParameter(f"Engine must be one of: {', '.join(valid_engines)}")
+    return engine
+
+
 @app.command()
 def websearch(
     query: str = typer.Argument(..., help="The search query"),
-    count: int = typer.Option(10, "--count", "-n", help="Maximum number of results"),
+    count: int = typer.Option(10, "--count", "-n", help="Maximum number of results (1-20)"),
     engine: str = typer.Option("auto", "--engine", "-e", help="Search engine: auto, ddg, brave"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output results as JSON"),
     table_output: bool = typer.Option(False, "--table", "-t", help="Output results as table"),
@@ -34,6 +51,9 @@ def websearch(
 
     Results can be used with 'fresh get <url>' to fetch content as Markdown.
     """
+    # Validate parameters
+    count = validate_count(count)
+    engine = validate_engine(engine)
     try:
         results = websearch_module.websearch(
             query=query,
