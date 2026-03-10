@@ -68,7 +68,7 @@ def _parse_ddg_html(html_content: str) -> list[WebSearchResult]:
         for result in soup.select("a.result__a"):
             try:
                 title = result.get_text(strip=True)
-                url = result.get("href", "")
+                url = str(result.get("href", ""))
 
                 if not title or not url:
                     continue
@@ -95,7 +95,7 @@ def _parse_ddg_html(html_content: str) -> list[WebSearchResult]:
                     parsed = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
                     actual_url = parsed.get("uddg", [url])[0]
                     # Make sure it's a valid URL
-                    if actual_url.startswith("http"):
+                    if isinstance(actual_url, str) and actual_url.startswith("http"):
                         url = actual_url
 
                 # Skip if URL is not valid
@@ -105,7 +105,7 @@ def _parse_ddg_html(html_content: str) -> list[WebSearchResult]:
                 results.append(
                     WebSearchResult(
                         title=title,
-                        url=url,
+                        url=str(url),
                         description=description,
                     )
                 )
@@ -196,7 +196,7 @@ def search_brave(
         "X-Subscription-Token": api_key,
     }
 
-    params = {
+    params: dict[str, str | int] = {
         "q": query,
         "count": min(count, 20),  # Brave max is 20
     }
