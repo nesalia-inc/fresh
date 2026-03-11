@@ -1,9 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="public/banner-dark.jpg">
-    <source media="(prefers-color-scheme: light)" srcset="public/banner-light.jpg">
-    <img src="public/banner.jpg" alt="Fresh Logo" width="100%">
-  </picture>
+  <img src="public/banner.jpg" alt="Fresh Logo" width="100%">
 </p>
 
 <h1 align="center">Fresh</h1>
