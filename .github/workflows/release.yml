@@ -7,12 +7,9 @@ on:
 jobs:
   validate-version:
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.VERSION }}
     steps:
       - uses: actions/checkout@v4
-      - id: version
-        name: Validate version matches tag
+      - name: Validate version matches tag
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           PYPROJECT_VERSION=$(grep -m1 '^version =' pyproject.toml | sed 's/.*= *"\(.*\)"/\1/')
@@ -22,7 +19,7 @@ jobs:
             exit 1
           fi
 
-          echo "VERSION=$PYPROJECT_VERSION" >> $GITHUB_OUTPUT
+          echo "Version validated: $PYPROJECT_VERSION"
 
   lint:
     runs-on: ubuntu-latest
@@ -35,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11', '3.12', '3.13']
+        python-version: ['3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -50,7 +47,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11', '3.12', '3.13']
+        python-version: ['3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
