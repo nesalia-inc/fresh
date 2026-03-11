@@ -91,7 +91,8 @@ jobs:
         with:
           name: dist
           path: dist/
-      - uses: astral-sh/uv-action@v2
+      - uses: actions/setup-python@v5
         with:
-          version: latest
-      - run: uv publish --token "${{ secrets.PYPI_TOKEN }}" --no-confirm
+          python-version: '3.12'
+      - run: pip install twine
+      - run: twine upload --skip-existing dist/*
