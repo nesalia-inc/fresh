@@ -20,6 +20,10 @@ build-backend = "hatchling.build"
 [project.scripts]
 fresh = "fresh.__main__:main"
 
+[project.urls]
+Repository = "https://github.com/nesalia-inc/fresh"
+Issues = "https://github.com/nesalia-inc/fresh/issues"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
