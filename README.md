@@ -1,6 +1,35 @@
-# fresh
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/logo-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="public/logo-light.png">
+    <img src="public/logo.png" alt="Fresh Logo" width="100%">
+  </picture>
+</p>
 
-A CLI tool to fetch the latest documentation from any website in Markdown format.
+<h1 align="center">Fresh</h1>
+
+<p align="center">
+  <a href="https://pypi.org/project/fresh-docs/">
+    <img src="https://img.shields.io/pypi/v/fresh-docs" alt="PyPI Version">
+  </a>
+  <a href="https://pypi.org/project/fresh-docs/">
+    <img src="https://img.shields.io/pypi/dm/fresh-docs" alt="PyPI Downloads">
+  </a>
+  <a href="https://github.com/nesalia-inc/fresh/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/nesalia-inc/fresh/ci?label=tests" alt="Tests">
+  </a>
+  <a href="https://github.com/nesalia-inc/fresh/actions">
+    <img src="https://img.shields.io/badge/coverage-80%25-yellow" alt="Coverage">
+  </a>
+  <a href="https://github.com/nesalia-inc/fresh/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/nesalia-inc/fresh" alt="License">
+  </a>
+  <a href="https://pepy.tech/projects/fresh-docs">
+    <img src="https://pepy.tech/badge/fresh-docs/month" alt="Monthly Downloads">
+  </a>
+</p>
+
+> A CLI tool to fetch the latest documentation from any website in Markdown format.
 
 ## Requirements
 
@@ -17,12 +46,9 @@ uv sync
 pip install -e .
 ```
 
-## Usage
+## Quick Start
 
 ```bash
-# Show help
-fresh --help
-
 # List all documentation pages on a website
 fresh list https://docs.python.org/3/
 
@@ -32,25 +58,18 @@ fresh get https://docs.python.org/3/tutorial/
 # Search for content across documentation pages
 fresh search "virtual environment" https://docs.python.org/3/
 
-# Manage aliases for quick access
-fresh alias add python https://docs.python.org/3/
-fresh alias list
-fresh alias search python
-
 # Download entire documentation for offline use
 fresh sync https://docs.python.org/3/
 
-# Check for updates
-fresh update --check
-
-# Show enhanced documentation for a command
-fresh doc get
-fresh doc list
+# Add an alias for quick access
+fresh alias add python https://docs.python.org/3/
+fresh list python
 ```
 
 ## Commands
 
 ### `fresh list`
+
 List all documentation pages available on a website.
 
 ```bash
@@ -67,6 +86,7 @@ Options:
 - `-c, --count` - Show only total count
 
 ### `fresh get`
+
 Fetch a documentation page and convert it to Markdown.
 
 ```bash
@@ -85,6 +105,7 @@ Options:
 - `--dry-run` - Show what would be fetched without downloading
 
 ### `fresh search`
+
 Search for content across documentation pages.
 
 ```bash
@@ -92,7 +113,8 @@ fresh search <QUERY> <URL> [OPTIONS]
 ```
 
 ### `fresh websearch`
-Search the general web for any topic. Results can be fetched with `fresh get <URL>`.
+
+Search the general web for any topic.
 
 ```bash
 # Basic search (uses DuckDuckGo HTML, free)
@@ -103,9 +125,6 @@ fresh websearch "react hooks" --count 5
 
 # Table output for human-readable display
 fresh websearch "rust ownership" --table
-
-# Verbose mode shows fallback messages
-fresh websearch "python" --verbose
 ```
 
 Options:
@@ -118,6 +137,7 @@ Options:
 **Note:** Brave Search API can be used by setting the `BRAVE_API_KEY` environment variable. DuckDuckGo is used by default (free, no API key required).
 
 ### `fresh alias`
+
 Manage library aliases for quick access.
 
 ```bash
@@ -127,14 +147,12 @@ fresh alias add <name> <url>
 # List all aliases
 fresh alias list
 
-# Remove an alias
-fresh alias remove <name>
-
 # Search aliases
 fresh alias search <query>
 ```
 
 ### `fresh sync`
+
 Download entire documentation for offline use.
 
 ```bash
@@ -149,51 +167,8 @@ Options:
 - `-f, --force` - Force re-sync (delete existing files first)
 - `-p, --pattern TEXT` - Filter paths matching pattern
 
-### `fresh update`
-Check for and install updates to fresh.
-
-```bash
-fresh update [OPTIONS]
-```
-
-Options:
-- `--check` - Only check for updates without installing
-- `-y, --yes` - Automatically confirm updates
-
-### `fresh doc`
-Show enhanced documentation for fresh commands.
-
-```bash
-fresh doc [COMMAND]
-```
-
-### `fresh history`
-View and manage search history.
-
-```bash
-# View recent search history
-fresh history
-
-# Show history statistics
-fresh history stats
-
-# Clear all history
-fresh history clear
-
-# Clear history for a specific URL
-fresh history clear --url https://example.com
-
-# Clear history older than 30 days
-fresh history clear --older-than-days 30
-
-# Export history to JSON
-fresh history export history.json
-
-# Import history from JSON
-fresh history import history.json
-```
-
 ### `fresh guide`
+
 Manage personal guides and documentation.
 
 ```bash
@@ -205,9 +180,6 @@ fresh guide list
 
 # Show a specific guide
 fresh guide show my-guide
-
-# Delete a guide
-fresh guide delete my-guide
 
 # Search across guides
 fresh guide search "keyword"
@@ -237,6 +209,18 @@ mypy src/
 pytest
 ```
 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Author
+
+- **Nesalia Inc.**
+
+## Security
+
+If you discover any security vulnerabilities, please send an e-mail to support@nesalia.com.
+
 ## License
 
-MIT
+MIT License - see the [LICENSE](LICENSE) file for details.
