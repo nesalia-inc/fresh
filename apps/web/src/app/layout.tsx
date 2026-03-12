@@ -1,6 +1,16 @@
+import { baseUrl, createMetadata } from "@/lib/metadata";
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import './global.css';
 import { Inter } from 'next/font/google';
+
+export const metadata = createMetadata({
+  title: {
+    template: "%s | Fresh",
+    default: "Fresh",
+  },
+  metadataBase: baseUrl,
+});
+
 
 const inter = Inter({
   subsets: ['latin'],
