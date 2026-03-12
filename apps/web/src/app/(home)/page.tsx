@@ -15,7 +15,7 @@ export default function HomePage() {
         {/* Hero Title */}
         <div className="relative mb-8 text-center">
           <h1 className="text-5xl font-semibold tracking-tight sm:text-6xl lg:text-7xl">
-            A Smarter Way to <br className="hidden sm:block" />
+            A Fresher Way to <br className="hidden sm:block" />
             Fetch Documentation
           </h1>
         </div>
