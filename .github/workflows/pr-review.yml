@@ -3,6 +3,11 @@ name: PR Review
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -12,6 +17,8 @@ permissions:
 jobs:
   review:
     runs-on: ubuntu-latest
+    # Skip Dependabot PRs - they don't have access to app secrets
+    if: github.actor != 'dependabot[bot]'
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v4
