@@ -1,0 +1,63 @@
+---
+title: Configuration
+description: Configure Fresh for your needs
+icon: Settings
+---
+
+Fresh stores configuration in your home directory under `~/.fresh/`.
+
+## Configuration Files
+
+Fresh uses the following configuration files and directories:
+
+| File/Directory | Purpose |
+|----------------|---------|
+| `~/.fresh/aliases.json` | Saved aliases for documentation URLs |
+| `~/.fresh/cache/` | Cached documentation pages |
+| `~/.fresh/docs/` | Synced documentation for offline use |
+| `~/.fresh/history.db` | Search history database |
+
+## Aliases
+
+Aliases are stored in `~/.fresh/aliases.json`:
+
+```json
+{
+  "python": "https://docs.python.org/3/",
+  "react": "https://react.dev/",
+  "rust": "https://doc.rust-lang.org/stable/"
+}
+```
+
+You can manage aliases using the `fresh alias` command.
+
+## Environment Variables
+
+Fresh respects these environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `BRAVE_API_KEY` | API key for Brave Search (for websearch) |
+| `FRESH_CACHE_DIR` | Override cache directory location |
+| `FRESH_DOCS_DIR` | Override synced docs directory |
+
+## Cache Management
+
+### Clear Cache
+
+```bash
+# Clear all cached pages
+fresh sync --force
+
+# Or manually delete cache
+rm -rf ~/.fresh/cache/
+```
+
+### Cache TTL
+
+Cached pages are automatically refreshed based on the source's caching headers. Use `--force` to bypass cache.
+
+## Next Steps
+
+- [Commands Reference](/docs/commands/list) - All available commands
+- [Advanced - Caching](/docs/advanced/caching) - Deep dive into caching

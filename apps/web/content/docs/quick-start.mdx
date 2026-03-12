@@ -1,0 +1,105 @@
+---
+title: Quick Start
+description: Learn Fresh in 5 minutes
+icon: Zap
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+Get started with Fresh in just a few minutes. This guide covers the essential commands.
+
+<Callout>
+  This guide assumes you have Fresh installed. If not, check the [Installation](/docs/installation) guide first.
+</Callout>
+
+## Your First Commands
+
+### 1. List Documentation Pages
+
+Discover what pages are available on a documentation site:
+
+```bash
+fresh list https://docs.python.org/3/
+```
+
+This will show all documentation pages found on the Python documentation site.
+
+### 2. Fetch a Page as Markdown
+
+Get a specific page and convert it to Markdown:
+
+```bash
+fresh get https://docs.python.org/3/tutorial/
+```
+
+The content will be displayed in your terminal. Use `-o` to save to a file:
+
+```bash
+fresh get https://docs.python.org/3/tutorial/ -o tutorial.md
+```
+
+### 3. Search Across Pages
+
+Find specific content across all pages:
+
+```bash
+fresh search "virtual environment" https://docs.python.org/3/
+```
+
+### 4. Download for Offline Use
+
+Sync an entire documentation site for offline reading:
+
+```bash
+fresh sync https://docs.python.org/3/
+```
+
+<Callout type="info">
+  Once synced, you can search and read without internet using aliases!
+</Callout>
+
+## Using Aliases
+
+Aliases let you save frequently used documentation sites with short names.
+
+### Creating an Alias
+
+```bash
+fresh alias add python https://docs.python.org/3/
+fresh alias add react https://react.dev/
+fresh alias add rust https://doc.rust-lang.org/stable/
+```
+
+### Using an Alias
+
+```bash
+# Instead of typing the full URL
+fresh list python
+fresh get react/
+fresh search "hooks" react
+```
+
+## Common Options
+
+Most commands support these useful options:
+
+| Option | Description |
+|--------|-------------|
+| `-v, --verbose` | Show detailed output |
+| `-h, --help` | Show command help |
+| `--format json` | Output as JSON |
+
+## Next Steps
+
+<Cards>
+  <Card title="Commands Reference" href="/docs/commands/list">
+    Explore all available commands
+  </Card>
+  <Card title="Offline Guides" href="/docs/guides/offline-docs">
+    Learn advanced usage
+  </Card>
+  <Card title="Aliases" href="/docs/guides/aliases">
+    Master the alias system
+  </Card>
+</Cards>

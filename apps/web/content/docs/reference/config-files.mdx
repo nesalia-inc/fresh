@@ -1,0 +1,53 @@
+---
+title: Configuration Files
+description: Configuration file reference
+---
+
+Reference for all Fresh configuration files.
+
+## Aliases File
+
+**Location:** `~/.fresh/aliases.json`
+
+```json
+{
+  "python": "https://docs.python.org/3/",
+  "react": "https://react.dev/",
+  "rust": "https://doc.rust-lang.org/stable/"
+}
+```
+
+## Cache Directory
+
+**Location:** `~/.fresh/cache/`
+
+Structure:
+
+```
+~/.fresh/cache/
+└── example.com/
+    └── /path/
+        ├── content.html
+        └── meta.json
+```
+
+## Sync Directory
+
+**Location:** `~/.fresh/docs/`
+
+Structure:
+
+```
+~/.fresh/docs/
+└── docs.python.org/
+    └── 3/
+        ├── index.html
+        ├── tutorial/
+        └── library/
+```
+
+## History Database
+
+**Location:** `~/.fresh/history.db`
+
+SQLite database containing search history.

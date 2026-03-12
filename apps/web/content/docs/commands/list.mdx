@@ -1,0 +1,71 @@
+---
+title: fresh list
+description: List all documentation pages on a website
+---
+
+The `list` command discovers and lists all documentation pages available on a website.
+
+## Usage
+
+```bash
+fresh list <URL> [OPTIONS]
+```
+
+## Examples
+
+```bash
+# List all pages on Python docs
+fresh list https://docs.python.org/3/
+
+# List with verbose output
+fresh list https://docs.python.org/3/ --verbose
+
+# Filter pages matching a pattern
+fresh list https://docs.python.org/3/ --pattern "/library/"
+
+# Limit depth of crawling
+fresh list https://docs.python.org/3/ --depth 2
+
+# Show only count
+fresh list https://docs.python.org/3/ --count
+```
+
+## Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--verbose` | `-v` | Use rich output format |
+| `--pattern` | `-p` | Filter paths matching pattern |
+| `--depth` | `-d` | Maximum crawl depth (default: 3) |
+| `--max-pages` | - | Maximum pages to discover (default: 100) |
+| `--sort` | - | Sort by name or path |
+| `--format` | `-f` | Output format: json, yaml, xml |
+| `--count` | `-c` | Show only total count |
+
+## Output Formats
+
+### Default (Table)
+
+```
+/index.html          Welcome to Python Documentation
+/archives.html       Previous Versions
+/library/index.html  Library Reference
+/tutorial/index.html Python Tutorial
+```
+
+### JSON
+
+```bash
+fresh list https://docs.python.org/3/ --format json
+```
+
+Returns:
+
+```json
+{
+  "pages": [
+    {"path": "/index.html", "title": "Welcome"},
+    {"path": "/tutorial/", "title": "Tutorial"}
+  ]
+}
+```

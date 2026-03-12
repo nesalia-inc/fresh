@@ -1,0 +1,86 @@
+---
+title: fresh alias
+description: Manage documentation aliases for quick access
+---
+
+The `alias` command manages short names for frequently used documentation URLs.
+
+## Usage
+
+```bash
+fresh alias <SUB_COMMAND> [OPTIONS]
+```
+
+## Sub Commands
+
+### add
+
+Add a new alias:
+
+```bash
+fresh alias add python https://docs.python.org/3/
+fresh alias add react https://react.dev/
+fresh alias add rust https://doc.rust-lang.org/stable/
+```
+
+### list
+
+List all saved aliases:
+
+```bash
+fresh alias list
+```
+
+Output:
+
+```
+python    -> https://docs.python.org/3/
+react     -> https://react.dev/
+rust      -> https://doc.rust-lang.org/stable/
+```
+
+### remove
+
+Remove an alias:
+
+```bash
+fresh alias remove python
+```
+
+### search
+
+Search aliases:
+
+```bash
+fresh alias search python
+```
+
+## Using Aliases
+
+Once created, use aliases instead of full URLs:
+
+```bash
+# List pages using alias
+fresh list python
+
+# Get page using alias
+fresh get react/reference/
+
+# Search using alias
+fresh search "hooks" react
+
+# Sync using alias
+fresh sync python
+```
+
+## Alias File
+
+Aliases are stored in `~/.fresh/aliases.json`:
+
+```json
+{
+  "python": "https://docs.python.org/3/",
+  "react": "https://react.dev/",
+  "rust": "https://doc.rust-lang.org/stable/"
+}
+```

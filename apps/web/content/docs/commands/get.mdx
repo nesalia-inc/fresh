@@ -1,0 +1,56 @@
+---
+title: fresh get
+description: Fetch a documentation page and convert to Markdown
+---
+
+The `get` command fetches a documentation page and converts it to Markdown format.
+
+## Usage
+
+```bash
+fresh get <URL> [OPTIONS]
+```
+
+## Examples
+
+```bash
+# Fetch a page
+fresh get https://docs.python.org/3/tutorial/
+
+# Save to file
+fresh get https://docs.python.org/3/tutorial/ -o tutorial.md
+
+# Verbose output
+fresh get https://docs.python.org/3/tutorial/ --verbose
+
+# With custom headers
+fresh get https://example.com/ --header "Authorization: Bearer token"
+```
+
+## Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--verbose` | `-v` | Use verbose output |
+| `--timeout` | `-t` | Request timeout in seconds (default: 30) |
+| `--header` | - | Custom HTTP header |
+| `--no-follow` | - | Do not follow redirects |
+| `--skip-scripts` | - | Exclude JavaScript from output |
+| `--no-cache` | - | Bypass cache |
+| `--output` | `-o` | Write output to file |
+| `--retry` | `-r` | Number of retry attempts (default: 3) |
+| `--dry-run` | - | Show what would be fetched without downloading |
+
+## Output
+
+The page content is converted to Markdown and displayed in your terminal. Use `-o` to save to a file.
+
+```markdown
+# Python Tutorial
+
+This tutorial ...
+
+## More information
+
+See https://docs.python.org/3/
+```

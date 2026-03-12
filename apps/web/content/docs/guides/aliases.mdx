@@ -1,0 +1,77 @@
+---
+title: Using Aliases Effectively
+description: Master the alias system for fast documentation access
+---
+
+Aliases let you save frequently used documentation sites with short names.
+
+## Creating Aliases
+
+```bash
+# Common programming languages
+fresh alias add python https://docs.python.org/3/
+fresh alias add js https://developer.mozilla.org/
+fresh alias add rust https://doc.rust-lang.org/stable/
+fresh alias add go https://go.dev/doc/
+
+# Frameworks
+fresh alias add react https://react.dev/
+fresh alias add vue https://vuejs.org/guide/
+fresh alias add next https://nextjs.org/docs
+
+# Tools
+fresh alias add git https://git-scm.com/doc
+fresh alias add docker https://docs.docker.com/
+```
+
+## Using Aliases
+
+### Instead of URLs
+
+```bash
+# Full URL
+fresh list https://docs.python.org/3/
+
+# With alias
+fresh list python
+```
+
+### Combining with Commands
+
+```bash
+# Search
+fresh search "async" python
+
+# Get specific page
+fresh get react/hooks
+
+# Sync for offline
+fresh sync js
+```
+
+## Alias Best Practices
+
+1. **Short names** - Easy to type
+2. **Consistent naming** - python, react, not PyDocs, ReactDocs
+3. **Group related** - Use same alias for all versions
+
+## Advanced Tips
+
+### Search Multiple Sources
+
+```bash
+# Search python docs
+fresh search "async def" python
+
+# Then search MDN
+fresh search "async function" js
+```
+
+### Sync Everything
+
+```bash
+# Sync all your aliases
+for alias in python js react rust; do
+  fresh sync $alias
+done
+```

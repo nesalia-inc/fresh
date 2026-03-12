@@ -1,0 +1,47 @@
+---
+title: fresh search
+description: Search for content across documentation pages
+---
+
+The `search` command searches for content across all pages of a documentation site.
+
+## Usage
+
+```bash
+fresh search <QUERY> <URL> [OPTIONS]
+```
+
+## Examples
+
+```bash
+# Basic search
+fresh search "virtual environment" https://docs.python.org/3/
+
+# Case insensitive search
+fresh search "async" https://docs.python.org/3/
+
+# Search with verbose output
+fresh search "logging" https://docs.python.org/3/ --verbose
+```
+
+## Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--limit` | `-n` | Maximum number of results |
+| `--verbose` | `-v` | Show detailed output |
+| `--format` | `-f` | Output format: json, table |
+
+## Output
+
+Results are displayed with the page title and the matching content:
+
+```
+Found 5 results for "virtual environment":
+
+1. /tutorial/venv.html
+   Creating Virtual Environments
+
+2. /library/venv.html
+   venv — Creation of virtual environments
+```

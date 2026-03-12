@@ -1,0 +1,84 @@
+---
+title: Caching
+description: Understanding how Fresh caches documentation
+---
+
+Fresh caches fetched pages to improve performance and reduce server load.
+
+## How Caching Works
+
+When you fetch a page, Fresh stores it in `~/.fresh/cache/`. Subsequent requests check the cache first.
+
+### Cache Headers
+
+Fresh respects HTTP caching headers:
+- `Cache-Control`
+- `ETag`
+- `Last-Modified`
+
+If no headers are present, Fresh uses default TTL values.
+
+## Cache Management
+
+### View Cache Location
+
+```bash
+ls ~/.fresh/cache/
+```
+
+### Clear Cache
+
+```bash
+# Force refresh a specific URL
+fresh get https://example.com/ --no-cache
+
+# Clear all cache
+rm -rf ~/.fresh/cache/
+```
+
+### Sync Force Refresh
+
+```bash
+fresh sync https://docs.python.org/3/ --force
+```
+
+## Cache Configuration
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `FRESH_CACHE_DIR` | Override cache directory |
+
+### TTL Values
+
+| Source Type | Default TTL |
+|-------------|--------------|
+| Documentation sites | 24 hours |
+| API responses | 1 hour |
+
+## Performance Tips
+
+1. **Use aliases** - Cached for quick access
+2. **Sync for offline** - No network needed
+3. **Limit sync scope** - Only what you need
+
+## Troubleshooting
+
+### Stale Content
+
+If content seems outdated:
+
+```bash
+fresh get <URL> --no-cache
+```
+
+### Cache Full
+
+```bash
+# Check cache size
+du -sh ~/.fresh/cache/
+
+# Clear old entries
+fresh sync --force
+```

@@ -1,0 +1,100 @@
+---
+title: Installation
+description: How to install Fresh on your system
+icon: Download
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+Fresh requires Python 3.12 or later. This guide covers various installation methods.
+
+<Callout>
+  We recommend using **uv** for faster installation and better dependency management.
+</Callout>
+
+## Requirements
+
+- Python 3.12 or higher
+- uv (recommended) or pip
+
+## Installation Methods
+
+### Using uv (Recommended)
+
+uv is the fastest package manager for Python. If you have uv installed:
+
+```bash
+uv sync
+```
+
+This will install Fresh and all its dependencies in your current project.
+
+### Using pip
+
+If you prefer pip:
+
+```bash
+pip install fresh-docs
+```
+
+Or install in development mode:
+
+```bash
+pip install -e .
+```
+
+## Verify Installation
+
+Check that Fresh is installed correctly:
+
+```bash
+fresh --version
+```
+
+You should see output like:
+
+```
+fresh, version 2.8.4
+```
+
+<Callout type="success">
+  If you see the version number, Fresh is installed correctly!
+</Callout>
+
+## Getting Help
+
+```bash
+# Show help
+fresh --help
+
+# Show help for a specific command
+fresh get --help
+fresh search --help
+```
+
+## Upgrading
+
+To upgrade to the latest version:
+
+```bash
+# Using pip
+pip install --upgrade fresh-docs
+
+# Or check for updates
+fresh update --check
+```
+
+## Next Steps
+
+<Cards>
+  <Card title="Quick Start" href="/docs/quick-start">
+    Learn the basics in 5 minutes
+  </Card>
+  <Card title="Configuration" href="/docs/configuration">
+    Customize Fresh for your needs
+  </Card>
+  <Card title="Commands" href="/docs/commands/list">
+    Explore all available commands
+  </Card>
+</Cards>
