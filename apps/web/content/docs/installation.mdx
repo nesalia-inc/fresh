@@ -1,9 +1,17 @@
 ---
 title: Installation
 description: How to install Fresh on your system
+icon: Download
 ---
 
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
 Fresh requires Python 3.12 or later. This guide covers various installation methods.
+
+<Callout>
+  We recommend using **uv** for faster installation and better dependency management.
+</Callout>
 
 ## Requirements
 
@@ -50,6 +58,10 @@ You should see output like:
 fresh, version 2.8.4
 ```
 
+<Callout type="success">
+  If you see the version number, Fresh is installed correctly!
+</Callout>
+
 ## Getting Help
 
 ```bash
@@ -75,5 +87,14 @@ fresh update --check
 
 ## Next Steps
 
-- [Quick Start](/docs/quick-start) - Learn the basics
-- [Configuration](/docs/configuration) - Customize Fresh
+<Cards>
+  <Card title="Quick Start" href="/docs/quick-start">
+    Learn the basics in 5 minutes
+  </Card>
+  <Card title="Configuration" href="/docs/configuration">
+    Customize Fresh for your needs
+  </Card>
+  <Card title="Commands" href="/docs/commands/list">
+    Explore all available commands
+  </Card>
+</Cards>

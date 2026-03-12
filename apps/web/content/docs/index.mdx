@@ -1,17 +1,53 @@
 ---
-title: Welcome to Fresh
+title: Introduction
 description: CLI tool to fetch documentation from any website in Markdown format
+icon: FileText
 ---
 
-Fresh is a powerful CLI tool that fetches the latest documentation from any website and converts it to Markdown format. Perfect for offline reading, searching, and managing your documentation.
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+**Fresh** is a CLI tool that fetches the latest documentation from any website and converts it to clean Markdown format. Perfect for offline reading, searching, and managing your documentation.
+
+<Callout>
+  Fresh is designed for developers who need quick access to documentation—whether you're offline, working in your terminal, or want to integrate docs into your workflow.
+</Callout>
+
+## Why Fresh?
+
+Traditional documentation access has problems:
+
+1. **Internet required** - Can't read docs without connection
+2. **Slow searches** - Loading pages takes time
+3. **Scattered sources** - No unified way to access multiple docs
+4. **No offline access** - Can't work on the go
+
+Fresh solves these by bringing documentation to your terminal:
+
+```bash
+# Search across docs instantly
+fresh search "async def" python
+
+# Read offline anywhere
+fresh get python/tutorial/
+
+# Quick access with aliases
+fresh list react
+```
+
+<Callout type="info">
+  Fresh automatically caches pages and supports full-text search—so your queries are fast even without internet.
+</Callout>
 
 ## Features
 
-- **Fetch Documentation** - Convert any web page to clean Markdown
-- **Offline Mode** - Download entire documentation sites for offline access
-- **Smart Search** - Search across multiple pages with full-text search
-- **Aliases** - Save your favorite documentation sources with short names
-- **Guides** - Create and manage personal documentation guides
+| Feature | Benefit |
+|---------|---------|
+| **Offline Mode** | Download entire documentation sites |
+| **Smart Search** | Full-text search across all pages |
+| **Markdown Output** | Use with your favorite tools |
+| **Aliases** | Quick access to favorite docs |
+| **Guides** | Create personal documentation collections |
 
 ## Quick Example
 
@@ -29,21 +65,41 @@ fresh search "virtual environment" https://docs.python.org/3/
 fresh sync https://docs.python.org/3/
 ```
 
-## Why Fresh?
+## Getting Started
 
-| Feature | Benefit |
-|---------|---------|
-| Offline Access | Read documentation without internet |
-| Fast Search | Find what you need across entire sites |
-| Markdown Output | Use your favorite editor or tools |
-| Aliases | Quick access to your favorite docs |
+Install Fresh and start using it in minutes:
+
+```bash
+# Using pip
+pip install fresh-docs
+
+# Or with uv
+uv sync
+```
+
+<Callout>
+  Fresh requires Python 3.12 or higher. No API keys needed for basic usage!
+</Callout>
 
 ## Next Steps
 
-- [Installation Guide](/docs/installation) - Get Fresh installed
-- [Quick Start](/docs/quick-start) - Learn the basics in 5 minutes
-- [Commands Reference](/docs/commands/list) - Explore all available commands
+Ready to get started? Here's where to go next:
 
----
+<Cards>
+  <Card title="Installation" href="/docs/installation">
+    Set up Fresh in your project
+  </Card>
+  <Card title="Quick Start" href="/docs/quick-start">
+    Learn the basics in 5 minutes
+  </Card>
+  <Card title="Commands" href="/docs/commands/list">
+    Explore all available commands
+  </Card>
+  <Card title="Guides" href="/docs/guides/offline-docs">
+    Learn advanced usage patterns
+  </Card>
+</Cards>
 
-Need help? Check out our [FAQ](/docs/faq) or open an issue on GitHub.
+## License
+
+MIT
