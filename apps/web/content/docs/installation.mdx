@@ -1,0 +1,79 @@
+---
+title: Installation
+description: How to install Fresh on your system
+---
+
+Fresh requires Python 3.12 or later. This guide covers various installation methods.
+
+## Requirements
+
+- Python 3.12 or higher
+- uv (recommended) or pip
+
+## Installation Methods
+
+### Using uv (Recommended)
+
+uv is the fastest package manager for Python. If you have uv installed:
+
+```bash
+uv sync
+```
+
+This will install Fresh and all its dependencies in your current project.
+
+### Using pip
+
+If you prefer pip:
+
+```bash
+pip install fresh-docs
+```
+
+Or install in development mode:
+
+```bash
+pip install -e .
+```
+
+## Verify Installation
+
+Check that Fresh is installed correctly:
+
+```bash
+fresh --version
+```
+
+You should see output like:
+
+```
+fresh, version 2.8.4
+```
+
+## Getting Help
+
+```bash
+# Show help
+fresh --help
+
+# Show help for a specific command
+fresh get --help
+fresh search --help
+```
+
+## Upgrading
+
+To upgrade to the latest version:
+
+```bash
+# Using pip
+pip install --upgrade fresh-docs
+
+# Or check for updates
+fresh update --check
+```
+
+## Next Steps
+
+- [Quick Start](/docs/quick-start) - Learn the basics
+- [Configuration](/docs/configuration) - Customize Fresh

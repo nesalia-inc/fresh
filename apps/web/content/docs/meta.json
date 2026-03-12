@@ -1,0 +1,32 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "---Getting Started---",
+    "index",
+    "installation",
+    "quick-start",
+    "configuration",
+    "---Commands---",
+    "commands/list",
+    "commands/get",
+    "commands/search",
+    "commands/websearch",
+    "commands/sync",
+    "commands/alias",
+    "commands/guide",
+    "commands/history",
+    "commands/doc",
+    "commands/update",
+    "---Guides---",
+    "guides/offline-docs",
+    "guides/aliases",
+    "guides/search-tips",
+    "---Advanced---",
+    "advanced/caching",
+    "advanced/development",
+    "---Reference---",
+    "reference/config-files",
+    "reference/environment",
+    "faq"
+  ]
+}

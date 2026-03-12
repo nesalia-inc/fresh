@@ -1,0 +1,73 @@
+---
+title: Search Tips
+description: Get the most out of Fresh search
+---
+
+Master Fresh search to find what you need quickly.
+
+## Basic Search
+
+```bash
+fresh search "error handling" python
+```
+
+## Search Tips
+
+### Be Specific
+
+```bash
+# Too broad
+fresh search "function" python
+
+# Better
+fresh search "async def" python
+fresh search "def __init__" python
+```
+
+### Use Quotes
+
+Exact phrase matching:
+
+```bash
+fresh search '"virtual environment"' python
+```
+
+### Search Strategically
+
+1. **Start broad** - Find the right section
+2. **Refine** - Search within results
+3. **Use page context** - Include class/function names
+
+## Searching Online vs Offline
+
+### Online Search
+- Fresh searches remote pages
+- Slower but always up-to-date
+- Use for research
+
+### Offline Search
+- Searches synced documentation
+- Instant results
+- Use for frequently referenced docs
+
+## Common Patterns
+
+| Pattern | Example |
+|---------|---------|
+| Class name | `fresh search "class Fresh"` |
+| Method | `fresh search "def get_"` |
+| Error | `fresh search "FileNotFoundError"` |
+| Import | `fresh search "from typing import"` |
+
+## Combining with Other Commands
+
+```bash
+# Find it first
+fresh search "venv" python
+
+# Then get it
+fresh get python/library/venv.html
+
+# Or sync for offline
+fresh sync python --pattern "venv"
+```

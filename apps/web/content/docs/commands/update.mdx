@@ -1,0 +1,36 @@
+---
+title: fresh update
+description: Check for and install updates
+---
+
+The `update` command checks for and installs updates to Fresh.
+
+## Usage
+
+```bash
+fresh update [OPTIONS]
+```
+
+## Examples
+
+```bash
+# Check for updates without installing
+fresh update --check
+
+# Update with confirmation
+fresh update
+
+# Update without prompts
+fresh update --yes
+```
+
+## Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--check` | - | Only check for updates without installing |
+| `--yes` | `-y` | Automatically confirm updates |
+
+## How It Works
+
+Fresh checks PyPI for the latest version and compares it with your installed version. If a newer version is available, it will be installed.

@@ -1,13 +1,49 @@
 ---
-title: Hello World
-description: Your first document
+title: Welcome to Fresh
+description: CLI tool to fetch documentation from any website in Markdown format
 ---
 
-Welcome to the docs! You can start writing documents in `/content/docs`.
+Fresh is a powerful CLI tool that fetches the latest documentation from any website and converts it to Markdown format. Perfect for offline reading, searching, and managing your documentation.
 
-## What is Next?
+## Features
 
-<Cards>
-  <Card title="Learn more about Next.js" href="https://nextjs.org/docs" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
-</Cards>
+- **Fetch Documentation** - Convert any web page to clean Markdown
+- **Offline Mode** - Download entire documentation sites for offline access
+- **Smart Search** - Search across multiple pages with full-text search
+- **Aliases** - Save your favorite documentation sources with short names
+- **Guides** - Create and manage personal documentation guides
+
+## Quick Example
+
+```bash
+# List all pages on a documentation site
+fresh list https://docs.python.org/3/
+
+# Fetch a page as Markdown
+fresh get https://docs.python.org/3/tutorial/
+
+# Search across documentation
+fresh search "virtual environment" https://docs.python.org/3/
+
+# Download for offline use
+fresh sync https://docs.python.org/3/
+```
+
+## Why Fresh?
+
+| Feature | Benefit |
+|---------|---------|
+| Offline Access | Read documentation without internet |
+| Fast Search | Find what you need across entire sites |
+| Markdown Output | Use your favorite editor or tools |
+| Aliases | Quick access to your favorite docs |
+
+## Next Steps
+
+- [Installation Guide](/docs/installation) - Get Fresh installed
+- [Quick Start](/docs/quick-start) - Learn the basics in 5 minutes
+- [Commands Reference](/docs/commands/list) - Explore all available commands
+
+---
+
+Need help? Check out our [FAQ](/docs/faq) or open an issue on GitHub.

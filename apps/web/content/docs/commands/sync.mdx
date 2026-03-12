@@ -1,0 +1,64 @@
+---
+title: fresh sync
+description: Download entire documentation for offline use
+---
+
+The `sync` command downloads an entire documentation site for offline reading.
+
+## Usage
+
+```bash
+fresh sync <URL> [OPTIONS]
+```
+
+## Examples
+
+```bash
+# Sync Python documentation
+fresh sync https://docs.python.org/3/
+
+# Sync to custom directory
+fresh sync https://docs.python.org/3/ --output-dir ./docs
+
+# Force re-sync (delete existing first)
+fresh sync https://docs.python.org/3/ --force
+
+# Limit pages and depth
+fresh sync https://docs.python.org/3/ --max-pages 50 --depth 2
+```
+
+## Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--output-dir` | `-o` | Target directory for synced docs |
+| `--verbose` | `-v` | Use verbose output |
+| `--max-pages` | - | Maximum pages to sync (default: 100) |
+| `--depth` | `-d` | Maximum crawl depth (default: 3) |
+| `--force` | `-f` | Force re-sync (delete existing first) |
+| `--pattern` | `-p` | Filter paths matching pattern |
+
+## Output Location
+
+Synced documentation is stored in `~/.fresh/docs/` by default, or in your specified `--output-dir`.
+
+```
+~/.fresh/docs/
+└── docs.python.org/
+    └── 3/
+        ├── index.html
+        ├── tutorial/
+        └── library/
+```
+
+## Reading Offline
+
+After syncing, you can search and read without internet:
+
+```bash
+# Search in synced docs
+fresh search "virtual environment" python
+
+# List synced pages
+fresh list python
+```

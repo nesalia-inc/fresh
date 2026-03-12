@@ -1,0 +1,47 @@
+---
+title: fresh history
+description: View and manage search history
+---
+
+The `history` command shows your recent search activity.
+
+## Usage
+
+```bash
+fresh history <SUB_COMMAND> [OPTIONS]
+```
+
+## Sub Commands
+
+### View History
+
+```bash
+# View recent searches
+fresh history
+
+# Show statistics
+fresh history stats
+```
+
+### Clear History
+
+```bash
+# Clear all history
+fresh history clear
+
+# Clear for specific URL
+fresh history clear --url https://docs.python.org/3/
+
+# Clear older than 30 days
+fresh history clear --older-than-days 30
+```
+
+### Import/Export
+
+```bash
+# Export to JSON
+fresh history export history.json
+
+# Import from JSON
+fresh history import history.json
+```

@@ -1,0 +1,89 @@
+---
+title: FAQ
+description: Frequently Asked Questions
+---
+
+Common questions about Fresh.
+
+## General
+
+### What is Fresh?
+
+Fresh is a CLI tool that fetches documentation from any website and converts it to Markdown format. Perfect for offline reading and searching.
+
+### Why use Fresh?
+
+- **Offline Access** - Download docs for offline reading
+- **Fast Search** - Find content across entire documentation sites
+- **Markdown Output** - Use your favorite tools
+- **Free** - No API keys needed for most features
+
+## Installation
+
+### What Python version do I need?
+
+Fresh requires Python 3.12 or higher.
+
+### How do I install Fresh?
+
+```bash
+pip install fresh-docs
+```
+
+Or with uv:
+```bash
+uv sync
+```
+
+## Usage
+
+### How do I sync documentation for offline use?
+
+```bash
+fresh sync https://docs.python.org/3/
+```
+
+### How do aliases work?
+
+Aliases let you save URLs with short names:
+
+```bash
+fresh alias add python https://docs.python.org/3/
+fresh list python
+```
+
+### Can I search the web?
+
+Yes! Use `fresh websearch` to search the general web:
+
+```bash
+fresh websearch "python tutorial"
+```
+
+## Troubleshooting
+
+### Page not found
+
+Some sites block automated access. Try:
+- Using `--verbose` to see what's happening
+- Checking if the site allows crawlers
+
+### Slow performance
+
+- Sync docs for offline use
+- Use aliases for quick access
+- Limit depth with `--depth 2`
+
+### Cache issues
+
+Force refresh with `--no-cache`:
+
+```bash
+fresh get <URL> --no-cache
+```
+
+## Getting Help
+
+- Open an issue on [GitHub](https://github.com/nesalia-inc/fresh)
+- Check the [commands reference](/docs/commands/list)
+- Review the [guides](/docs/guides/offline-docs)

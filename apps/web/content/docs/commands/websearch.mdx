@@ -1,0 +1,61 @@
+---
+title: fresh websearch
+description: Search the general web for any topic
+---
+
+The `websearch` command searches the general web for any topic. Results can be fetched with `fresh get`.
+
+## Usage
+
+```bash
+fresh websearch <QUERY> [OPTIONS]
+```
+
+## Examples
+
+```bash
+# Basic search (uses DuckDuckGo - free)
+fresh websearch "python async tutorial"
+
+# Limit results
+fresh websearch "react hooks" --count 5
+
+# Table output
+fresh websearch "rust ownership" --table
+
+# Verbose mode
+fresh websearch "python" --verbose
+```
+
+## Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--count` | `-n` | Maximum number of results (default: 10) |
+| `--engine` | `-e` | Search engine: auto, ddg, brave |
+| `--json` | `-j` | Output as JSON (default) |
+| `--table` | `-t` | Output as table |
+| `--verbose` | `-v` | Show verbose output |
+
+## Search Engines
+
+### DuckDuckGo (Default)
+Free, no API key required. Uses DuckDuckGo HTML interface.
+
+### Brave Search
+Set `BRAVE_API_KEY` environment variable for better results:
+
+```bash
+export BRAVE_API_KEY="your-api-key"
+fresh websearch "python" --engine brave
+```
+
+## Fetching Results
+
+Once you find a result, use `fresh get <URL>` to fetch it as Markdown:
+
+```bash
+fresh websearch "python best practices"
+# Returns URLs...
+fresh get https://example.com/article/
+```

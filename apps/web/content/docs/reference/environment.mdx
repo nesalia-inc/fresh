@@ -1,0 +1,44 @@
+---
+title: Environment Variables
+description: Environment variables for Fresh configuration
+---
+
+Fresh can be configured using environment variables.
+
+## General Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `FRESH_CACHE_DIR` | Cache directory location | `~/.fresh/cache/` |
+| `FRESH_DOCS_DIR` | Synced docs directory | `~/.fresh/docs/` |
+
+## Search Variables
+
+| Variable | Description |
+|----------|-------------|
+| `BRAVE_API_KEY` | API key for Brave Search |
+
+### Setting Brave API Key
+
+```bash
+# Linux/Mac
+export BRAVE_API_KEY="your-api-key"
+
+# Windows
+set BRAVE_API_KEY=your-api-key
+```
+
+## HTTP Variables
+
+| Variable | Description |
+|----------|-------------|
+| `HTTP_TIMEOUT` | Default request timeout (seconds) |
+| `HTTP_PROXY` | Proxy URL |
+| `NO_PROXY` | Comma-separated hosts to bypass proxy |
+
+## Debug Variables
+
+| Variable | Description |
+|----------|-------------|
+| `FRESH_DEBUG` | Enable debug output |
+| `FRESH_VERBOSE` | Enable verbose output |

@@ -1,0 +1,54 @@
+---
+title: Offline Documentation
+description: How to use Fresh for offline documentation
+---
+
+Learn how to download and use documentation offline.
+
+## Why Offline?
+
+- Read documentation without internet
+- Faster searches
+- No broken links
+- Work on the go
+
+## Syncing Documentation
+
+### Basic Sync
+
+```bash
+# Sync Python docs
+fresh sync https://docs.python.org/3/
+```
+
+### Selective Sync
+
+Sync only specific sections:
+
+```bash
+# Limit to 50 pages
+fresh sync https://docs.python.org/3/ --max-pages 50
+
+# Limit depth
+fresh sync https://docs.python.org/3/ --depth 2
+```
+
+## Using Synced Docs
+
+After syncing, use aliases for quick access:
+
+```bash
+# Add alias first
+fresh alias add python https://docs.python.org/3/
+
+# Now use offline
+fresh list python
+fresh search "venv" python
+```
+
+## Best Practices
+
+1. **Sync regularly** - Keep docs updated with `fresh sync --force`
+2. **Use aliases** - Quick access to synced docs
+3. **Limit scope** - Sync only what you need
+4. **Check storage** - Large docs can use significant space
