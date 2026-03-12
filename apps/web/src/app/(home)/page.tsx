@@ -1,14 +1,16 @@
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 export default function HomePage() {
   return (
     <section className="flex min-h-[80vh] w-full items-center justify-center py-20">
       <div className="container flex flex-col items-center">
         {/* Badge */}
-        <div className="mb-6 flex items-center gap-2 rounded-full border border-dashed px-4 py-1.5 text-sm">
+        <Badge variant="secondary" className="mb-6 gap-2">
           <span className="inline-block size-2 rounded-full bg-green-500"></span>
-          <span className="text-muted-foreground">v2.8.4 Now Available</span>
-        </div>
+          v2.8.4 Now Available
+        </Badge>
 
         {/* Hero Title */}
         <div className="relative mb-8 text-center">
@@ -25,12 +27,9 @@ export default function HomePage() {
         </p>
 
         {/* CTA Button */}
-        <Link
-          href="/docs"
-          className="inline-flex h-12 items-center justify-center rounded-lg bg-primary px-8 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          Get Started Now
-        </Link>
+        <Button asChild size="lg">
+          <Link href="/docs">Get Started Now</Link>
+        </Button>
 
         {/* Features Grid */}
         <div className="mt-20 grid w-full max-w-4xl grid-cols-1 gap-6 sm:grid-cols-3">
