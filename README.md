@@ -45,9 +45,10 @@ fresh knowledge list       # Show available docs
 ### 2. Guides
 
 ```bash
-fresh guide create <name>  # Create guide
-fresh guide list          # List guides
-fresh guide show <name>   # Show guide
+fresh guide create <name>              # Create guide (folder structure)
+fresh guide add <guide>/<file>       # Add file to guide
+fresh guide list                      # List guides
+fresh guide show <name>               # Show guide
 ```
 
 ### 3. Learn

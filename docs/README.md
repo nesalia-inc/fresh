@@ -13,6 +13,7 @@ Fresh is a CLI tool that helps you build and manage knowledge for coding.
 | [THEORY.md](THEORY.md) | Theory vs implementations |
 | [THEORETICAL.md](THEORETICAL.md) | Learning theoretical topics |
 | [SYNC.md](SYNC.md) | Step 1: Documentation sync |
+| [GUIDES.md](GUIDES.md) | Guide structure (folders/files) |
 | [EXPLORE.md](EXPLORE.md) | Explore command |
 | [AGENT.md](AGENT.md) | Fresh is a CLI for everyone |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture |
@@ -46,9 +47,10 @@ fresh knowledge list       # Show available docs
 ### Guides
 
 ```bash
-fresh guide create <name>  # Create guide
-fresh guide list          # List guides
-fresh guide show <name>   # Show guide
+fresh guide create <name>              # Create guide (folder structure)
+fresh guide add <guide>/<file>       # Add file to guide
+fresh guide list                      # List guides
+fresh guide show <name>               # Show guide
 ```
 
 ### Learning
