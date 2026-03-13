@@ -3,8 +3,8 @@
 ## Stack
 
 - **CLI**: TypeScript (with tsup / oclif)
-- **Web**: Next.js 14 (App Router)
-- **Database**: SQLite + Drizzle ORM
+- **Web**: Next.js 16 (App Router)
+- **Database**: PostgreSQL + Drizzle ORM
 - **Language**: TypeScript everywhere
 
 ## Monorepo Structure
@@ -41,7 +41,7 @@ fresh/
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                  SQLite + Drizzle                           │
+│                  PostgreSQL + Drizzle                          │
 │   Users | Guides | Organizations | Registry                │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -63,7 +63,7 @@ fresh/
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Storage Layer                            │
-│          SQLite (Index) + Markdown (Content)                │
+│          PostgreSQL + Drizzle (Index) + Markdown (Content)       │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -100,7 +100,7 @@ The intelligent layer that orchestrates everything:
 
 ### Storage Layer
 
-- **SQLite**: Fast indexing, queries, metadata
+- **PostgreSQL**: Fast indexing, queries, metadata
 - **Markdown**: Human-readable content, agent-friendly
 
 ### Sources
@@ -112,7 +112,7 @@ The intelligent layer that orchestrates everything:
 
 ## Storage Design
 
-### SQLite Schema
+### PostgreSQL Schema
 
 ```sql
 -- Core topics/technologies
@@ -225,7 +225,7 @@ CREATE INDEX idx_user_guides_tags ON user_guides(tags);
 │   └── guides/
 │       └── {guide-slug}.md
 ├── cache/                  # Temporary cache
-├── index.db               # SQLite index
+├── index.db               # PostgreSQL (hosted)
 └── config.json            # User configuration
 ```
 
