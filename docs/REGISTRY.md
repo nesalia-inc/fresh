@@ -64,6 +64,29 @@ fresh registry pull @account/guide-name
 | Publish guides | ✅ | ✅ |
 | Featured guides (promoted) | ❌ | ✅ |
 
+## Types of Guides
+
+```
+@react/hooks-guide           ← OFFICIAL (from React team)
+@john-doe/react-patterns    ← FEATURED (promoted)
+@random-user/guide          ← COMMUNITY (normal)
+```
+
+### Official
+- From the team behind the library
+- Badge ✅
+- Shown at top
+- Free for maintainers
+
+### Featured
+- Promoted by paying
+- Badge 🌟
+- Shown after official, before community
+
+### Community
+- Regular guides from users
+- Ranked by popularity
+
 ## Popularity
 
 Guides are ranked by popularity (pulls):
@@ -72,14 +95,15 @@ Guides are ranked by popularity (pulls):
 fresh registry trending
 
 # Results:
-1. @john-doe/react-advanced-patterns  (1,234 pulls)
-2. @jane-smith/zod-mastery         (987 pulls)
-3. @random-user/guide               (456 pulls)
-...
+✅ @react/hooks-guide            (OFFICIAL)
+🌟 @john-doe/react-patterns     (1,234 pulls)
+   @jane-smith/zod-mastery      (987 pulls)
+   @random-user/guide           (456 pulls)
 ```
 
-- **Popularity** = based on pulls (automatic)
+- **Official** = shown first (free for maintainers)
 - **Featured** = promoted (paid)
+- **Popularity** = based on pulls (automatic)
 
 **Paid is just to cover hosting costs, not to make profit.**
 
