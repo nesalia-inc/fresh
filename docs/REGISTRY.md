@@ -45,9 +45,11 @@ fresh registry pull @account/guide-name
 
 | Action | Free | Paid |
 |--------|------|------|
-| Pull community guides | ⏳ (limited) | ✅ unlimited |
-| Publish guides | ❌ | ✅ |
-| Featured guides | ❌ | ✅ |
+| Pull community guides | ✅ | ✅ |
+| Publish guides | ✅ | ✅ |
+| Featured guides | ✅ | ✅ |
+
+**Paid is just to cover hosting costs, not to make profit.**
 
 ## Example
 
