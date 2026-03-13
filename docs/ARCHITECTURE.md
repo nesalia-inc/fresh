@@ -1,12 +1,50 @@
 # Fresh V2 Architecture
 
-## High-Level Architecture
+## Stack
+
+- **CLI**: TypeScript (with tsup / oclif)
+- **Web**: Next.js 14 (App Router)
+- **Database**: SQLite + Drizzle ORM
+- **Language**: TypeScript everywhere
+
+## Monorepo Structure
+
+```
+fresh/
+├── apps/
+│   ├── web/              # Next.js web app (registry, auth UI)
+│   ├── api/              # Next.js API routes
+│   └── cli/              # TypeScript CLI
+│
+├── packages/
+│   ├── db/               # Drizzle ORM + migrations
+│   ├── shared/           # Shared types, utils
+│   ├── config/           # Configuration
+│   └── fresh/            # Core library (shared by CLI & API)
+│
+└── turbo.json            # Turborepo config
+```
+
+## Data Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Integration Layer                       │
-│   CLI │ MCP Server │ Python SDK │ Direct API               │
+│                     CLI (TypeScript)                        │
+│   fresh sync | fresh learn | fresh registry                │
 └─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Next.js API Server                         │
+│   Auth | Registry | Sync                                    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  SQLite + Drizzle                           │
+│   Users | Guides | Organizations | Registry                │
+└─────────────────────────────────────────────────────────────┘
+```
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
