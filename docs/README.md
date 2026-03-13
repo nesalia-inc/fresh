@@ -24,43 +24,100 @@ Fresh is a CLI tool that helps you build and manage knowledge for coding.
 1. **Sync docs** - Fetch documentation locally
 2. **Learn** - Build knowledge iteratively
 
-## Quick Start
-
-```bash
-fresh sync zod
-fresh learn init probability-theory
-```
-
 ## Commands
 
 ### Documentation
 
 ```bash
-fresh get <url>             # Fetch a single page
-fresh list <url>            # List available pages
-fresh sync <topic>          # Fetch docs locally
-fresh search <query>        # Search in synced docs
-fresh websearch <query>    # Search the web
-fresh knowledge list       # Show available docs
+# Fetch a single page
+fresh get <url>
+fresh get <url> -o <file>
+fresh get <url> --no-cache
+
+# List available pages
+fresh list <url>
+fresh list <url> --depth <n>
+fresh list <url> --json
+fresh list <url> --pattern <regex>
+
+# Fetch docs locally
+fresh sync <url>
+fresh sync <url> --depth <n>
+fresh sync <url> --force
+fresh sync <url> -o <directory>
+
+# Search in synced docs
+fresh search <query>
+fresh search <query> <topic>
+
+# Search the web
+fresh websearch <query>
+fresh websearch <query> --count <n>
+fresh websearch <query> --json
+fresh websearch <query> --table
+fresh websearch <query> --no-cache
+
+# Show available docs
+fresh knowledge list
 ```
 
 ### Guides
 
 ```bash
-fresh guide create <name>              # Create guide (folder structure)
-fresh guide add <guide>/<file>       # Add file to guide
-fresh guide list                      # List guides
-fresh guide show <name>               # Show guide
+# Create guide (folder structure)
+fresh guide create <name>
+
+# Add file to guide
+fresh guide add <guide>/<file>
+fresh guide add <guide>/<file> --content "<markdown>"
+
+# List guides
+fresh guide list
+
+# Show guide
+fresh guide show <name>
 ```
 
 ### Learning
 
 ```bash
-fresh learn init <topic>           # Start project
-fresh learn explore <topic>        # Discover concepts
-fresh learn add <concept> --priority high|medium|low  # Add to queue
-fresh learn queue                  # View queue
-fresh learn next                   # Get next concept
-fresh learn start <concept>        # Start learning
-fresh learn done <concept>         # Mark complete
+# Start learning project
+fresh learn init <topic>
+fresh learn init <topic> --description <text>
+
+# Discover concepts
+fresh learn explore <topic>
+fresh learn explore <topic> --depth <n>
+
+# Add to queue
+fresh learn add <project> <concept>
+fresh learn add <project> <concept> --priority high|medium|low
+fresh learn add <project> <concept> --from <source>
+
+# View queue
+fresh learn queue <project>
+
+# Get next concept
+fresh learn next <project>
+
+# Start learning
+fresh learn start <project>/<concept>
+
+# Mark complete
+fresh learn done <project>/<concept>
+
+# Link concepts
+fresh learn link <project>/<a> <project>/<b>
+```
+
+### Cache
+
+```bash
+# Clear cache
+fresh cache clear
+fresh cache clear websearch
+fresh cache clear docs
+
+# Show cache status
+fresh cache status
 ```
