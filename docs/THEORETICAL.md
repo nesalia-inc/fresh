@@ -1,6 +1,6 @@
 # Theoretical Learning
 
-> How Fresh handles non-technical topics using Learn Mode.
+> How Fresh handles non-technical topics using Learn Mode with concept queue.
 
 ## The Problem
 
@@ -15,23 +15,11 @@ But theoretical topics don't:
 - Algorithm Theory
 - Machine Learning Fundamentals
 
-## Solution: Learn Mode
+## Solution: Learn Mode + Concept Queue
 
-For theoretical topics, use **Learn Mode** - the iterative learning system.
+For theoretical topics, use **Learn Mode** with the **concept queue** - a priority-based learning system.
 
-```
-.fresh/
-└── learning/                    # Learn Mode
-    └── probability-theory/
-        ├── 01-fundamentals/
-        │   ├── 01-sample-space.md
-        │   ├── 02-events.md
-        │   └── 03-probability-function.md
-        ├── 02-conditional/
-        └── 03-distributions/
-```
-
-## Workflow
+## The Workflow
 
 ### Step 1: Initialize
 
@@ -39,106 +27,152 @@ For theoretical topics, use **Learn Mode** - the iterative learning system.
 fresh learn init probability-theory
 ```
 
-### Step 2: Explore
+### Step 2: Explore & Add to Queue
 
 ```bash
 fresh learn explore probability
-# Returns: [fundamentals, distributions, statistics, bayes, random-variables]
+# Returns: [fundamentals, distributions, conditional, random-variables]
+
+# Add concepts to queue with priority
+fresh learn concept add probability-theory fundamentals --priority high
+fresh learn concept add probability-theory distributions --priority medium
+fresh learn concept add probability-theory conditional --priority medium
 ```
 
-### Step 3: Structure
+### Step 3: Learn (Iterative)
 
 ```bash
+# Get next concept
+fresh learn concept next probability-theory
+# → fundamentals (highest priority)
+
+# Start learning
+fresh learn concept start probability-theory/fundamentals
+
+# Create content
 fresh learn chapter probability-theory 01-fundamentals
-fresh learn chapter probability-theory 02-distributions
-fresh learn chapter probability-theory 03-bayes
+fresh learn add probability-theory/01/01-sample-space --content "..."
+
+# Complete
+fresh learn concept complete probability-theory/fundamentals
 ```
 
-### Step 4: Add Content (Iterative)
+### Step 4: Discover New Concepts
 
 ```bash
-# Use web search to find content
-fresh websearch "sample space probability theory"
+# Explore deeper → discovers new concepts
+fresh learn explore probability/distributions
 
-# Add to learning project
-fresh learn add probability-theory/01-fundamentals/01-sample-space \
-  --content "# Sample Space
-
-## Definition
-The set of all possible outcomes of an experiment.
-
-## Examples
-- Coin flip: Ω = {H, T}
-- Dice roll: Ω = {1, 2, 3, 4, 5, 6}
-"
+# Add discoveries to queue
+fresh learn concept add probability-theory gaussian --priority high --from distributions
+fresh learn concept add probability-theory binomial --priority medium --from distributions
+fresh learn concept add probability-theory poisson --priority medium --from distributions
 ```
 
-### Step 5: Link Concepts
+### Step 5: Continue
 
 ```bash
-fresh learn link \
-  probability-theory/01-fundamentals/01-sample-space \
-  probability-theory/02-conditional/independence
+# View queue
+fresh learn concept queue probability-theory
+# Shows all concepts with priorities
+
+# Next
+fresh learn concept next probability-theory
+# → gaussian (high priority, prerequisites met)
 ```
 
-### Step 6: Iterate
-
-```bash
-# Discover more sub-concepts
-fresh learn explore "conditional probability"
-# Returns: [bayes-theorem, independence, chain-rule]
-
-# Add more content...
-```
-
-## Comparison with Technical Topics
-
-| Aspect | Technical | Theoretical |
-|--------|-----------|-------------|
-| **Source** | Official docs | Web search + synthesis |
-| **Sync** | `fresh sync <topic>` | `fresh learn init` |
-| **Content** | Auto-fetched | Agent adds manually |
-| **Structure** | From doc site | Agent creates |
-
-## Example: Building a Learning Project
+## Example: Building Probability Theory
 
 ```bash
 # 1. Initialize
-fresh learn init linear-algebra
+fresh learn init probability-theory
 
 # 2. Explore main topics
-fresh learn explore "linear algebra"
-# → [vectors, matrices, determinants, eigenvalues, linear-transformations]
+fresh learn explore probability
 
-# 3. Create structure
-fresh learn chapter linear-algebra 01-vectors
-fresh learn chapter linear-algebra 02-matrices
-fresh learn chapter linear-algebra 03-eigenvalues
+# 3. Add to queue
+fresh learn concept add probability-theory fundamentals --priority high
+fresh learn concept add probability-theory conditional --priority medium
+fresh learn concept add probability-theory distributions --priority medium
+fresh learn concept add probability-theory random-variables --priority low
 
-# 4. Add content iteratively
-fresh websearch "what is a vector linear algebra"
-fresh learn add linear-algebra/01-vectors/01-definition --content "..."
+# 4. Learn fundamentals
+fresh learn concept next probability-theory
+# → fundamentals
+fresh learn concept start probability-theory/fundamentals
+fresh learn chapter probability-theory 01-fundamentals
+fresh learn add probability-theory/01/01-sample-space --content "# Sample Space\n\n..."
+fresh learn add probability-theory/01/02-events --content "# Events\n\n..."
+fresh learn concept complete probability-theory/fundamentals
 
-fresh websearch "vector operations addition scalar"
-fresh learn add linear-algebra/01-vectors/02-operations --content "..."
+# 5. Explore → discover more
+fresh learn explore probability/distributions
 
-# 5. Link concepts
-fresh learn link linear-algebra/01-vectors/02-operations -> linear-algebra/02-matrices/01-matrix-multiplication
+# 6. Add new concepts to queue
+fresh learn concept add probability-theory gaussian --priority high --from distributions
+fresh learn concept add probability-theory binomial --priority medium --from distributions
 
-# 6. Continue until complete
+# 7. Learn next
+fresh learn concept next probability-theory
+# → gaussian (high priority)
+fresh learn concept start probability-theory/gaussian
+
+# 8. Continue iterating...
+```
+
+## Queue System
+
+The concept queue manages what to learn next:
+
+```bash
+# View queue
+fresh learn concept queue probability-theory
+```
+```
+📚 probability-theory
+
+Priority: high
+├── [ ] gaussian (from: distributions)
+
+Priority: medium
+├── [ ] binomial (from: distributions)
+├── [ ] conditional
+
+Priority: low
+└── [ ] random-variables
+
+Completed: fundamentals
+```
+
+```bash
+# Get next
+fresh learn concept next probability-theory
+# → gaussian (priority: high)
+```
+
+```bash
+# Start/Complete
+fresh learn concept start probability-theory/gaussian
+fresh learn concept complete probability-theory/gaussian
 ```
 
 ## Why This Works
 
-1. **Iterative** - Agent discovers concepts gradually
-2. **Structured** - Hierarchical chapters/sections
-3. **Linked** - Concepts connect to each other
-4. **Agent-controlled** - Agent decides depth and order
+1. **Priority-based** - Most important concepts first
+2. **Iterative** - Learn, discover, add, repeat
+3. **Discovered concepts saved** - New concepts from exploration go to queue
+4. **Trackable** - Always know what's next
 
-## Tips
+## Commands Reference
 
-- Start with `fresh learn explore <topic>` to discover sub-topics
-- Use web search (`fresh websearch`) to find content
-- Add content incrementally
-- Link related concepts with `fresh learn link`
-- Use `fresh learn tree <project>` to see progress
+| Command | Description |
+|---------|-------------|
+| `fresh learn init <topic>` | Initialize learning project |
+| `fresh learn explore <topic>` | Discover concepts |
+| `fresh learn concept add <project> <concept>` | Add to queue |
+| `fresh learn concept queue <project>` | View queue |
+| `fresh learn concept next <project>` | Get next concept |
+| `fresh learn concept start <project>/<concept>` | Start learning |
+| `fresh learn concept complete <project>/<concept>` | Mark complete |
+| `fresh learn chapter <project>/<chapter>` | Create chapter |
+| `fresh learn add <path> --content "..."` | Add content |
