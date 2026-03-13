@@ -129,7 +129,26 @@ fresh auth logout
 fresh auth whoami
 ```
 
-### 5. Registry
+### 5. Organizations
+
+```bash
+# Create organization
+fresh org create <name>
+
+# List your organizations
+fresh org list
+
+# Add member
+fresh org add-member <org> <user>
+
+# Invite user
+fresh org invite <org> <email>
+
+# Remove member
+fresh org remove-member <org> <user>
+```
+
+### 6. Registry
 
 ```bash
 # Pull a guide from community

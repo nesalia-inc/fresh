@@ -25,11 +25,31 @@ fresh auth logout
 fresh auth whoami
 ```
 
+### Organizations
+
+```bash
+# Create organization
+fresh org create mycompany
+
+# List your organizations
+fresh org list
+
+# Add member
+fresh org add-member mycompany @john
+
+# Invite user
+fresh org invite mycompany user@email.com
+
+# Remove member
+fresh org remove-member mycompany @john
+```
+
 ### Registry
 
 ```bash
-# Pull a guide from community
+# Pull a guide
 fresh registry pull @martty-code/zustand-best-practices
+fresh registry pull @mycompany/backend-guides
 
 # Search community guides
 fresh registry search "react hooks"
@@ -39,11 +59,14 @@ fresh registry search "state management"
 fresh registry trending
 
 # Publish your guide
-fresh registry publish optimistic-state
-fresh registry publish @my-account/optimistic-state
+fresh registry publish my-guide
+fresh registry publish @mycompany/frontend-standards
 
 # Your published guides
 fresh registry my-guides
+
+# Organization guides
+fresh registry org-guides @mycompany
 ```
 
 ## Structure

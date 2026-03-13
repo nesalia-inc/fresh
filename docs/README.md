@@ -126,6 +126,19 @@ fresh auth logout
 fresh auth whoami
 ```
 
+### Organizations
+
+```bash
+# Create organization
+fresh org create <name>
+
+# List your organizations
+fresh org list
+
+# Add member
+fresh org add-member <org> <user>
+```
+
 ### Registry
 
 ```bash
