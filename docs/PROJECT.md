@@ -1,117 +1,118 @@
 # Fresh - Agent Knowledge System
 
-> An intelligent knowledge management system designed for AI agents.
+> A documentation scraping and knowledge management system for AI agents.
 
 ## Purpose
 
-Fresh is not just a documentation fetcher. It is an **agent knowledge system** that enables AI agents to:
+Fresh is a tool that enables AI agents to:
+1. **Fetch documentation locally** - Get entire doc sites in Markdown format
+2. **Keep docs available** - Offline access to any documentation
+3. **Create guides** - Synthesize knowledge into actionable guides
+4. **Search efficiently** - Find information across all local docs
 
-1. **Stay informed** - Fetch and maintain up-to-date knowledge on any technology
-2. **Learn continuously** - Build comprehensive guides on concepts and technologies
-3. **Produce quality code** - Leverage accumulated knowledge when writing code
+## Core Philosophy
+
+1. **Scraping first** - The most important feature is getting docs locally
+2. **CLI as primary** - Fast, reliable, deterministic
+3. **Agent only when needed** - For complex synthesis only
 
 ## The Problem
 
-AI agents need context to produce high-quality code. Without proper knowledge management:
-
-- Agents work with outdated or missing information
-- Each conversation starts from scratch - no continuity
-- There's no way to capture and reuse learned concepts
-- Quality suffers without the right context
+AI agents need context to produce quality code. But:
+- Docs are online, not always available
+- Each conversation starts from scratch
+- Can't create reusable knowledge
+- Hard to find relevant information
 
 ## The Solution
 
-Fresh provides a **brain for AI agents**:
-
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      User / End Agent                        │
-│              "I need to build something with Zod"           │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     Fresh Core (CLI)                            │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │   Scraping     │  │   Local Docs   │  │    Search      │ │
+│  │   (sync)       │  │   Storage      │  │    (search)    │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Fresh Agent (Brain)                      │
-│  1. Analyze request                                         │
-│  2. Check existing knowledge                                │
-│  3. Fetch fresh docs if needed                             │
-│  4. Generate guide                                          │
-│  5. Return Markdown output                                 │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼ (Markdown)
-┌─────────────────────────────────────────────────────────────┐
-│                    End Agent receives:                       │
-│  # Zod v4 Migration Guide                                  │
-│  ## What's new                                              │
-│  - z.email() replaces z.string().email()                  │
-│  ...                                                        │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                  Guide Layer (CLI + Optional Agent)             │
+│  ┌─────────────────┐  ┌─────────────────┐                     │
+│  │   CLI Guide    │  │   Agent (opt)   │                     │
+│  │   Creation     │  │   Synthesis    │                     │
+│  └─────────────────┘  └─────────────────┘                     │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## Documentation Structure
+## User Flow
 
-- **[SPEC.md](SPEC.md)** - Product specification and feature overview
-- **[AGENT.md](AGENT.md)** - Fresh Agent behavior and decision logic
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture and design
+### Step 1: Fetch Docs (CLI)
 
-## Features
+```bash
+fresh sync zod        # Get all Zod docs locally
+fresh sync react      # Get React docs
+fresh sync python     # Get Python docs
+```
 
-### Core Commands
+### Step 2: Search (CLI)
+
+```bash
+fresh search "email validation" zod
+# → Finds relevant sections in local Zod docs
+```
+
+### Step 3: Create Guide (CLI)
+
+```bash
+fresh guide create zod-validation \
+  --from-search "email validation" \
+  --from-search "string validation"
+```
+
+### Step 4: Learn (Agent - Optional)
+
+For complex synthesis:
+```bash
+fresh learn "optimistic state" \
+  --sources react tanstack-query zustand \
+  --agent
+```
+
+## Commands
 
 | Command | Description |
 |---------|-------------|
-| `get` | Fetch a documentation page and convert to Markdown |
-| `list` | Discover all available documentation pages on a website |
-| `search` | Search for content across fetched documentation |
-| `websearch` | Search the general web for any topic |
-| `sync` | Download entire documentation for offline use |
-| `guide` | Create and manage personal guides and knowledge |
+| `fresh sync <topic>` | Fetch entire doc site locally |
+| `fresh get <url>` | Fetch single page |
+| `fresh list <url>` | List available pages |
+| `fresh search <query>` | Search local docs |
+| `fresh guide create <name>` | Create a guide |
+| `fresh guide list` | List all guides |
+| `fresh knowledge list` | Show local docs |
 
-### Key Capabilities
+## Documentation
 
-- **Smart Caching** - Only fetch what has changed
-- **Agent-First Design** - SDK layer for direct agent integration
-- **Plugin Architecture** - Extensible sources (GitHub, HuggingFace, npm, etc.)
-- **Guide Generation** - Synthesize knowledge into actionable guides
+- **[SPEC.md](SPEC.md)** - Product specification and features
+- **[AGENT.md](AGENT.md)** - Optional agent for complex cases
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture
 
-## Architecture
+## Roadmap
 
-Fresh follows clean architecture principles:
+### Phase 1 (Core)
+- [x] CLI commands (get, list, search, sync)
+- [x] Guide management
+- [ ] Improved scraping engine
+- [ ] SQLite storage
 
-- **CLI Layer** - User-facing commands (Typer)
-- **Core Layer** - Pure business logic (no I/O dependencies)
-- **Source Layer** - Data providers (web, local, plugins)
+### Phase 2
+- [ ] Better guide creation from search
+- [ ] Search improvements
 
-### Design Principles
-
-1. **Entity-Oriented** - Classes represent concepts, not actions
-2. **Separation of Concerns** - Commands handle presentation, core handles logic
-3. **Strict Typing** - Protocols, literals, and type hints throughout
-4. **Minimal Branching** - Replace conditionals with patterns (Strategy, Result, Maybe)
-
-## Use Cases
-
-### For AI Agents
-
-- Fetch relevant documentation before writing code
-- Build personal knowledge base over time
-- Create guides on best practices for specific technologies
-- Search across accumulated knowledge
-
-### For Developers
-
-- Offline documentation access
-- Quick reference lookup
-- Knowledge organization
-- Integration with custom agents
-
-## Roadmap (V2)
-
-- [ ] SDK/API layer for direct agent integration
-- [ ] Plugin system for sources and formats
-- [ ] Smart indexing with embeddings
-- [ ] Guide synthesis from multiple sources
+### Phase 3 (Optional)
+- [ ] Agent for complex synthesis
+- [ ] MCP server
+- [ ] Python SDK
 
 ## License
 
