@@ -2,238 +2,268 @@
 
 ## Overview
 
-Fresh V2 is a **documentation scraping and knowledge management system** designed for AI agents. The core value is simple: **fetch documentation locally, keep it available, and enable agents to create guides from it.**
+Fresh V2 is a **project-local documentation and knowledge management system** for AI agents. Each project has its own `.fresh/` directory containing:
+
+- **Synced documentation** - Fetched docs for offline use
+- **Project guides** - Agent-created learning guides
+- **Search index** - Local search capability
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Fresh Core                                  │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐   │
-│  │   Scraping     │  │   Local Docs   │  │    Search      │   │
-│  │   Engine      │  │   Storage      │  │    Engine      │   │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                  Guide Creation Layer                            │
-│  ┌─────────────────┐  ┌─────────────────┐                       │
-│  │   CLI Tools    │  │   Agent (opt)  │                       │
-│  └─────────────────┘  └─────────────────┘                       │
-└─────────────────────────────────────────────────────────────────┘
+my-project/
+├── src/
+├── .fresh/                    # Fresh data (project-local)
+│   ├── knowledge/             # Synced docs (zod, react, etc.)
+│   │   ├── zod/
+│   │   │   ├── docs/
+│   │   │   │   ├── getting-started.md
+│   │   │   │   └── api/
+│   │   │   └── metadata.json
+│   │   └── react/
+│   │       └── ...
+│   ├── guides/               # Agent-created guides
+│   │   ├── optimistic-state.md
+│   │   └── zod-validation.md
+│   ├── index.db              # Search index
+│   └── config.json           # Project config
+└── ...
 ```
 
 ## Core Philosophy
 
-1. **Scraping first** - Get docs local, keep them available offline
-2. **CLI as primary** - Agent only when necessary
-3. **Guides are key** - Agents create and use guides for learning
+1. **Project-local** - Each project has its own `.fresh/` directory
+2. **Scraping first** - Get docs locally, keep them available
+3. **Agent-authored guides** - Agents create and enrich their own guides
+4. **CLI primary** - Agent only when necessary
 
 ---
 
 ## Core Features
 
-### 1. Scraping Engine (Core)
+### 1. Scraping Engine
 
-The most important feature: **get entire documentation sites locally in correct Markdown format.**
+Fetch documentation sites locally:
 
-```
-fresh sync zod
-→ Downloads all Zod docs to ~/.fresh/knowledge/zod/
-→ Converts HTML to clean Markdown
-→ Preserves structure (navigation, code blocks, etc.)
-→ Available offline forever
-```
+```bash
+# Fetch docs for a topic
+fresh sync zod           # → .fresh/knowledge/zod/
+fresh sync react        # → .fresh/knowledge/react/
 
-**Requirements:**
-- Fetch entire doc sites (not just one page)
-- Convert HTML to readable Markdown
-- Preserve code blocks, syntax highlighting references
-- Keep site structure (navigation hierarchy)
-- Handle multiple docs simultaneously
-- Store locally, stay available
-
-### 2. Local Documentation Storage
-
-All fetched docs are stored locally:
-
-```
-~/.fresh/
-├── knowledge/
-│   ├── zod/
-│   │   ├── docs/
-│   │   │   ├── getting-started.md
-│   │   │   ├── api/
-│   │   │   │   ├── schema.md
-│   │   │   │   └── validators.md
-│   │   │   └── ...
-│   │   └── metadata.json
-│   ├── react/
-│   │   └── ...
-│   └── typescript/
-│       └── ...
-└── index.db  # Search index
+# Fetch specific version
+fresh sync zod --version v4
 ```
 
-### 3. Search Engine
+**Output:** Markdown files in `.fresh/knowledge/{topic}/`
 
-Search across all local documentation:
+### 2. Local Search
 
-```
+Search across all synced documentation:
+
+```bash
+# Search all topics
+fresh search "email validation"
+
+# Search specific topic
 fresh search "email validation" zod
-→ Searches in local Zod docs
-→ Returns relevant sections with context
-
-fresh search "state management"
-→ Searches across ALL local docs
-→ Returns results from React, Vue, TanStack Query, etc.
 ```
 
-### 4. Guide Creation
+### 3. Guide System
 
-Agents create guides from local docs:
+Agents create and enrich their own guides:
 
+```bash
+# Create empty guide
+fresh guide create optimistic-state
+
+# Add content to guide
+fresh guide add optimistic-state --content "# Optimistic Updates\n\n..."
+
+# Add from search results
+fresh guide add optimistic-state --from-search "optimistic update"
+
+# Show guide
+fresh guide show optimistic-state
+
+# List all guides
+fresh guide list
 ```
-# Create guide from search results
-fresh guide create optimistic-state-management \
-  --topic react \
-  --from-search "optimistic update" \
+
+**Guides are Markdown files** in `.fresh/guides/`
+
+### 4. Knowledge Status
+
+```bash
+# List all synced docs
+fresh knowledge list
+
+# Check specific topic
+fresh knowledge status zod
+
+# Refresh topic docs
+fresh knowledge refresh zod
+```
+
+---
+
+## User Flows
+
+### Flow 1: First-time Project Setup
+
+```bash
+# In project directory
+cd my-project
+
+# Fetch docs you need
+fresh sync zod
+fresh sync react
+fresh sync typescript
+
+# Check what's available
+fresh knowledge list
+```
+
+### Flow 2: Creating a Guide
+
+```bash
+# Agent decides to create a guide for learning
+fresh guide create optimistic-state-management
+
+# Agent adds content (manually or from search)
+fresh guide add optimistic-state-management \
+  --from-search "optimistic update react"
+
+fresh guide add optimistic-state-management \
   --from-search "useMutation"
 
-# Create guide manually
-fresh guide create my-guide --content "# My Guide\n\nContent..."
+# Agent enriches with own notes
+fresh guide add optimistic-state-management \
+  --content "# Best Practices\n\n- Always rollback on error\n..."
+
+# Check the guide
+fresh guide show optimistic-state-management
 ```
 
-**Guide structure:**
+### Flow 3: Using a Guide
+
+```bash
+# Agent needs context
+fresh guide list                      # See available guides
+fresh guide show optimistic-state     # Read the guide
+```
+
+### Flow 4: Searching
+
+```bash
+# Find info in synced docs
+fresh search "zustand store"
+
+# Search specific topic
+fresh search "zustand store" zustand
+```
+
+---
+
+## Guide Structure
+
+A guide is a Markdown file in `.fresh/guides/`:
+
 ```markdown
 # Optimistic State Management
 
+> Created: 2026-03-13
+> Topics: react, react-query, zustand
+
 ## Overview
-Techniques for implementing optimistic updates in React...
+
+Techniques for implementing optimistic updates...
 
 ## With React Query
+
 ```typescript
 useMutation({
   onMutate: async (newTodo) => {
-    // Cancel outgoing refetches
     queryClient.cancelQueries({ queryKey: ['todos'] })
-    // Snapshot previous value
     const previousTodos = queryClient.getQueryData(['todos'])
-    // Optimistically update
     queryClient.setQueryData(['todos'], old => [...old, newTodo])
     return { previousTodos }
   }
 })
 ```
 
-## With Zustand
-...
-
 ## Best Practices
+
 - Always provide rollback
 - Handle errors gracefully
+
+## Notes
+
+> My notes: This is especially useful for user interactions that feel slow...
 ```
 
 ---
 
-## Invocation Modes
+## Project Structure
 
-### Mode 1: CLI (Primary)
+When running Fresh in a project:
 
-Everything via CLI commands - fast, simple, reliable.
-
-```bash
-# Scraping
-fresh sync zod                    # Fetch all Zod docs
-fresh sync react --depth 5        # Fetch React docs, depth 5
-fresh sync                       # Sync all known docs
-
-# Searching
-fresh search "email validation" zod    # Search specific topic
-fresh search "state management"         # Search all topics
-
-# Guide management
-fresh guide create my-guide --content "..."
-fresh guide list
-fresh guide show my-guide
-
-# Knowledge status
-fresh knowledge list              # Show all local docs
-fresh knowledge status zod        # Show Zod doc status
-fresh knowledge refresh zod       # Re-fetch Zod docs
+```
+project/
+├── .fresh/
+│   ├── knowledge/              # Synced documentation
+│   │   ├── zod/
+│   │   │   ├── docs/
+│   │   │   │   ├── getting-started.md
+│   │   │   │   ├── api/
+│   │   │   │   │   ├── schema.md
+│   │   │   │   │   └── validators.md
+│   │   │   │   └── ...
+│   │   │   └── metadata.json
+│   │   ├── react/
+│   │   │   └── ...
+│   │   └── typescript/
+│   │       └── ...
+│   ├── guides/                 # Agent-created guides
+│   │   ├── optimistic-state.md
+│   │   ├── forms-with-zod.md
+│   │   └── react-hooks.md
+│   ├── index.db              # SQLite search index
+│   └── config.json           # Project config
+└── ...
 ```
 
-**When to use CLI:**
-- Fetching docs (scraping)
-- Searching docs
-- Basic guide creation
-- Status checks
-- Everything that's well-defined
+### Metadata
 
-### Mode 2: Agent (When Necessary)
+Each topic has metadata:
 
-Agent only for complex synthesis that CLI can't handle:
-
-```python
-from fresh import FreshAgent
-
-agent = FreshAgent()
-
-# Complex guide that needs synthesis across multiple sources
-guide = agent.learn(
-    topic="optimistic-state-management",
-    sources=["react", "tanstack-query", "zustand"],
-    focus="best-practices"
-)
+```json
+// .fresh/knowledge/zod/metadata.json
+{
+  "topic": "zod",
+  "version": "4.0.0",
+  "synced_at": "2026-03-13T10:00:00Z",
+  "source_url": "https://zod.dev",
+  "pages": 45
+}
 ```
-
-**When to use Agent:**
-- Synthesizing guides from multiple topics
-- Complex comparisons (v3 vs v4 migration)
-- Generating guide structure from scratch
-- Advanced analysis
-
-**Rule:** If CLI can do it, CLI does it. Agent is opt-in for complexity.
 
 ---
 
-## User Flows
+## Commands Reference
 
-### Flow 1: First-time Setup
-
-```bash
-# 1. Fetch docs you care about
-fresh sync zod
-fresh sync react
-fresh sync typescript
-fresh sync python
-
-# 2. Check what's available
-fresh knowledge list
-```
-
-### Flow 2: Daily Usage
-
-```bash
-# 1. Search for what you need
-fresh search "email validation" zod
-
-# 2. Create a guide from results
-fresh guide create zod-validation \
-  --from-search "email validation" \
-  --from-search "string validation"
-
-# 3. Use guide in your work
-fresh guide show zod-validation
-```
-
-### Flow 3: Complex Learning (Agent)
-
-```bash
-# When you need advanced synthesis
-fresh learn "optimistic updates" \
-  --sources react tanstack-query \
-  --agent  # Triggers agent for complex synthesis
-```
+| Command | Description |
+|---------|-------------|
+| `fresh sync <topic>` | Fetch doc site locally |
+| `fresh sync <topic> --version v4` | Fetch specific version |
+| `fresh search <query>` | Search all topics |
+| `fresh search <query> <topic>` | Search specific topic |
+| `fresh guide create <name>` | Create new guide |
+| `fresh guide add <name> --content "..."` | Add content to guide |
+| `fresh guide add <name> --from-search "..."` | Add from search results |
+| `fresh guide show <name>` | Show guide content |
+| `fresh guide list` | List all guides |
+| `fresh guide delete <name>` | Delete a guide |
+| `fresh knowledge list` | List synced docs |
+| `fresh knowledge status <topic>` | Show topic status |
+| `fresh knowledge refresh <topic>` | Re-sync topic |
 
 ---
 
@@ -242,7 +272,7 @@ fresh learn "optimistic updates" \
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     CLI Layer                               │
-│   get │ list │ search │ sync │ guide │ alias              │
+│   sync │ search │ guide │ knowledge                        │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -256,122 +286,26 @@ fresh learn "optimistic updates" \
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   Storage Layer                             │
-│          SQLite (index) + Markdown (docs)                   │
+│                   Storage (.fresh/)                         │
+│          SQLite (index) + Markdown (docs & guides)         │
 └─────────────────────────────────────────────────────────────┘
 ```
-
-### Scraping Service
-
-```python
-class ScrapingService:
-    """Fetches and converts documentation."""
-
-    async def sync(url: str, options: SyncOptions) -> SyncResult:
-        """Fetch entire doc site."""
-
-    async def fetch_page(url: str) -> str:
-        """Fetch single page as Markdown."""
-
-    async def discover(url: str) -> list[str]:
-        """Discover available pages."""
-
-    async def convert(html: str, options: ConvertOptions) -> str:
-        """Convert HTML to Markdown."""
-```
-
-### Search Service
-
-```python
-class SearchService:
-    """Searches local documentation."""
-
-    async def search(query: str, topic: str | None) -> list[SearchResult]:
-        """Search docs."""
-
-    async def index(topic_id: str) -> None:
-        """Index topic for search."""
-```
-
-### Guide Service
-
-```python
-class GuideService:
-    """Manages guide lifecycle."""
-
-    async def create(title: str, content: str) -> Guide:
-        """Create guide."""
-
-    async def create_from_search(
-        title: str,
-        queries: list[str],
-        topic: str | None
-    ) -> Guide:
-        """Create guide from search results."""
-
-    async def get(guide_id: str) -> Guide:
-        """Get guide."""
-
-    async def list() -> list[Guide]:
-        """List all guides."""
-```
-
----
-
-## Scraping Requirements
-
-### Must Have
-
-1. **Full site scraping** - Not just one page, entire docs
-2. **Markdown conversion** - Clean, readable MD output
-3. **Code preservation** - Keep code blocks intact
-4. **Structure preservation** - Keep navigation/hierarchy
-5. **Offline availability** - Docs stay local forever
-6. **Multiple sources** - Handle any documentation site
-7. **Incremental updates** - Only fetch what changed
-
-### Quality Criteria
-
-- [ ] All pages fetched
-- [ ] Images handled (alt text or skipped)
-- [ ] Code blocks preserved
-- [ ] Links converted (relative → file, absolute → external)
-- [ ] Navigation structure kept
-- [ ] Searchable (indexed)
 
 ---
 
 ## Roadmap
 
-### Phase 1: Scraping Core
-- [ ] Full site scraping
-- [ ] HTML → Markdown conversion
-- [ ] Local storage
-- [ ] Search indexing
+### Phase 1 (Core)
+- [x] CLI commands
+- [x] Guide creation
+- [ ] Project-local `.fresh/` directory
+- [ ] SQLite search index
 
-### Phase 2: Guide System
-- [ ] Guide CRUD
-- [ ] Create from search
-- [ ] Guide storage
+### Phase 2
+- [ ] Better guide enrichment
+- [ ] Search improvements
 
-### Phase 3: Agent (Optional)
+### Phase 3 (Optional)
 - [ ] Agent for complex synthesis
 - [ ] MCP server
 - [ ] Python SDK
-
----
-
-## Commands Reference
-
-| Command | Description |
-|---------|-------------|
-| `fresh sync <topic>` | Fetch entire doc site locally |
-| `fresh get <url>` | Fetch single page |
-| `fresh list <url>` | List available pages |
-| `fresh search <query>` | Search local docs |
-| `fresh search <query> <topic>` | Search specific topic |
-| `fresh guide create <name>` | Create new guide |
-| `fresh guide list` | List all guides |
-| `fresh guide show <name>` | Show guide content |
-| `fresh knowledge list` | List local docs |
-| `fresh knowledge refresh <topic>` | Re-fetch topic docs |
