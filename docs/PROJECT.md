@@ -1,86 +1,95 @@
 # Fresh - Agent Knowledge System
 
-> A project-local documentation and knowledge management system for AI agents.
+> A project-local knowledge system for AI agents with two modes: Run (daily usage) and Learn (building knowledge).
 
-## Purpose
+## The Two Modes
 
-Fresh enables AI agents to:
-1. **Fetch documentation locally** - Get doc sites in Markdown, available offline
-2. **Create project guides** - Agents create and enrich their own learning guides
-3. **Search efficiently** - Find info across all synced docs
+Fresh has **two distinct purposes**:
 
-## Core Concept
+### Run Mode - Daily Usage
 
-**Project-local knowledge:** Each project has its own `.fresh/` directory:
+Agent **already has knowledge** and needs to retrieve it quickly.
+
+```bash
+# Search
+fresh search "email validation"
+
+# View guides
+fresh guide show optimistic-state
+fresh guide list
+
+# Quick reference
+fresh knowledge list
+```
+
+### Learn Mode - Building Knowledge
+
+Agent **builds its knowledge** through iterative learning.
+
+```bash
+# Start learning
+fresh learn init probability-theory
+fresh learn explore probability
+
+# Build structure
+fresh learn chapter probability-theory 01-fundamentals
+
+# Add content iteratively
+fresh learn add probability-theory/01/sample-space --content "..."
+fresh learn link probability-theory/01/sample-space -> probability-theory/02/conditional
+```
+
+## Project Structure
 
 ```
-my-project/
-├── src/
-├── .fresh/                    # Fresh data (project-local)
-│   ├── knowledge/             # Synced docs (zod, react, etc.)
-│   │   ├── zod/
-│   │   └── react/
-│   ├── guides/               # Agent-created guides
-│   │   ├── optimistic-state.md
-│   │   └── forms-with-zod.md
-│   └── index.db              # Search index
-└── ...
+.fresh/
+├── knowledge/                 # Run: Synced technical docs
+│   ├── zod/
+│   └── react/
+├── guides/                   # Run: Quick reference guides
+│   └── optimistic-state.md
+└── learning/                 # Learn: Structured learning projects
+    ├── probability-theory/
+    │   ├── 01-fundamentals/
+    │   └── 02-conditional/
+    └── linear-algebra/
 ```
 
 ## Core Philosophy
 
-1. **Project-local** - Each project manages its own docs and guides
-2. **Scraping first** - Get docs locally, keep them available
-3. **Agent-authored** - Agents create and enrich their own guides
-4. **CLI primary** - Agent only when necessary
-
-## User Flow
-
-### Step 1: Fetch Docs (CLI)
-
-```bash
-fresh sync zod        # → .fresh/knowledge/zod/
-fresh sync react      # → .fresh/knowledge/react/
-```
-
-### Step 2: Search (CLI)
-
-```bash
-fresh search "email validation"
-# → Searches in .fresh/knowledge/
-```
-
-### Step 3: Create/Enrich Guides (CLI)
-
-```bash
-# Create guide
-fresh guide create optimistic-state
-
-# Agent adds content
-fresh guide add optimistic-state --content "# Optimistic Updates\n\n..."
-fresh guide add optimistic-state --from-search "optimistic update react"
-
-# Read guide
-fresh guide show optimistic-state
-fresh guide list
-```
+1. **Project-local** - Each project manages its own knowledge
+2. **Two modes** - Run (retrieve) vs Learn (create)
+3. **Scraping first** - Get docs locally
+4. **Iterative learning** - Discover, add, link, repeat
 
 ## Commands
+
+### Run Mode
 
 | Command | Description |
 |---------|-------------|
 | `fresh sync <topic>` | Fetch doc site locally |
 | `fresh search <query>` | Search local docs |
 | `fresh guide create <name>` | Create a guide |
-| `fresh guide add <name>` | Add content to guide |
-| `fresh guide show <name>` | Show guide content |
-| `fresh guide list` | List all guides |
+| `fresh guide show <name>` | Show guide |
+| `fresh guide list` | List guides |
 | `fresh knowledge list` | Show synced docs |
+
+### Learn Mode
+
+| Command | Description |
+|---------|-------------|
+| `fresh learn init <name>` | Create learning project |
+| `fresh learn explore <topic>` | Discover sub-topics |
+| `fresh learn chapter <project>/<ch>` | Create chapter |
+| `fresh learn add <path>` | Add content |
+| `fresh learn link <path1> <path2>` | Link concepts |
+| `fresh learn tree <project>` | Show structure |
 
 ## Documentation
 
 - **[SPEC.md](SPEC.md)** - Full specification
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture
+- **[THEORETICAL.md](THEORETICAL.md)** - Handling theoretical topics
 
 ## License
 
