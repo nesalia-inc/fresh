@@ -62,7 +62,24 @@ fresh registry pull @account/guide-name
 |--------|------|------|
 | Pull community guides | ⏳ (25 guides) | ✅ unlimited |
 | Publish guides | ✅ | ✅ |
-| Featured guides | ❌ | ✅ |
+| Featured guides (promoted) | ❌ | ✅ |
+
+## Popularity
+
+Guides are ranked by popularity (pulls):
+
+```
+fresh registry trending
+
+# Results:
+1. @john-doe/react-advanced-patterns  (1,234 pulls)
+2. @jane-smith/zod-mastery         (987 pulls)
+3. @random-user/guide               (456 pulls)
+...
+```
+
+- **Popularity** = based on pulls (automatic)
+- **Featured** = promoted (paid)
 
 **Paid is just to cover hosting costs, not to make profit.**
 
