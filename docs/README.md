@@ -39,6 +39,7 @@ fresh list <url>
 fresh list <url> --depth <n>
 fresh list <url> --json
 fresh list <url> --pattern <regex>
+fresh list <url> --no-cache
 
 # Fetch docs locally
 fresh sync <url>
@@ -49,6 +50,7 @@ fresh sync <url> -o <directory>
 # Search in synced docs
 fresh search <query>
 fresh search <query> <topic>
+fresh search <query> --no-cache
 
 # Search the web
 fresh websearch <query>

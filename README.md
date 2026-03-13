@@ -54,6 +54,7 @@ fresh sync <url> -o <directory>
 # Search in synced docs
 fresh search <query>
 fresh search <query> <topic>
+fresh search <query> --no-cache
 
 # Search the web
 fresh websearch <query>
