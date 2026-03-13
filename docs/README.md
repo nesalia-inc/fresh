@@ -12,6 +12,7 @@ Fresh is a CLI tool that helps you build and manage knowledge for coding.
 | [SPEC.md](SPEC.md) | Full specification |
 | [THEORY.md](THEORY.md) | Theory vs implementations |
 | [THEORETICAL.md](THEORETICAL.md) | Learning theoretical topics |
+| [SYNC.md](SYNC.md) | Step 1: Documentation sync |
 | [EXPLORE.md](EXPLORE.md) | Explore command |
 | [AGENT.md](AGENT.md) | Fresh is a CLI for everyone |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture |
