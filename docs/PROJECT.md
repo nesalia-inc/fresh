@@ -25,24 +25,35 @@ Fresh provides a **brain for AI agents**:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                         Agent                                │
-│              (Claude Code, custom agents...)                │
+│                      User / End Agent                        │
+│              "I need to build something with Zod"           │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                      Fresh Core                             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │  Fetch   │  │  Index   │  │  Search  │  │  Guide   │  │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+│                    Fresh Agent (Brain)                      │
+│  1. Analyze request                                         │
+│  2. Check existing knowledge                                │
+│  3. Fetch fresh docs if needed                             │
+│  4. Generate guide                                          │
+│  5. Return Markdown output                                 │
 └─────────────────────────────────────────────────────────────┘
                               │
-                              ▼
+                              ▼ (Markdown)
 ┌─────────────────────────────────────────────────────────────┐
-│                       Sources                                │
-│   Web (docs, APIs)  │  Local  │  Generated  │  Plugins    │
+│                    End Agent receives:                       │
+│  # Zod v4 Migration Guide                                  │
+│  ## What's new                                              │
+│  - z.email() replaces z.string().email()                  │
+│  ...                                                        │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## Documentation Structure
+
+- **[SPEC.md](SPEC.md)** - Product specification and feature overview
+- **[AGENT.md](AGENT.md)** - Fresh Agent behavior and decision logic
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture and design
 
 ## Features
 
