@@ -18,6 +18,7 @@ Fresh is a CLI tool that helps you build and manage knowledge for coding.
 | [AGENT.md](AGENT.md) | Fresh is a CLI for everyone |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture |
 | [CACHE.md](CACHE.md) | Internal cache system |
+| [REGISTRY.md](REGISTRY.md) | Community guides |
 
 ## Two Things
 
@@ -110,6 +111,25 @@ fresh learn done <project>/<concept>
 
 # Link concepts
 fresh learn link <project>/<a> <project>/<b>
+```
+
+### Registry
+
+```bash
+# Pull a guide from community
+fresh registry pull @account/guide-name
+
+# Search community guides
+fresh registry search <query>
+
+# List trending guides
+fresh registry trending
+
+# Publish your guide
+fresh registry publish <guide-name>
+
+# Your published guides
+fresh registry my-guides
 ```
 
 ### Cache
