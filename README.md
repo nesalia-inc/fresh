@@ -1,6 +1,10 @@
 # Fresh
 
-> A CLI tool to fetch and sync documentation locally.
+> A CLI tool to build and manage knowledge for coding.
+
+Fresh helps you:
+1. **Sync documentation** - Get docs locally for offline use
+2. **Learn iteratively** - Build structured knowledge with a queue system
 
 ## Install
 
@@ -11,44 +15,70 @@ pip install fresh-docs
 ## Quick Start
 
 ```bash
-# List pages
-fresh list https://docs.zod.dev/
+# Get docs locally
+fresh sync zod
+fresh sync react
 
-# Get a page
-fresh get https://docs.zod.dev/api/schema
-
-# Sync entire site
-fresh sync https://docs.zod.dev/
-
-# Search in local docs
+# Search in docs
 fresh search "email validation" zod
+
+# Start learning
+fresh learn init probability-theory
+fresh learn explore probability
+fresh learn add probability-theory fundamentals --priority high
+fresh learn next
 ```
 
-## Commands
+## Two Things
+
+### 1. Documentation
 
 ```bash
-fresh list <url>            # List all pages
-fresh get <url>             # Fetch a page as Markdown
-fresh sync <url>            # Sync entire site locally
-fresh search <query>       # Search in local docs
-fresh websearch <query>    # Search the web
+fresh get <url>            # Fetch a single page
+fresh list <url>           # List available pages
+fresh sync <topic>         # Fetch docs locally
+fresh search <query>      # Search in synced docs
+fresh websearch <query>   # Search the web
+fresh knowledge list       # Show available docs
+```
+
+### 2. Guides
+
+```bash
+fresh guide create <name>  # Create guide
+fresh guide list          # List guides
+fresh guide show <name>   # Show guide
+```
+
+### 3. Learn
+
+```bash
+fresh learn init <topic>           # Start project
+fresh learn explore <topic>        # Discover concepts
+fresh learn add <concept> --priority high|medium|low  # Add to queue
+fresh learn queue                  # View queue
+fresh learn next                  # Get next concept
+fresh learn start <concept>       # Start learning
+fresh learn done <concept>        # Mark complete
+fresh learn link <a> <b>         # Link concepts
 ```
 
 ## Structure
 
 ```
 .fresh/
-└── knowledge/
-    └── zod/
-        └── docs/
+├── knowledge/           # Synced documentation
+└── learning/           # Learning projects
 ```
 
 ## Why
 
-Keep documentation locally:
-- Offline access
-- Always available
-- Up-to-date
+AI agents (and humans) need to:
+- Have docs available offline
+- Build structured knowledge over time
+- Track what to learn next
+
+Fresh makes this easy.
 
 ## License
 
