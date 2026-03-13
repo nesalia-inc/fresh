@@ -33,8 +33,12 @@ fresh learn init probability-theory
 ### Documentation
 
 ```bash
-fresh sync <topic>           # Fetch docs locally
-fresh search <query>         # Search in synced docs
+fresh get <url>             # Fetch a single page
+fresh list <url>            # List available pages
+fresh sync <topic>          # Fetch docs locally
+fresh search <query>        # Search in synced docs
+fresh websearch <query>    # Search the web
+fresh knowledge list       # Show available docs
 ```
 
 ### Learning

@@ -31,12 +31,14 @@ fresh learn next
 
 ## Two Things
 
-### 1. Sync Docs
+### 1. Documentation
 
 ```bash
-fresh sync zod          # Fetch Zod docs
-fresh sync react        # Fetch React docs
-fresh search "query"    # Search in synced docs
+fresh get <url>            # Fetch a single page
+fresh list <url>           # List available pages
+fresh sync <topic>         # Fetch docs locally
+fresh search <query>      # Search in synced docs
+fresh websearch <query>   # Search the web
 ```
 
 ### 2. Learn

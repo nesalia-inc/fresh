@@ -36,10 +36,21 @@ fresh learn next
 
 ## Commands
 
+### Documentation
+
 | Command | Description |
 |---------|-------------|
-| `fresh sync <topic>` | Fetch doc locally |
+| `fresh get <url>` | Fetch a single page |
+| `fresh list <url>` | List available pages |
+| `fresh sync <topic>` | Fetch docs locally |
 | `fresh search <query>` | Search docs |
+| `fresh websearch <query>` | Search the web |
+| `fresh knowledge list` | Show available docs |
+
+### Learning
+
+| Command | Description |
+|---------|-------------|
 | `fresh learn init <topic>` | Start learning |
 | `fresh learn explore <topic>` | Discover concepts |
 | `fresh learn add <path>` | Add content |
