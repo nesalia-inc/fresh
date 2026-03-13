@@ -12,6 +12,21 @@ Share and discover guides from the community:
 
 ## Commands
 
+### Auth
+
+```bash
+# Login
+fresh auth login
+
+# Logout
+fresh auth logout
+
+# Show current user
+fresh auth whoami
+```
+
+### Registry
+
 ```bash
 # Pull a guide from community
 fresh registry pull @martty-code/zustand-best-practices

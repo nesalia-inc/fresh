@@ -116,7 +116,21 @@ fresh learn done <project>/<concept>
 fresh learn link <project>/<a> <project>/<b>
 ```
 
-### 4. Registry
+### 4. Auth
+
+```bash
+# Login
+fresh auth login
+fresh auth login --email <email> --password <password>
+
+# Logout
+fresh auth logout
+
+# Show current user
+fresh auth whoami
+```
+
+### 5. Registry
 
 ```bash
 # Pull a guide from community
@@ -135,7 +149,7 @@ fresh registry publish <guide-name>
 fresh registry my-guides
 ```
 
-### 5. Cache
+### 6. Cache
 
 ```bash
 # Clear cache

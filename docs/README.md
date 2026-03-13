@@ -113,6 +113,20 @@ fresh learn done <project>/<concept>
 fresh learn link <project>/<a> <project>/<b>
 ```
 
+### Auth
+
+```bash
+# Login
+fresh auth login
+fresh auth login --email <email> --password <password>
+
+# Logout
+fresh auth logout
+
+# Show current user
+fresh auth whoami
+```
+
 ### Registry
 
 ```bash
