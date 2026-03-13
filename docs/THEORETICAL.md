@@ -1,240 +1,144 @@
 # Theoretical Learning
 
-> How Fresh handles non-technical topics like mathematics, statistics, and theory.
+> How Fresh handles non-technical topics using Learn Mode.
 
 ## The Problem
 
-Fresh handles technical documentation well:
-- `fresh sync zod` → get Zod docs locally
-- Search, create guides, etc.
+Technical topics have official documentation sites:
+- Zod → zod.dev
+- React → react.dev
+- Python → docs.python.org
 
-But what about **theoretical topics**?
+But theoretical topics don't:
 - Probability & Statistics
 - Linear Algebra
 - Algorithm Theory
 - Machine Learning Fundamentals
-- etc.
 
-These have no "doc site" to sync. Traditional scraping doesn't work.
+## Solution: Learn Mode
 
-## The Distinction
-
-| Type | Example | Approach |
-|------|---------|----------|
-| Technical | Zod, React, Python | Sync docs from official sites |
-| Theoretical | Proba/stats, Algebra | Different approach needed |
-
-## Solutions
-
-### Solution 1: Web Search + Agent Synthesis (Recommended)
-
-Use existing `fresh websearch` and let the agent iterate:
+For theoretical topics, use **Learn Mode** - the iterative learning system.
 
 ```
-Agent wants to learn "probability theory"
-
-1. fresh websearch "probability theory fundamentals"
-   → Returns web results
-
-2. Agent reads results, understands concepts
-
-3. fresh guide create probability-theory
-   → Creates empty guide
-
-4. fresh guide add probability-theory --content "# Fundamentals\n\n..."
-   → Adds synthesized content
-
-5. Repeat 1-4 until guide is complete
+.fresh/
+└── learning/                    # Learn Mode
+    └── probability-theory/
+        ├── 01-fundamentals/
+        │   ├── 01-sample-space.md
+        │   ├── 02-events.md
+        │   └── 03-probability-function.md
+        ├── 02-conditional/
+        └── 03-distributions/
 ```
 
-**Pros:**
-- Uses existing tools (`fresh websearch` already exists)
-- Agent controls depth and synthesis
-- No new infrastructure needed
+## Workflow
 
-**Cons:**
-- Manual iteration required
-- Agent does more work
-
-### Solution 2: Curated Sources
-
-Define trusted sources for theoretical topics:
-
-```python
-# In config or as built-in
-THEORETICAL_SOURCES = {
-    "probability": [
-        "https://en.wikipedia.org/wiki/Probability",
-        "https://mathworld.wolfram.com/Probability",
-    ],
-    "statistics": [
-        "https://en.wikipedia.org/wiki/Statistics",
-        "https://mathworld.wolfram.com/Statistics",
-    ],
-    "linear-algebra": [
-        "https://en.wikipedia.org/wiki/Linear_algebra",
-        "https://mathworld.wolfram.com/LinearAlgebra",
-    ],
-    "machine-learning": [
-        "https://en.wikipedia.org/wiki/Machine_learning",
-        "https://machinelearningmastery.com/",
-    ],
-}
-```
-
-Then:
-```bash
-fresh sync probability
-→ Fetches from curated sources
-→ Same workflow as technical docs
-```
-
-**Pros:**
-- Automatic
-- Consistent with existing workflow
-
-**Cons:**
-- Need to maintain source list
-- Wikipedia may not be the best source
-- May need web scraping anyway
-
-### Solution 3: Agent Full Automation
-
-The Agent handles everything:
-
-```python
-from fresh import FreshAgent
-
-agent = FreshAgent()
-
-# Agent searches, synthesizes, creates guide
-guide = agent.learn(
-    topic="probability-theory",
-    mode="theoretical",  # Different from technical
-    depth="comprehensive"
-)
-```
-
-Agent would:
-1. Search web for relevant information
-2. Analyze and synthesize
-3. Create structured guide
-4. Return complete guide
-
-**Pros:**
-- "Magical" experience
-- Agent does all the work
-
-**Cons:**
-- Most complex to implement
-- Less control
-- Requires LLM integration
-
-## Recommended Approach
-
-### Phase 1: Use Existing Tools (Now)
+### Step 1: Initialize
 
 ```bash
-# Agent uses web search to learn
-fresh websearch "probability theory fundamentals"
-
-# Agent creates guide
-fresh guide create probability-theory
-
-# Agent enriches guide iteratively
-fresh guide add probability-theory --content "..."
-fresh guide add probability-theory --content "..."
+fresh learn init probability-theory
 ```
 
-The agent iterates until it has a comprehensive guide.
-
-### Phase 2: Curated Sources (Later)
-
-Add built-in sources for common theoretical topics:
-- math.stackexchange
-- wikipedia (carefully selected pages)
-- university course notes
+### Step 2: Explore
 
 ```bash
-fresh sync probability
-# → Fetches from predefined sources
+fresh learn explore probability
+# Returns: [fundamentals, distributions, statistics, bayes, random-variables]
 ```
 
-### Phase 3: Agent Automation (Future)
-
-When Agent mode is ready:
-```bash
-fresh learn "probability theory" --agent
-# → Fully automated synthesis
-```
-
-## Example Workflow
-
-### Agent Learning Probability
+### Step 3: Structure
 
 ```bash
-# 1. Agent decides it needs probability theory
-#    (maybe because project involves statistics)
-
-# 2. Start with web search
-fresh websearch "probability theory basics"
-
-# 3. Create guide
-fresh guide create probability-fundamentals
-
-# 4. Agent synthesizes and adds content
-fresh guide add probability-fundamentals \
-  --content "# Probability Fundamentals
-
-## Core Concepts
-
-### Sample Space (Ω)
-The set of all possible outcomes...
-
-### Events
-A subset of the sample space...
-
-### Probability Function
-P: Ω → [0,1]
-
-## Key Theorems
-
-### Bayes' Theorem
-P(A|B) = P(B|A) * P(A) / P(B)
-
-..."
-
-# 5. Search for more specific topics
-fresh websearch "conditional probability examples"
-
-# 6. Add more content
-fresh guide add probability-fundamentals \
-  --content "## Conditional Probability
-
-### Definition
-P(A|B) = P(A ∩ B) / P(B)
-
-### Example
-..."
-
-# 7. Continue until comprehensive
-fresh guide show probability-fundamentals
+fresh learn chapter probability-theory 01-fundamentals
+fresh learn chapter probability-theory 02-distributions
+fresh learn chapter probability-theory 03-bayes
 ```
 
-## Comparison
+### Step 4: Add Content (Iterative)
 
-| Solution | Complexity | Control | Automation |
-|----------|------------|---------|------------|
-| Web search + manual | Low | High | Low |
-| Curated sources | Medium | Medium | Medium |
-| Agent full | High | Low | High |
+```bash
+# Use web search to find content
+fresh websearch "sample space probability theory"
 
-## Decision
+# Add to learning project
+fresh learn add probability-theory/01-fundamentals/01-sample-space \
+  --content "# Sample Space
 
-Start with **Solution 1** (web search + manual) because:
-1. Uses existing `fresh websearch` command
-2. Agent has full control over what to learn
-3. No new infrastructure needed
-4. Can evolve to other solutions later
+## Definition
+The set of all possible outcomes of an experiment.
 
-The agent becomes the "curator" - it decides what to search, what to keep, and how to synthesize.
+## Examples
+- Coin flip: Ω = {H, T}
+- Dice roll: Ω = {1, 2, 3, 4, 5, 6}
+"
+```
+
+### Step 5: Link Concepts
+
+```bash
+fresh learn link \
+  probability-theory/01-fundamentals/01-sample-space \
+  probability-theory/02-conditional/independence
+```
+
+### Step 6: Iterate
+
+```bash
+# Discover more sub-concepts
+fresh learn explore "conditional probability"
+# Returns: [bayes-theorem, independence, chain-rule]
+
+# Add more content...
+```
+
+## Comparison with Technical Topics
+
+| Aspect | Technical | Theoretical |
+|--------|-----------|-------------|
+| **Source** | Official docs | Web search + synthesis |
+| **Sync** | `fresh sync <topic>` | `fresh learn init` |
+| **Content** | Auto-fetched | Agent adds manually |
+| **Structure** | From doc site | Agent creates |
+
+## Example: Building a Learning Project
+
+```bash
+# 1. Initialize
+fresh learn init linear-algebra
+
+# 2. Explore main topics
+fresh learn explore "linear algebra"
+# → [vectors, matrices, determinants, eigenvalues, linear-transformations]
+
+# 3. Create structure
+fresh learn chapter linear-algebra 01-vectors
+fresh learn chapter linear-algebra 02-matrices
+fresh learn chapter linear-algebra 03-eigenvalues
+
+# 4. Add content iteratively
+fresh websearch "what is a vector linear algebra"
+fresh learn add linear-algebra/01-vectors/01-definition --content "..."
+
+fresh websearch "vector operations addition scalar"
+fresh learn add linear-algebra/01-vectors/02-operations --content "..."
+
+# 5. Link concepts
+fresh learn link linear-algebra/01-vectors/02-operations -> linear-algebra/02-matrices/01-matrix-multiplication
+
+# 6. Continue until complete
+```
+
+## Why This Works
+
+1. **Iterative** - Agent discovers concepts gradually
+2. **Structured** - Hierarchical chapters/sections
+3. **Linked** - Concepts connect to each other
+4. **Agent-controlled** - Agent decides depth and order
+
+## Tips
+
+- Start with `fresh learn explore <topic>` to discover sub-topics
+- Use web search (`fresh websearch`) to find content
+- Add content incrementally
+- Link related concepts with `fresh learn link`
+- Use `fresh learn tree <project>` to see progress
