@@ -116,9 +116,8 @@ fresh learn link <project>/<a> <project>/<b>
 ### Auth
 
 ```bash
-# Login
+# Login (opens browser for OAuth2)
 fresh auth login
-fresh auth login --email <email> --password <password>
 
 # Logout
 fresh auth logout

@@ -15,7 +15,7 @@ Share and discover guides from the community:
 ### Auth
 
 ```bash
-# Login
+# Login (opens browser for OAuth2)
 fresh auth login
 
 # Logout
