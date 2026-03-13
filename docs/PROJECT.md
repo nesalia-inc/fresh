@@ -1,95 +1,57 @@
 # Fresh - Agent Knowledge System
 
-> A project-local knowledge system for AI agents with two modes: Run (daily usage) and Learn (building knowledge).
+> A CLI tool to build and manage knowledge for coding. Used by humans and AI agents.
 
-## The Two Modes
+## What It Does
 
-Fresh has **two distinct purposes**:
+Two things:
 
-### Run Mode - Daily Usage
+1. **Sync docs** - Fetch documentation locally for offline use
+2. **Learn** - Build structured knowledge through iterative learning
 
-Agent **already has knowledge** and needs to retrieve it quickly.
-
-```bash
-# Search
-fresh search "email validation"
-
-# View guides
-fresh guide show optimistic-state
-fresh guide list
-
-# Quick reference
-fresh knowledge list
-```
-
-### Learn Mode - Building Knowledge
-
-Agent **builds its knowledge** through iterative learning.
+## Quick Start
 
 ```bash
-# Start learning
+# Get docs locally
+fresh sync zod
+fresh sync react
+
+# Learn something new
 fresh learn init probability-theory
 fresh learn explore probability
-
-# Build structure
-fresh learn chapter probability-theory 01-fundamentals
-
-# Add content iteratively
-fresh learn add probability-theory/01/sample-space --content "..."
-fresh learn link probability-theory/01/sample-space -> probability-theory/02/conditional
+fresh learn add probability-theory fundamentals --priority high
+fresh learn next
 ```
 
-## Project Structure
+## Structure
 
 ```
 .fresh/
-├── knowledge/                 # Run: Synced technical docs
+├── knowledge/           # Synced documentation
 │   ├── zod/
 │   └── react/
-├── guides/                   # Run: Quick reference guides
-│   └── optimistic-state.md
-└── learning/                 # Learn: Structured learning projects
-    ├── probability-theory/
-    │   ├── 01-fundamentals/
-    │   └── 02-conditional/
-    └── linear-algebra/
+└── learning/           # Learning projects
+    └── probability-theory/
 ```
-
-## Core Philosophy
-
-1. **Project-local** - Each project manages its own knowledge
-2. **Two modes** - Run (retrieve) vs Learn (create)
-3. **Scraping first** - Get docs locally
-4. **Iterative learning** - Discover, add, link, repeat
 
 ## Commands
 
-### Run Mode
-
 | Command | Description |
 |---------|-------------|
-| `fresh sync <topic>` | Fetch doc site locally |
-| `fresh search <query>` | Search local docs |
-| `fresh guide create <name>` | Create a guide |
-| `fresh guide show <name>` | Show guide |
-| `fresh guide list` | List guides |
-| `fresh knowledge list` | Show synced docs |
-
-### Learn Mode
-
-| Command | Description |
-|---------|-------------|
-| `fresh learn init <name>` | Create learning project |
-| `fresh learn explore <topic>` | Discover sub-topics |
-| `fresh learn chapter <project>/<ch>` | Create chapter |
+| `fresh sync <topic>` | Fetch doc locally |
+| `fresh search <query>` | Search docs |
+| `fresh learn init <topic>` | Start learning |
+| `fresh learn explore <topic>` | Discover concepts |
 | `fresh learn add <path>` | Add content |
-| `fresh learn link <path1> <path2>` | Link concepts |
-| `fresh learn tree <project>` | Show structure |
+| `fresh learn queue` | See queue |
+| `fresh learn next` | Get next concept |
+| `fresh learn start <concept>` | Start concept |
+| `fresh learn done <concept>` | Mark complete |
+| `fresh learn link <a> <b>` | Link concepts |
 
-## Documentation
+## For Humans & Agents
 
-- **[SPEC.md](SPEC.md)** - Full specification
-- **[THEORETICAL.md](THEORETICAL.md)** - Handling theoretical topics
+Fresh is a CLI. Both humans and AI agents use the same commands.
 
 ## License
 

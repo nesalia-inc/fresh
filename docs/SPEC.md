@@ -1,330 +1,144 @@
-# Fresh V2 - Agent Knowledge System Specification
+# Fresh V2 - Agent Knowledge System
 
 ## Overview
 
-Fresh V2 has **two distinct modes** for two different use cases:
+Fresh is a CLI tool that helps you build and manage knowledge for coding. It works the same way for humans and AI agents.
 
-1. **Run Mode** - Daily usage: retrieve information, quick references
-2. **Learn Mode** - Knowledge creation: build structured learning projects
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         FRESH                                   │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│   ┌─────────────────────┐     ┌─────────────────────┐       │
-│   │   RUN MODE          │     │   LEARN MODE         │       │
-│   │   (Usage quotidien) │     │   (Création formation)      │
-│   └─────────────────────┘     └─────────────────────┘       │
-│            │                            │                       │
-│            ▼                            ▼                       │
-│   • Consulter guides          • Créer learning projects        │
-│   • Rechercher dans doc       • Explorer concepts             │
-│   • Référence rapide          • Construire structure          │
-│                                  Itérative discovery            │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Run Mode (Utilisation Quotidienne)
-
-Used when the agent **already has knowledge** and needs to retrieve it quickly.
-
-### Use Cases
-
-- Agent needs to remember something while coding
-- Quick reference lookup
-- Search across known topics
-- Read a specific guide
-
-### Commands
-
-```bash
-# Search in local docs
-fresh search "email validation"
-fresh search "zustand store" zustand
-
-# View guides
-fresh guide list
-fresh guide show optimistic-state
-
-# Check knowledge
-fresh knowledge list
-fresh knowledge status zod
-
-# Quick guide creation (personal notes)
-fresh guide create my-reference --content "..."
-```
-
-### Output
-
-Quick answers, references, not creation of new knowledge.
-
----
-
-## Learn Mode (Création de Formation)
-
-Used when the agent **builds its knowledge** - iterative, structured process.
-
-### Use Cases
-
-- Agent wants to learn a new topic (technical or theoretical)
-- Building comprehensive knowledge base
-- Creating structured learning materials
-
-### The Learning Process
-
-```
-1. fresh learn init <topic>
-   → Create learning project
-
-2. fresh learn explore <topic>
-   → Discover sub-topics
-
-3. [Iteration loop]
-   a. fresh learn chapter <project>/<chapter>
-   b. fresh learn add <path> --from-search "..."
-   c. fresh learn link <path1> <path2>
-   d. Discover new sub-concepts → repeat
-
-4. → .fresh/learning/<topic>/ (structured book)
-```
-
-### Commands
-
-```bash
-# Project management
-fresh learn init <name>              # Create learning project
-fresh learn list                     # List all learning projects
-fresh learn tree <project>           # Show structure
-fresh learn delete <project>         # Delete project
-
-# Exploration
-fresh learn explore <topic>          # Discover sub-topics
-fresh learn suggestions <project>    # What's next
-
-# Structure
-fresh learn chapter <project>/<chapter>   # Create chapter
-fresh learn section <project>/<chapter>/<section>  # Create section
-
-# Content
-fresh learn add <path> --content "..."           # Add content
-fresh learn add <path> --from-search "..."      # Add from web search
-fresh learn edit <path>                          # Edit content
-
-# Navigation
-fresh learn show <path>              # Show content
-fresh learn find <project> <query>  # Search in project
-
-# Linking
-fresh learn link <path1> <path2>    # Link concepts
-fresh learn graph <project>          # Show knowledge graph
-
-# Concept Queue (priority-based learning)
-fresh learn concept add <project> <concept> --priority high|medium|low  # Add concept to queue
-fresh learn concept queue <project>                                     # View queue
-fresh learn concept next <project>                                      # Get next concept
-fresh learn concept start <project>/<concept>                           # Start learning
-fresh learn concept complete <project>/<concept>                       # Mark complete
-fresh learn concept priority <project>/<concept> --high|medium|low      # Change priority
-
-# Progress
-fresh learn status <project>         # Show progress
-fresh learn next <project>          # Suggest next step
-```
-
----
-
-## Project Structure
+Two things you can do:
+1. **Sync docs** - Get documentation locally for offline use
+2. **Learn** - Build structured knowledge through iterative learning
 
 ```
 .fresh/
-├── knowledge/                       # RUN MODE: Synced technical docs
+├── knowledge/           # Synced documentation
 │   ├── zod/
-│   │   └── docs/
 │   └── react/
-│       └── docs/
-│
-├── guides/                         # RUN MODE: Quick reference guides
-│   ├── optimistic-state.md
-│   └── forms-with-zod.md
-│
-└── learning/                       # LEARN MODE: Learning projects
-    ├── probability-theory/
-    │   ├── _meta/
-    │   │   ├── index.json         # Concepts index
-    │   │   ├── graph.json         # Links between concepts
-    │   │   └── progress.json      # Progress tracking
-    │   ├── 01-fundamentals/
-    │   │   ├── _meta.yaml
-    │   │   ├── 01-sample-space.md
-    │   │   ├── 02-events.md
-    │   │   └── 03-probability-function.md
-    │   ├── 02-conditional/
-    │   └── 03-distributions/
-    └── linear-algebra/
-        └── ...
+└── learning/           # Learning projects
+    └── probability-theory/
 ```
 
 ---
 
-## Example: Learn Mode Workflow
+## Commands
 
-### Step 1: Initialize
+### Documentation
+
+```bash
+fresh sync <topic>           # Fetch docs locally
+fresh search <query>         # Search in synced docs
+fresh knowledge list         # Show available docs
+```
+
+### Learning
+
+```bash
+fresh learn init <topic>           # Start learning project
+fresh learn explore <topic>        # Discover concepts
+fresh learn add <path> --content "..."  # Add content
+fresh learn queue                  # See what to learn next
+fresh learn next                   # Get next concept
+fresh learn start <concept>       # Start learning a concept
+fresh learn done <concept>         # Mark concept as complete
+fresh learn link <a> <b>          # Link concepts
+```
+
+---
+
+## Learning Workflow
+
+### Step 1: Start
 
 ```bash
 fresh learn init probability-theory
-# Creates .fresh/learning/probability-theory/
 ```
 
 ### Step 2: Explore
 
 ```bash
 fresh learn explore probability
-# Returns: [fundamentals, distributions, statistics, bayes, random-variables]
+# Returns: [fundamentals, distributions, conditional, random-variables]
 ```
 
-### Step 3: Structure
+### Step 3: Add to Queue
 
 ```bash
-fresh learn chapter probability-theory 01-fundamentals
-fresh learn chapter probability-theory 02-distributions
-fresh learn chapter probability-theory 03-bayes
+fresh learn add probability-theory gaussian --priority high
+fresh learn add probability-theory binomial --priority medium
 ```
 
-### Step 4: Add Content (Iterative)
+### Step 4: Learn
 
 ```bash
-# Search for a concept
-fresh websearch "sample space probability"
+fresh learn next
+# → Returns: gaussian (highest priority)
 
-# Add to learning project
-fresh learn add probability-theory/01-fundamentals/01-sample-space \
-  --content "# Sample Space
-
-## Definition
-The set of all possible outcomes of an experiment.
-
-## Example
-Coin flip: Ω = {H, T}
-Dice roll: Ω = {1, 2, 3, 4, 5, 6}
-
-## Notation
-Ω (Omega)
-"
+fresh learn start gaussian
+fresh learn add probability-theory/gaussian/definition --content "..."
+fresh learn done gaussian
 ```
 
-### Step 5: Link Concepts
+### Step 5: Iterate
 
 ```bash
-fresh learn link \
-  probability-theory/01-fundamentals/01-sample-space \
-  probability-theory/02-conditional/independence
-# → Creates dependency link in graph
-```
+# Discover more while learning
+fresh learn explore probability/distributions
 
-### Step 6: Iterate
-
-```bash
-# Discover new sub-concepts
-fresh learn explore "conditional probability"
-# → Returns: [bayes-theorem, independence, chain-rule]
-
-# Continue adding...
+# Add new discoveries
+fresh learn add probability-theory central-limit-theorem --priority high
 ```
 
 ---
 
-## Theoretical Learning
+## Queue System
 
-Learn Mode handles both technical AND theoretical topics:
-
-### Technical (has doc sites)
+The queue manages what to learn next:
 
 ```bash
-fresh learn init react-patterns
-
-# Can also sync docs
-fresh sync react
-
-# Then add from local docs
-fresh learn add react-patterns/hooks --from-search "useEffect cleanup"
+fresh learn queue
 ```
-
-### Theoretical (no doc sites)
-
-```bash
-fresh learn init probability-theory
-
-# Use web search to discover and add
-fresh websearch "probability theory fundamentals"
-fresh learn add probability-theory/... --content "..."
-
-# Iterate until complete
+```
+probability-theory
+├── high priority
+│   └── gaussian
+├── medium priority
+│   ├── binomial
+│   └── conditional
+└── low priority
+    └── random-variables
 ```
 
 ---
 
-## Comparison
-
-| Aspect | Run Mode | Learn Mode |
-|--------|----------|------------|
-| **When** | Daily, while coding | Before/alongside coding |
-| **Purpose** | Retrieve info | Create knowledge |
-| **Output** | Quick references | Structured book |
-| **Iteration** | No | Yes (discovery loop) |
-| **Commands** | `search`, `guide show` | `learn init`, `explore`, `add` |
-| **Structure** | Flat guides | Hierarchical chapters |
-
----
-
-## Architecture
+## Structure
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     CLI Layer                               │
-│   Run: sync │ search │ guide │ knowledge                  │
-│   Learn: learn init │ explore │ chapter │ add │ link      │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Core Services                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │   Scraping   │  │   Search     │  │   Learning   │   │
-│  │   Service    │  │   Service    │  │   Service    │   │
-│  └──────────────┘  └──────────────┘  └──────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Storage (.fresh/)                          │
-│   knowledge/ (docs) │ guides/ (quick refs) │ learning/     │
-│          SQLite (index) + Markdown (content)               │
-└─────────────────────────────────────────────────────────────┘
+.fresh/learning/probability-theory/
+├── _meta/
+│   └── queue.json           # Learning queue
+├── 01-fundamentals/
+│   ├── 01-sample-space.md
+│   └── 02-events.md
+└── 02-gaussian/
+    └── definition.md
 ```
 
 ---
 
-## Roadmap
+## Priority
 
-### Phase 1 (Run Mode - Current)
-- [x] CLI commands
-- [x] Guide management
-- [ ] Project-local `.fresh/` directory
-- [ ] SQLite search index
+| Priority | When |
+|----------|------|
+| high | Core concepts, prerequisites |
+| medium | Standard concepts |
+| low | Nice-to-have |
 
-### Phase 2 (Learn Mode)
-- [ ] `fresh learn init` - Learning project creation
-- [ ] `fresh learn explore` - Concept discovery
-- [ ] `fresh learn chapter/section` - Structure
-- [ ] `fresh learn add` - Content addition
-- [ ] `fresh learn link` - Knowledge graph
-- [ ] Iteration support
+---
 
-### Phase 3 (Advanced)
-- [ ] Progress tracking
-- [ ] Suggestions engine
-- [ ] Agent automation
-- [ ] MCP server
+## CLI for Everyone
+
+Fresh is a CLI tool. Both humans and AI agents use the same commands:
+
+- **Human**: Runs commands directly
+- **AI Agent**: Runs commands in its workflow
+
+There's no special "Agent mode" - just a CLI that everyone uses.
