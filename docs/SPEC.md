@@ -43,6 +43,12 @@ fresh learn next                   # Get next concept
 fresh learn start <concept>       # Start learning a concept
 fresh learn done <concept>         # Mark concept as complete
 fresh learn link <a> <b>          # Link concepts
+
+### Cache
+
+```bash
+fresh cache clear           # Clear all cache
+fresh cache status          # Show cache status
 ```
 
 ---

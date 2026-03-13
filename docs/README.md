@@ -15,6 +15,7 @@ Fresh is a CLI tool that helps you build and manage knowledge for coding.
 | [EXPLORE.md](EXPLORE.md) | Explore command |
 | [AGENT.md](AGENT.md) | Fresh is a CLI for everyone |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture |
+| [CACHE.md](CACHE.md) | Internal cache system |
 
 ## Two Things
 
