@@ -121,6 +121,14 @@ fresh learn find <project> <query>  # Search in project
 fresh learn link <path1> <path2>    # Link concepts
 fresh learn graph <project>          # Show knowledge graph
 
+# Concept Queue (priority-based learning)
+fresh learn concept add <project> <concept> --priority high|medium|low  # Add concept to queue
+fresh learn concept queue <project>                                     # View queue
+fresh learn concept next <project>                                      # Get next concept
+fresh learn concept start <project>/<concept>                           # Start learning
+fresh learn concept complete <project>/<concept>                       # Mark complete
+fresh learn concept priority <project>/<concept> --high|medium|low      # Change priority
+
 # Progress
 fresh learn status <project>         # Show progress
 fresh learn next <project>          # Suggest next step
