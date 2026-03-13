@@ -1,37 +1,34 @@
-# Fresh
+# Fresh Documentation
 
-> A CLI tool to build and manage knowledge for coding.
+## Overview
 
-Fresh helps you:
-1. **Sync documentation** - Get docs locally for offline use
-2. **Learn iteratively** - Build structured knowledge with a queue system
+Fresh is a CLI tool that helps you build and manage knowledge for coding.
 
-## Install
+## Docs
 
-```bash
-pip install fresh-docs
-```
-
-## Quick Start
-
-```bash
-# Get docs locally
-fresh sync zod
-fresh sync react
-
-# Search in docs
-fresh search "email validation" zod
-
-# Start learning
-fresh learn init probability-theory
-fresh learn explore probability
-fresh learn add probability-theory fundamentals --priority high
-fresh learn next
-```
+| File | Description |
+|------|-------------|
+| [PROJECT.md](PROJECT.md) | Project overview and vision |
+| [SPEC.md](SPEC.md) | Full specification |
+| [THEORY.md](THEORY.md) | Theory vs implementations |
+| [THEORETICAL.md](THEORETICAL.md) | Learning theoretical topics |
+| [SYNC.md](SYNC.md) | Step 1: Documentation sync |
+| [GUIDES.md](GUIDES.md) | Guide structure (folders/files) |
+| [EXPLORE.md](EXPLORE.md) | Explore command |
+| [AGENT.md](AGENT.md) | Fresh is a CLI for everyone |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture |
+| [CACHE.md](CACHE.md) | Internal cache system |
+| [REGISTRY.md](REGISTRY.md) | Community guides |
+| [BUSINESS.md](BUSINESS.md) | Business strategy |
 
 ## Two Things
 
-### 1. Documentation
+1. **Sync docs** - Fetch documentation locally
+2. **Learn** - Build knowledge iteratively
+
+## Commands
+
+### Documentation
 
 ```bash
 # Fetch a single page
@@ -44,6 +41,7 @@ fresh list <url>
 fresh list <url> --depth <n>
 fresh list <url> --json
 fresh list <url> --pattern <regex>
+fresh list <url> --no-cache
 
 # Fetch docs locally
 fresh sync <url>
@@ -67,7 +65,7 @@ fresh websearch <query> --no-cache
 fresh knowledge list
 ```
 
-### 2. Guides
+### Guides
 
 ```bash
 # Create guide (folder structure)
@@ -84,7 +82,7 @@ fresh guide list
 fresh guide show <name>
 ```
 
-### 3. Learn
+### Learning
 
 ```bash
 # Start learning project
@@ -116,7 +114,7 @@ fresh learn done <project>/<concept>
 fresh learn link <project>/<a> <project>/<b>
 ```
 
-### 4. Auth
+### Auth
 
 ```bash
 # Login (opens browser for OAuth2)
@@ -129,7 +127,7 @@ fresh auth logout
 fresh auth whoami
 ```
 
-### 5. Organizations
+### Organizations
 
 ```bash
 # Create organization
@@ -140,15 +138,9 @@ fresh org list
 
 # Add member
 fresh org add-member <org> <user>
-
-# Invite user
-fresh org invite <org> <email>
-
-# Remove member
-fresh org remove-member <org> <user>
 ```
 
-### 6. Registry
+### Registry
 
 ```bash
 # Pull a guide from community
@@ -167,7 +159,7 @@ fresh registry publish <guide-name>
 fresh registry my-guides
 ```
 
-### 6. Cache
+### Cache
 
 ```bash
 # Clear cache
@@ -178,29 +170,3 @@ fresh cache clear docs
 # Show cache status
 fresh cache status
 ```
-
-## Structure
-
-```
-.fresh/
-├── knowledge/           # Synced documentation
-│   └── zod/
-│       └── docs/
-├── guides/             # Guides
-│   └── optimistic-state/
-└── learning/           # Learning projects
-    └── probability-theory/
-```
-
-## Why
-
-AI agents (and humans) need to:
-- Have docs available offline
-- Build structured knowledge over time
-- Track what to learn next
-
-Fresh makes this easy.
-
-## License
-
-MIT

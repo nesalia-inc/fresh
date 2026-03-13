@@ -1,52 +1,69 @@
-# Fresh - Documentation Fetcher CLI
+# Fresh - Agent Knowledge System
 
-Agent-first CLI to get the latest and freshest documentation from any website in Markdown format.
+> A CLI tool to build and manage knowledge for coding. Used by humans and AI agents.
 
-## ⚠️ Work in Progress
+## What It Does
 
-This project is currently under development. Features and API may change.
+Two things:
 
-## Purpose
+1. **Sync docs** - Fetch documentation locally for offline use
+2. **Learn** - Build structured knowledge through iterative learning
 
-This CLI scrapes documentation websites and converts pages to Markdown, making it easy to keep documentation fresh and accessible for AI agents.
+## Quick Start
+
+```bash
+# Get docs locally
+fresh sync zod
+fresh sync react
+
+# Learn something new
+fresh learn init probability-theory
+fresh learn explore probability
+fresh learn add probability-theory fundamentals --priority high
+fresh learn next
+```
+
+## Structure
+
+```
+.fresh/
+├── knowledge/           # Synced documentation
+│   ├── zod/
+│   └── react/
+└── learning/           # Learning projects
+    └── probability-theory/
+```
 
 ## Commands
 
-### `fresh list <url>`
+### Documentation
 
-Lists all documentation pages available on a given website.
+| Command | Description |
+|---------|-------------|
+| `fresh get <url>` | Fetch a single page |
+| `fresh list <url>` | List available pages |
+| `fresh sync <topic>` | Fetch docs locally |
+| `fresh search <query>` | Search docs |
+| `fresh websearch <query>` | Search the web |
+| `fresh knowledge list` | Show available docs |
 
-```bash
-fresh list https://nextjs.org
-# Output: /docs /api-reference /guides /tutorials ...
-```
+### Learning
 
-### `fresh get <url>`
+| Command | Description |
+|---------|-------------|
+| `fresh learn init <topic>` | Start learning |
+| `fresh learn explore <topic>` | Discover concepts |
+| `fresh learn add <path>` | Add content |
+| `fresh learn queue` | See queue |
+| `fresh learn next` | Get next concept |
+| `fresh learn start <concept>` | Start concept |
+| `fresh learn done <concept>` | Mark complete |
+| `fresh learn link <a> <b>` | Link concepts |
 
-Fetches a specific documentation page and outputs it in Markdown format.
+## For Humans & Agents
 
-```bash
-fresh get https://nextjs.org/docs/app/api-reference/file-conventions/page
-# Output: # Page API Reference\ncontent...
-```
+Fresh is a CLI. Both humans and AI agents use the same commands.
 
-## Features
+## License
 
-- **Documentation discovery**: Automatically find all doc pages on a website
-- **Markdown output**: Convert HTML documentation pages to clean Markdown
-- **Public sources only**: Works with publicly accessible documentation sites
-- **Implicit cache**: Pages are cached automatically. Use `--no-cache` to bypass
-- **Flexible output**: Write to file or output to STDOUT
-
-## Use Cases
-
-- Keep local documentation updated for offline access
-- Feed documentation to AI agents for context-aware assistance
-- Quickly explore the structure of unfamiliar documentation sites
-
-## Technical Stack
-
-- **Language**: Python
-- **CLI Framework**: Typer
-- **Package Manager**: uv
-- **License**: MIT
+MIT
