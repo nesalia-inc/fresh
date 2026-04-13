@@ -1,0 +1,339 @@
+# Fresh Ask
+
+Ask any question and get a up-to-date answer powered by AI with real-time web access.
+
+## Overview
+
+`fresh ask` is an AI agent that answers your questions using live web data. It runs in the background so the CLI stays responsive, and supports streaming, waiting, and job monitoring.
+
+## CLI Usage
+
+```bash
+fresh ask <query> [options]
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `query` | Your question (required) |
+
+### Options
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--output <file>` | Write answer to file (e.g., `index.md`) | - |
+| `--format <type>` | Output format: `markdown`, `json`, `text` | `markdown` |
+| `--model <name>` | AI model to use | `auto` |
+| `--max-sources <n>` | Maximum sources to research | `10` |
+| `--no-cite` | Disable source citations | - |
+| `--wait` | Wait for completion instead of running in background | `false` |
+| `--stream` | Stream results as they arrive | `false` |
+
+### Examples
+
+```bash
+# Basic question (runs in background, returns immediately with job ID)
+fresh ask "What is the last version of React?"
+
+# Wait for result
+fresh ask "What is the last version of React?" --wait
+
+# Stream results
+fresh ask "What is the last version of React?" --stream
+
+# Save to file
+fresh ask "What is the last version of React?" --output "index.md"
+
+# With sources
+fresh ask "Latest AI regulations in EU?" --output "eu-ai-act.md"
+```
+
+## Job Management
+
+Every `ask` command runs as a background job. The CLI returns immediately with a job ID:
+
+```bash
+$ fresh ask "What is the last version of React?"
+✓ Job started: ask_abc123
+  Status: running
+  Use `fresh ask status ask_abc123` to monitor
+```
+
+### Status Command
+
+Check the status of a running job:
+
+```bash
+fresh ask status <job-id>
+```
+
+**Output:**
+
+```bash
+$ fresh ask status ask_abc123
+✓ Job: ask_abc123
+  Status: running
+  Progress: Searching (3/10 sources)
+  Started: 2s ago
+```
+
+### Cancel Command
+
+Cancel a running job:
+
+```bash
+fresh ask cancel <job-id>
+```
+
+### List Jobs
+
+List all running and recent jobs:
+
+```bash
+fresh ask list
+```
+
+**Output:**
+
+```bash
+$ fresh ask list
+ID          | Status     | Query                      | Started
+ask_abc123  | running    | "What is React 19..."      | 2s ago
+ask_def456  | completed  | "Latest AI news..."        | 5m ago
+ask_ghi789  | failed     | "Broken query..."          | 10m ago
+```
+
+## How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Fresh Ask Agent                         │
+│                                                             │
+│  User Question: "What is the last version of React?"        │
+│                                                             │
+│       │                                                     │
+│       ▼                                                     │
+│  ┌─────────┐    ┌─────────┐    ┌─────────┐                 │
+│  │ Search  │───▶│ Fetch   │───▶│Synthesize│                 │
+│  │         │    │         │    │         │                 │
+│  └─────────┘    └─────────┘    └─────────┘                 │
+│       │             │              │                         │
+│       └─────────────┴──────────────┘                        │
+│                    │                                        │
+│                    ▼                                        │
+│         Final Answer with Citations                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Agent Pipeline
+
+1. **Understand** - Parse the question and identify what information is needed
+2. **Search** - Use `search` to find relevant URLs
+3. **Fetch** - Use `fetch` to extract content from promising pages
+4. **Synthesize** - Combine findings into a coherent answer
+5. **Cite** - Provide source attributions with confidence levels
+
+## API Usage
+
+### POST /api/ask
+
+Start a new ask job. Returns immediately with a job ID.
+
+**Endpoint:** `POST /api/ask`
+
+**Request Body:**
+
+```json
+{
+  "query": "What is the last version of React?",
+  "options": {
+    "format": "markdown",
+    "maxSources": 10,
+    "model": "auto"
+  }
+}
+```
+
+**Response (Job Created):**
+
+```json
+{
+  "jobId": "ask_abc123",
+  "status": "running",
+  "createdAt": "2025-03-15T10:00:00Z"
+}
+```
+
+### GET /api/ask/:jobId
+
+Get job status and result.
+
+**Endpoint:** `GET /api/ask/ask_abc123`
+
+**Response (Completed):**
+
+```json
+{
+  "jobId": "ask_abc123",
+  "status": "completed",
+  "answer": "# React Latest Version\n\nAs of March 2025, the latest stable version of React is **React 19**...\n\n## Sources\n\n| Source | Confidence |\n|--------|------------|\n| [React Blog](https://react.dev/blog) | High |\n| [npm registry](https://www.npmjs.com/package/react) | High |\n",
+  "sources": [
+    {
+      "url": "https://react.dev/blog",
+      "title": "React Blog",
+      "relevance": 0.95,
+      "citedAt": "React 19 was released..."
+    }
+  ],
+  "meta": {
+    "model": "claude-sonnet-4",
+    "researchTimeMs": 3240,
+    "totalCost": 0.005
+  }
+}
+```
+
+### GET /api/ask/:jobId/stream
+
+Stream job progress and results via SSE.
+
+**Endpoint:** `GET /api/ask/ask_abc123/stream`
+
+**Events:**
+
+```
+event: status
+data: {"status":"running","phase":"searching","progress":3}
+
+event: status
+data: {"status":"running","phase":"fetching","progress":5}
+
+event: answer
+data: {"content":"# React Latest Version\n\n...", "done":false}
+
+event: done
+data: {"status":"completed","totalCost":0.005}
+```
+
+### DELETE /api/ask/:jobId
+
+Cancel a running job.
+
+**Endpoint:** `DELETE /api/ask/ask_abc123`
+
+## Features
+
+### Background Execution
+
+- **Non-blocking** - CLI returns immediately with job ID
+- **Persistent** - Jobs survive CLI restarts
+- **Monitorable** - Check status at any time
+- **Cancellable** - Stop jobs that are taking too long
+
+### Streaming
+
+- **Real-time updates** - See progress as agent works
+- **Incremental answers** - Get partial answers while researching
+- **SSE-based** - Server-Sent Events for efficient streaming
+
+### Intelligent Research
+
+- **Multi-step reasoning** - Agent decides when to search vs fetch
+- **Adaptive depth** - Simple questions get quick answers, complex ones get thorough research
+- **Source diversity** - Cross-references multiple sources for accuracy
+
+### Answer Quality
+
+- **Real-time data** - Always uses fresh web content, not training data
+- **Confidence indicators** - Shows how confident the agent is in the answer
+- **Source tracing** - Every claim is backed by cited sources
+
+## Job Statuses
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Job is queued, not yet started |
+| `running` | Agent is actively researching |
+| `completed` | Job finished successfully |
+| `failed` | Job encountered an error |
+| `cancelled` | Job was manually cancelled |
+
+## Error Handling
+
+### Error Response
+
+```json
+{
+  "error": {
+    "code": "ASK_ERROR",
+    "message": "Failed to answer question",
+    "details": "Could not find sufficient sources"
+  }
+}
+```
+
+### Error Codes
+
+| Code | Description |
+|------|-------------|
+| `INVALID_QUERY` | Question is empty or invalid |
+| `NO_SOURCES` | Could not find relevant sources |
+| `ASK_ERROR` | AI processing failed |
+| `RATE_LIMITED` | Rate limit exceeded |
+| `UNAUTHORIZED` | Invalid or missing API key |
+| `JOB_NOT_FOUND` | Job ID does not exist |
+| `JOB_CANCELLED` | Job was cancelled |
+
+## SDK Usage
+
+```typescript
+import { createClient } from '@fresh/sdk';
+
+const client = createClient({ apiKey: 'your-api-key' });
+
+// Non-blocking ask (returns immediately with job ID)
+const job = await client.ask('What is the last version of React?');
+console.log(job.jobId); // "ask_abc123"
+
+// Poll for status
+while (job.status === 'running') {
+  await new Promise(r => setTimeout(r, 1000));
+  await job.refresh();
+}
+console.log(job.answer);
+
+// Wait for completion
+const completed = await client.ask('Latest AI news', { wait: true });
+console.log(completed.answer);
+
+// Stream results
+const stream = await client.ask('Latest AI news', { stream: true });
+for await (const event of stream) {
+  if (event.type === 'status') {
+    console.log(`Progress: ${event.data.phase}`);
+  } else if (event.type === 'answer') {
+    process.stdout.write(event.data.content);
+  } else if (event.type === 'done') {
+    console.log(`\nTotal cost: ${event.data.totalCost}`);
+  }
+}
+
+// Cancel a job
+await client.askCancel(job.jobId);
+```
+
+## Pricing
+
+The `ask` command uses both search and fetch under the hood:
+- **Search cost** - Per Exa search query
+- **Fetch cost** - Per page fetched (batch for efficiency)
+- **AI synthesis** - Soft dollar cost for reasoning
+
+See [Exa.ai pricing](https://exa.ai/pricing) for base costs.
+
+## Related
+
+- [search](../search/README) - Raw web search
+- [fetch](../fetch/README) - Content extraction from URLs
+- [research](../research/README) - Multi-source deep research mode

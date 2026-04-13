@@ -1,0 +1,415 @@
+# Fresh Research
+
+Deep, multi-branch research with tree-of-thought reasoning for comprehensive analysis.
+
+## Overview
+
+`fresh research` performs in-depth research using a tree-of-thought approach. Unlike `ask` which gives a direct answer, `research` breaks down complex topics into main branches and sub-branches, recursively exploring each angle until it reaches a thorough, well-cited analysis.
+
+## CLI Usage
+
+```bash
+fresh research <query> [options]
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `query` | Research topic/question (required) |
+
+### Options
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--depth <n>` | Maximum analysis depth (1-5) | `3` |
+| `--branches <n>` | Number of main branches to explore | `4` |
+| `--output <file>` | Write report to file | - |
+| `--format <type>` | Output format: `markdown`, `json`, `text` | `markdown` |
+| `--model <name>` | AI model to use | `auto` |
+| `--cite` | Include citations | `true` |
+| `--wait` | Wait for completion instead of background | `false` |
+| `--stream` | Stream results as they arrive | `false` |
+
+### Examples
+
+```bash
+# Basic research
+fresh research "Impact of AI on software development"
+
+# Deep research with custom settings
+fresh research "Impact of AI on software development" --depth 4 --branches 6
+
+# Save report to file
+fresh research "Future of renewable energy" --output "energy-report.md"
+
+# Stream results in real-time
+fresh research "State of AI regulations" --stream
+```
+
+## How It Works
+
+```
+                         ┌─────────────────────────────────────┐
+                         │           Main Question              │
+                         │  "Impact of AI on software dev?"     │
+                         └─────────────────┬───────────────────┘
+                                           │
+                         ┌─────────────────┼─────────────────┐
+                         ▼                 ▼                 ▼
+                    ┌─────────┐       ┌─────────┐       ┌─────────┐
+                    │ Branch 1│       │ Branch 2│       │ Branch 3│
+                    │ Code    │       │ Testing │       │ Team    │
+                    │ Gen     │       │         │       │ Structure│
+                    └────┬────┘       └────┬────┘       └────┬────┘
+                         │                 │                 │
+              ┌──────────┼──────────┐       │        ┌───────┴───────┐
+              ▼          ▼          ▼       ▼        ▼               ▼
+         ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+         │Sub 1.1 │ │Sub 1.2 │ │Sub 1.3 │ │Sub 2.1 │ │Sub 3.1 │ │Sub 3.2 │
+         │GitHub  │ │Claude  │ │GPT     │ │QA Auto │ │Dev     │ │Roles   │
+         │Copilot │ │Code    │ │Assist  │ │mation  │ │Productivity│
+         └────┬────┘ └────────┘ └────────┘ └────────┘ └────────┘ └────────┘
+              │
+              ▼
+         ┌────────┐
+         │Sub 1.1.1│
+         │Code     │
+         │Suggestions│
+         │Quality  │
+         └────────┘
+              │
+              ▼
+         ┌────────┐
+         │Sub 1.1.1.1│
+         │Benchmarks│
+         └────────┘
+```
+
+### Research Pipeline
+
+1. **Decompose** - Break the main question into logical branches
+2. **Explore Branch** - For each branch, identify sub-topics
+3. **Gather Data** - Use `search` and `fetch` for each sub-topic
+4. **Synthesize** - Combine findings into coherent sub-analysis
+5. **Repeat** - Recurse until depth limit or no new insights
+6. **Merge** - Combine all branches into final comprehensive report
+
+## Job Management
+
+Research runs as a background job:
+
+```bash
+$ fresh research "Impact of AI on software development"
+✓ Job started: res_abc123
+  Status: running
+  Progress: Branch 2/4 (depth 1/3)
+  Use `fresh research status res_abc123` to monitor
+```
+
+### Commands
+
+```bash
+# Check status
+fresh research status <job-id>
+
+# Cancel job
+fresh research cancel <job-id>
+
+# List all research jobs
+fresh research list
+```
+
+## API Usage
+
+### POST /api/research
+
+Start a new research job.
+
+**Endpoint:** `POST /api/research`
+
+**Request Body:**
+
+```json
+{
+  "query": "Impact of AI on software development",
+  "options": {
+    "depth": 3,
+    "branches": 4,
+    "format": "markdown",
+    "model": "auto"
+  }
+}
+```
+
+**Response (Job Created):**
+
+```json
+{
+  "jobId": "res_abc123",
+  "status": "running",
+  "createdAt": "2025-03-15T10:00:00Z"
+}
+```
+
+### GET /api/research/:jobId
+
+Get research status and report.
+
+**Endpoint:** `GET /api/research/res_abc123`
+
+**Response (Completed):**
+
+```json
+{
+  "jobId": "res_abc123",
+  "status": "completed",
+  "report": "# Deep Research: Impact of AI on Software Development\n\n## Executive Summary\n...\n\n## Branch 1: Code Generation\n...\n\n### Sub-branch 1.1: GitHub Copilot\n...\n\n### Sub-branch 1.2: Claude Code\n...\n\n## Branch 2: Testing & QA\n...\n\n## Sources\n...\n",
+  "tree": {
+    "query": "Impact of AI on software development",
+    "branches": [
+      {
+        "id": "b1",
+        "title": "Code Generation",
+        "status": "completed",
+        "subBranches": [
+          {
+            "id": "b1s1",
+            "title": "GitHub Copilot",
+            "status": "completed",
+            "sources": 5,
+            "subBranches": [...]
+          }
+        ]
+      }
+    ]
+  },
+  "stats": {
+    "totalSources": 47,
+    "branchesExplored": 4,
+    "totalDepth": 3,
+    "researchTimeMs": 45230,
+    "totalCost": 0.023
+  },
+  "meta": {
+    "model": "claude-sonnet-4",
+    "requestId": "res-abc123"
+  }
+}
+```
+
+### GET /api/research/:jobId/stream
+
+Stream research progress via SSE.
+
+**Events:**
+
+```
+event: status
+data: {"status":"running","phase":"branch","current":1,"total":4,"depth":1}
+
+event: finding
+data: {"branch":"Code Generation","finding":"GitHub Copilot increased developer productivity by 50%..."}
+
+event: branch_complete
+data: {"branch":"Code Generation","sources":12,"insights":8}
+
+event: report
+data: {"content":"# Deep Research...\n\n## Executive Summary\n\n...", "done":false}
+
+event: done
+data: {"status":"completed","totalCost":0.023,"totalSources":47}
+```
+
+## Tree Structure
+
+The research tree tracks all branches and sub-branches:
+
+### Tree Node
+
+```json
+{
+  "id": "b1s2",
+  "title": "Claude Code",
+  "status": "completed",
+  "parentId": "b1",
+  "depth": 2,
+  "sources": [
+    {
+      "url": "https://anthropic.com/claude-code",
+      "title": "Claude Code",
+      "relevance": 0.92
+    }
+  ],
+  "findings": [
+    "Claude Code achieved 70% reduction in code review time",
+    "Supports multi-file edits with context awareness"
+  ],
+  "subBranches": []
+}
+```
+
+### Branch Statuses
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Branch queued, not started |
+| `exploring` | Actively researching this branch |
+| `completed` | Branch fully analyzed |
+| `failed` | Branch encountered an error |
+
+## Output Report Structure
+
+### Markdown Format (Default)
+
+```markdown
+# Deep Research: [Topic]
+
+## Executive Summary
+[Brief overview of findings]
+
+## Branch 1: [Title]
+[Detailed analysis]
+
+### Sub-section 1.1: [Title]
+[Specific findings with citations]
+
+## Branch 2: [Title]
+[...]
+
+## Cross-Cutting Themes
+[Insights that span multiple branches]
+
+## Conclusion
+[Synthesized conclusions with confidence levels]
+
+## Sources
+| # | Source | Relevance | Cited At |
+|---|--------|-----------|----------|
+| 1 | [Title](url) | High | [section] |
+```
+
+## Features
+
+### Tree-of-Thought Reasoning
+
+- **Recursive decomposition** - Breaks questions into hierarchical branches
+- **Parallel exploration** - Explores independent branches concurrently
+- **Depth control** - Limit how deep the analysis goes
+- **Branch control** - Control how many main branches to explore
+
+### Comprehensive Coverage
+
+- **Multi-angle analysis** - Each branch covers a different aspect
+- **Source diversity** - Cross-references many sources per branch
+- **Citation tracking** - Every claim is backed by sources
+- **Theme synthesis** - Identifies patterns across branches
+
+### Quality Indicators
+
+- **Confidence levels** - Per finding and overall
+- **Source relevance** - Scores for each source
+- **Research statistics** - Time, cost, sources, depth achieved
+
+## Error Handling
+
+### Error Response
+
+```json
+{
+  "error": {
+    "code": "RESEARCH_ERROR",
+    "message": "Research failed",
+    "failedBranch": "b2",
+    "details": "Could not find sufficient sources for this branch"
+  }
+}
+```
+
+### Error Codes
+
+| Code | Description |
+|------|-------------|
+| `INVALID_QUERY` | Query is empty or invalid |
+| `NO_SOURCES` | Could not find relevant sources |
+| `RESEARCH_ERROR` | AI processing failed |
+| `RATE_LIMITED` | Rate limit exceeded |
+| `UNAUTHORIZED` | Invalid or missing API key |
+| `JOB_NOT_FOUND` | Job ID does not exist |
+| `JOB_CANCELLED` | Job was cancelled |
+
+## SDK Usage
+
+```typescript
+import { createClient } from '@fresh/sdk';
+
+const client = createClient({ apiKey: 'your-api-key' });
+
+// Non-blocking research
+const job = await client.research('Impact of AI on software development', {
+  depth: 3,
+  branches: 4
+});
+console.log(job.jobId); // "res_abc123"
+
+// Wait for completion
+const result = await client.research('Future of renewable energy', {
+  depth: 4,
+  branches: 5,
+  wait: true
+});
+
+console.log(result.report);
+console.log(`Explored ${result.stats.branchesExplored} branches`);
+console.log(`Used ${result.stats.totalSources} sources`);
+console.log(`Cost: $${result.stats.totalCost}`);
+
+// Stream results
+const stream = await client.research('AI regulations', { stream: true });
+for await (const event of stream) {
+  if (event.type === 'status') {
+    console.log(`Branch ${event.data.current}/${event.data.total}`);
+  } else if (event.type === 'branch_complete') {
+    console.log(`Completed: ${event.data.branch}`);
+  } else if (event.type === 'report') {
+    process.stdout.write(event.data.content);
+  } else if (event.type === 'done') {
+    console.log(`\nResearch complete! Total cost: $${event.data.totalCost}`);
+  }
+}
+
+// Access the full tree structure
+result.tree.branches.forEach(branch => {
+  console.log(`Branch: ${branch.title} (${branch.status})`);
+  branch.subBranches?.forEach(sub => {
+    console.log(`  Sub: ${sub.title}`);
+  });
+});
+```
+
+## Pricing
+
+Research uses significantly more resources than `ask`:
+- **Per branch** - Search + fetch costs for each branch
+- **Per sub-branch** - Additional search + fetch for depth
+- **AI synthesis** - Higher cost for complex reasoning
+- **Soft dollars** - Based on total operations
+
+See [Exa.ai pricing](https://exa.ai/pricing) for base costs.
+
+## Comparison
+
+| Feature | `ask` | `research` |
+|---------|-------|------------|
+| **Depth** | Single-pass | Multi-level tree |
+| **Scope** | Focused answer | Comprehensive report |
+| **Branches** | 1 main flow | Multiple parallel branches |
+| **Time** | Fast (seconds) | Longer (minutes) |
+| **Cost** | Lower | Higher |
+| **Best for** | Quick facts | Deep analysis |
+
+## Related
+
+- [ask](../ask/README) - Quick question answering
+- [search](../search/README) - Raw web search
+- [fetch](../fetch/README) - Content extraction from URLs

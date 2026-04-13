@@ -1,0 +1,256 @@
+# Fresh Search
+
+Web search optimized for AI agents with high-quality, up-to-date results.
+
+## Overview
+
+`fresh search` provides intelligent web search powered by Exa.ai. It offers multiple search types from fast keyword matching to deep reasoning synthesis, with results optimized for AI consumption.
+
+## CLI Usage
+
+```bash
+fresh search <query> [options]
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `query` | Search query string (required) |
+
+### Options
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--type <type>` | Search type: `auto`, `fast`, `deep-lite`, `deep`, `deep-reasoning`, `instant` | `auto` |
+| `--num-results <n>` | Number of results to return | `10` |
+| `--highlight-query <q>` | Query for extracting relevant highlights | - |
+| `--text-max <n>` | Maximum characters for text content per result | `1000` |
+| `--format <type>` | Output format: `json`, `markdown`, `text` | `json` |
+
+### Search Types
+
+| Type | Description | Best For |
+|------|-------------|----------|
+| `auto` | Automatically selects best search mode | General use |
+| `fast` | Quick keyword-based search | Speed-critical |
+| `deep-lite` | Light semantic search | Quick insights |
+| `deep` | Deep semantic understanding | Comprehensive research |
+| `deep-reasoning` | Multi-step reasoning synthesis | Complex analysis |
+| `instant` | Instant answer mode | Quick facts |
+
+### Examples
+
+```bash
+# Basic search
+fresh search "hottest AI startups 2024"
+
+# Deep research search
+fresh search "impact of AI on healthcare" --type deep --num-results 20
+
+# Fast search with highlights
+fresh search "latest React framework" --type fast --highlight-query "performance"
+```
+
+## API Usage
+
+### Exa.search
+
+Performs a web search with configurable depth.
+
+**Endpoint:** `POST /api/search`
+
+**Input Parameters:**
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `query` | `string` | Search query | Required |
+| `options.type` | `string` | Search type: `auto`, `fast`, `deep-lite`, `deep`, `deep-reasoning`, `instant` | `auto` |
+| `options.numResults` | `number` | Number of results | `10` |
+| `options.highlights.query` | `string` | Query for relevant highlights | - |
+| `options.highlights.maxCharacters` | `number` | Max highlight length | `200` |
+| `options.text.maxCharacters` | `number` | Max text length per result | `1000` |
+| `options.contents` | `object` | Content extraction options | - |
+
+### Request Example
+
+```json
+{
+  "query": "hottest AI startups",
+  "options": {
+    "type": "auto",
+    "numResults": 10,
+    "highlights": {
+      "query": "AI funding valuation",
+      "maxCharacters": 200
+    },
+    "text": {
+      "maxCharacters": 1000
+    }
+  }
+}
+```
+
+### Response Example
+
+```json
+{
+  "autopromptString": "Here is a link to one of the hottest AI startups:",
+  "results": [
+    {
+      "title": "Adept: Useful General Intelligence",
+      "id": "https://www.adept.ai/",
+      "url": "https://www.adept.ai/",
+      "publishedDate": "2024-03-15",
+      "author": null,
+      "text": "Adept is building AI that can automate any software process..."
+    }
+  ],
+  "requestId": "a78ebce717f4d712b6f8fe0d5d7753f8",
+  "costDollars": {
+    "stDollars": 0.001,
+    "totalCost": 0.001
+  },
+  "statuses": [
+    {
+      "code": "success",
+      "url": "https://www.adept.ai/"
+    }
+  ]
+}
+```
+
+### Result Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `results` | `SearchResult[]` | List of search results |
+| `results[].title` | `string` | Result title |
+| `results[].id` | `string` | Unique identifier (mirrors URL) |
+| `results[].url` | `string` | Source URL |
+| `results[].publishedDate` | `string` | Publication date (ISO 8601) |
+| `results[].author` | `string \| null` | Author name |
+| `results[].text` | `string` | Extracted text content |
+| `autopromptString` | `string` | AI-friendly prompt prefix |
+| `requestId` | `string` | Request ID for debugging |
+| `costDollars.stDollars` | `number` | Soft dollar cost |
+| `costDollars.totalCost` | `number` | Total cost in dollars |
+
+### Deep Reasoning Output
+
+When using `--type deep-reasoning`, the response includes an `output` field:
+
+```json
+{
+  "output": {
+    "content": "Synthesized analysis based on multiple sources...",
+    "grounding": [
+      {
+        "field": "statistics",
+        "citations": [
+          { "url": "https://example.com/source", "title": "Source Title" }
+        ],
+        "confidence": "high"
+      }
+    ]
+  }
+}
+```
+
+## Features
+
+### Search Modes
+
+- **Auto mode** - Exa automatically selects optimal search strategy
+- **Fast mode** - Quick keyword matching for speed
+- **Deep modes** - Semantic understanding with varying depth
+- **Deep reasoning** - Multi-step analysis with synthesized output
+
+### Content Extraction
+
+- **Highlight extraction** - Query-relevant passage extraction
+- **Text snippets** - Clean, truncated content per result
+- **Metadata** - Publication dates, authors, categories
+
+### AI Optimization
+
+- **Autoprompt string** - Ready-to-use prompt prefix for LLMs
+- **Grounded citations** - Source attribution for facts
+- **Confidence levels** - Low, medium, high per grounding
+
+## Error Handling
+
+### Error Response
+
+```json
+{
+  "error": {
+    "code": "SEARCH_ERROR",
+    "message": "Search failed",
+    "details": "Rate limit exceeded"
+  }
+}
+```
+
+### Error Codes
+
+| Code | Description |
+|------|-------------|
+| `INVALID_QUERY` | Query is empty or invalid |
+| `SEARCH_ERROR` | Search operation failed |
+| `TIMEOUT` | Search exceeded timeout |
+| `RATE_LIMITED` | Rate limit exceeded |
+| `UNAUTHORIZED` | Invalid or missing API key |
+
+## SDK Usage
+
+```typescript
+import { createClient } from '@fresh/sdk';
+
+const client = createClient({ apiKey: 'your-api-key' });
+
+// Basic search
+const result = await client.search('hottest AI startups', {
+  numResults: 10
+});
+
+result.results.forEach(item => {
+  console.log(item.title);
+  console.log(item.url);
+});
+
+// Deep research search
+const deep = await client.search('AI regulations impact', {
+  type: 'deep',
+  numResults: 20,
+  highlights: { query: 'policy compliance', maxCharacters: 300 }
+});
+
+// Deep reasoning with synthesis
+const reasoning = await client.search('best strategy for AI adoption', {
+  type: 'deep-reasoning',
+  numResults: 10
+});
+
+if (reasoning.output) {
+  console.log(reasoning.output.content);
+  reasoning.output.grounding.forEach(g => {
+    console.log(`Confidence: ${g.confidence}`);
+    g.citations.forEach(c => console.log(`  - ${c.title}: ${c.url}`));
+  });
+}
+```
+
+## Pricing
+
+Exa search pricing (separate from fetch):
+
+- **Base cost:** Included in soft dollar system
+- **Deep reasoning:** Higher cost per query due to synthesis
+- See [Exa.ai pricing](https://exa.ai/pricing) for details
+
+## Related
+
+- [fetch](../fetch/README) - Content extraction from URLs
+- [research](../research/README) - Multi-source deep research
+- [ask](../ask/README) - Question answering
