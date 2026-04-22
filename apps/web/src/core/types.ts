@@ -73,18 +73,10 @@ export interface SearchOptions {
   contents?: ExaContentsOptions;
 }
 
-export interface SearchResponse {
-  results: SearchResult[];
-  requestId: string;
-  autoDate?: string;
-  costDollars?: {
-    stDollars: number;
-    totalCost: number;
-  };
-  statuses?: Array<{
-    code: 'success' | 'error' | 'notFound' | 'unavailable';
-    url: string;
-  }>;
+export interface Entity {
+  id?: string;
+  name?: string;
+  type?: string;
 }
 
 export interface SearchResult {
@@ -103,10 +95,18 @@ export interface SearchResult {
   entities?: Entity[];
 }
 
-export interface Entity {
-  id?: string;
-  name?: string;
-  type?: string;
+export interface SearchResponse {
+  results: SearchResult[];
+  requestId: string;
+  autoDate?: string;
+  costDollars?: {
+    stDollars: number;
+    totalCost: number;
+  };
+  statuses?: Array<{
+    code: 'success' | 'error' | 'notFound' | 'unavailable';
+    url: string;
+  }>;
 }
 
 // Fetch types
