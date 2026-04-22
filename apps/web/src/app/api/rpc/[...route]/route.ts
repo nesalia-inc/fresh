@@ -5,7 +5,7 @@
  * It uses @deessejs/server-next to create the handler.
  */
 
-import { publicAPI } from "~/server";
+import { publicAPI } from "@/server";
 import { createNextHandler } from "@deessejs/server-next";
 
 export const { GET, POST, PUT, PATCH, DELETE, OPTIONS } = createNextHandler(publicAPI);
