@@ -30,7 +30,7 @@ export default function SignupPage() {
 
     if (error) {
       toast.error(error.message)
-      setError(error.message)
+      setError(error.message ?? "An error occurred")
       setIsPending(false)
       return
     }
