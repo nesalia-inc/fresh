@@ -44,7 +44,7 @@ function HomeSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
+      <SidebarHeader className="h-14 border-border border-b">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
@@ -55,7 +55,6 @@ function HomeSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarSeparator />
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Features</SidebarGroupLabel>
@@ -86,6 +85,8 @@ function HomeSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <SidebarRail />
+      
     </Sidebar>
   )
 }
@@ -98,7 +99,6 @@ export default function HomeLayout({
   return (
     <SidebarProvider>
       <HomeSidebar />
-      <SidebarRail />
       <SidebarInset>
         <Header />
 
