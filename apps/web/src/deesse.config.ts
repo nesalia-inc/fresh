@@ -1,7 +1,7 @@
 import { defineConfig } from 'deesse';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { schema } from './db/schema/auth-schema';
+import { schema } from './db/schema';
 
 export const config = defineConfig({
   name: "DeesseJS App",
