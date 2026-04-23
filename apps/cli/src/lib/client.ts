@@ -23,6 +23,17 @@ export interface DeviceCodeResponse {
   interval: number;
 }
 
+function toDeviceCodeResponse(data: any): DeviceCodeResponse {
+  return {
+    deviceCode: data.device_code,
+    userCode: data.user_code,
+    verificationUri: data.verification_uri,
+    verificationUriComplete: data.verification_uri_complete,
+    expiresIn: data.expires_in,
+    interval: data.interval,
+  };
+}
+
 export interface TokenResponse {
   accessToken: string;
   refreshToken?: string;
@@ -30,6 +41,17 @@ export interface TokenResponse {
   scope?: string;
   error?: string;
   errorDescription?: string;
+}
+
+function toTokenResponse(data: any): TokenResponse {
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresIn: data.expires_in,
+    scope: data.scope,
+    error: data.error,
+    errorDescription: data.error_description,
+  };
 }
 
 export async function requestDeviceCode(clientId: string): Promise<DeviceCodeResponse> {
@@ -67,7 +89,7 @@ export async function requestDeviceCode(clientId: string): Promise<DeviceCodeRes
     );
   }
 
-  return response.json();
+  return toDeviceCodeResponse(await response.json());
 }
 
 export async function pollForToken(
@@ -103,7 +125,7 @@ export async function pollForToken(
       throw createCLIError(`Network error: ${error.message}`, { code: "NETWORK_ERROR", endpoint: "/device/token" });
     }
 
-    const data = await response.json();
+    const data = toTokenResponse(await response.json());
 
     if (data.error) {
       switch (data.error) {
