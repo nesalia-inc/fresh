@@ -5,6 +5,8 @@ import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import * as authCommands from "./commands/auth/index.js";
+import { searchCmd } from "./commands/search.js";
+import { fetchCmd } from "./commands/fetch.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -24,5 +26,8 @@ program
   .addCommand(authCommands.logout)
   .addCommand(authCommands.status)
   .addCommand(authCommands.whoami);
+
+program.addCommand(searchCmd);
+program.addCommand(fetchCmd);
 
 program.parse();
