@@ -21,6 +21,7 @@ import {
   SidebarInset,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { Header } from '@/components/header'
 
 const featureItems = [
@@ -28,11 +29,13 @@ const featureItems = [
     title: "Search",
     href: "/home/search",
     icon: SearchIcon,
+    tooltip: "Search",
   },
   {
     title: "Fetch",
     href: "/home/fetch",
     icon: GlobeIcon,
+    tooltip: "Fetch",
   },
 ]
 
@@ -41,16 +44,19 @@ const managementItems = [
     title: "Usage",
     href: "/home/usage",
     icon: BarChartIcon,
+    tooltip: "Usage",
   },
   {
     title: "Billing",
     href: "/home/billing",
     icon: CreditCardIcon,
+    tooltip: "Billing",
   },
   {
     title: "API Keys",
     href: "/home/api-keys",
     icon: KeyIcon,
+    tooltip: "API Keys",
   },
 ]
 
@@ -59,6 +65,7 @@ const learningItems = [
     title: "Documentation",
     href: "/docs",
     icon: BookOpenIcon,
+    tooltip: "Documentation",
   },
 ]
 
@@ -67,6 +74,7 @@ const bottomItems = [
     title: "Support",
     href: "#",
     icon: HelpCircleIcon,
+    tooltip: "Support",
   },
 ]
 
@@ -105,6 +113,7 @@ function SidebarContent_() {
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === item.href}
+                    tooltip={item.tooltip}
                   >
                     <Link href={item.href}>
                       <item.icon />
@@ -126,6 +135,7 @@ function SidebarContent_() {
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === item.href}
+                    tooltip={item.tooltip}
                   >
                     <Link href={item.href}>
                       <item.icon />
@@ -147,6 +157,7 @@ function SidebarContent_() {
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === item.href}
+                    tooltip={item.tooltip}
                   >
                     <Link href={item.href} target="_blank">
                       <item.icon />
@@ -164,7 +175,7 @@ function SidebarContent_() {
             <SidebarMenu>
               {bottomItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild tooltip={item.tooltip}>
                     <Link href={item.href}>
                       <item.icon />
                       <span>{item.title}</span>
@@ -198,9 +209,11 @@ function SidebarWithContext() {
 
   return (
     <SidebarControlContext.Provider value={{ closeSidebar }}>
-      <Sidebar collapsible="icon">
-        <SidebarContent_ />
-      </Sidebar>
+      <TooltipProvider>
+        <Sidebar collapsible="icon">
+          <SidebarContent_ />
+        </Sidebar>
+      </TooltipProvider>
     </SidebarControlContext.Provider>
   )
 }
