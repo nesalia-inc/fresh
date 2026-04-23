@@ -77,8 +77,7 @@ function HomeSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <Separator />
+      <SidebarFooter className="h-12 border-border border-t">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarTrigger />
