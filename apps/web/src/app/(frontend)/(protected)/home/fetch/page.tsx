@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ResizablePanel, ResizableHandle, ResizablePanelGroup } from "@/components/ui/resizable"
 import { FetchResponse, FetchResult } from "@/core/types"
 
 const VERBOSITY_OPTIONS = [
@@ -165,258 +166,271 @@ export default function FetchPage() {
     }
   }
 
+  const hasResults = fetchState.results && fetchState.results.length > 0
+
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-2">
+    <div className="flex flex-col h-full">
+      <div className="flex flex-col gap-2 p-6 pb-4">
         <h1 className="text-2xl font-semibold tracking-tight">Fetch Content</h1>
         <p className="text-sm text-muted-foreground">
           Extract and summarize content from web pages
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <GlobeIcon className="h-5 w-5" />
-            URLs to Fetch
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <form onSubmit={handleFetch} className="space-y-4">
-            <div className="space-y-3">
-              {urls.map((url, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    placeholder="https://example.com/article"
-                    value={url}
-                    onChange={(e) => updateUrl(index, e.target.value)}
-                    disabled={fetchState.isLoading}
-                    className="flex-1"
-                  />
-                  {urls.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeUrl(index)}
-                      disabled={fetchState.isLoading}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {urls.length < 10 && (
-              <Button type="button" variant="outline" size="sm" onClick={addUrl} disabled={fetchState.isLoading}>
-                <PlusIcon className="mr-2 h-4 w-4" />
-                Add URL
-              </Button>
-            )}
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="verbosity">Verbosity</Label>
-                <Select
-                  id="verbosity"
-                  options={VERBOSITY_OPTIONS}
-                  value={verbosity}
-                  onChange={(e) => setVerbosity(e.target.value)}
-                  disabled={fetchState.isLoading}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="maxCharacters">Max Characters</Label>
-                <Input
-                  id="maxCharacters"
-                  type="number"
-                  placeholder="5000"
-                  min={100}
-                  max={50000}
-                  value={maxCharacters}
-                  onChange={(e) => setMaxCharacters(e.target.value)}
-                  disabled={fetchState.isLoading}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="highlightsPerUrl">Highlights per URL</Label>
-                <Input
-                  id="highlightsPerUrl"
-                  type="number"
-                  placeholder="5"
-                  min={1}
-                  max={20}
-                  value={highlightsPerUrl}
-                  onChange={(e) => setHighlightsPerUrl(e.target.value)}
-                  disabled={fetchState.isLoading}
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button type="submit" disabled={fetchState.isLoading}>
-                {fetchState.isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Fetching...
-                  </>
-                ) : (
-                  <>
-                    <GlobeIcon className="mr-2 h-4 w-4" />
-                    Fetch Content
-                  </>
-                )}
-              </Button>
-              <Button type="button" variant="outline" onClick={handleClear} disabled={fetchState.isLoading}>
-                Clear
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      {fetchState.isLoading && (
-        <div className="space-y-4">
-          {[1, 2].map((i) => (
-            <Card key={i}>
-              <CardContent className="pt-6">
-                <Skeleton className="h-6 w-3/4 mb-2" />
-                <Skeleton className="h-4 w-1/2 mb-4" />
-                <Skeleton className="h-4 w-full mb-1" />
-                <Skeleton className="h-4 w-full mb-1" />
-                <Skeleton className="h-4 w-2/3" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {fetchState.error && (
-        <Card className="border-destructive">
-          <CardContent className="pt-6">
-            <p className="text-sm text-destructive">{fetchState.error}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {fetchState.statuses && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Fetch Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {fetchState.statuses.map((status, index) => (
-                <div key={index} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground truncate max-w-md">{status.url}</span>
-                  {getStatusBadge(status.code)}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {fetchState.results && fetchState.results.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">
-              {fetchState.results.length} Result{fetchState.results.length !== 1 ? "s" : ""}
-              {fetchState.totalCost !== null && (
-                <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  (~${fetchState.totalCost.toFixed(4)})
-                </span>
-              )}
-            </h2>
-          </div>
-
-          {fetchState.results.map((result, index) => (
-            <Card key={result.id || index}>
+      <ResizablePanelGroup direction="horizontal" className="flex-1">
+        <ResizablePanel defaultSize={hasResults ? 40 : 100} minSize={hasResults ? 30 : 50}>
+          <div className="h-full overflow-auto px-6 pb-6">
+            <Card>
               <CardHeader>
-                <div className="flex items-start justify-between gap-4">
-                  <CardTitle className="text-base line-clamp-2">
-                    {result.title || "Untitled"}
-                  </CardTitle>
-                  <a
-                    href={result.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0"
-                  >
-                    <Button variant="ghost" size="icon">
-                      <ExternalLinkIcon className="h-4 w-4" />
-                    </Button>
-                  </a>
-                </div>
-                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                  <a
-                    href={result.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="truncate max-w-md hover:text-foreground"
-                  >
-                    {result.url}
-                  </a>
-                </div>
-                {(result.author || result.publishedDate) && (
-                  <div className="flex flex-wrap gap-4 text-xs text-muted-foreground pt-1">
-                    {result.author && (
-                      <span className="flex items-center gap-1">
-                        <UserIcon className="h-3 w-3" />
-                        {result.author}
-                      </span>
-                    )}
-                    {result.publishedDate && (
-                      <span className="flex items-center gap-1">
-                        <CalendarIcon className="h-3 w-3" />
-                        {new Date(result.publishedDate).toLocaleDateString()}
-                      </span>
-                    )}
-                  </div>
-                )}
+                <CardTitle className="flex items-center gap-2">
+                  <GlobeIcon className="h-5 w-5" />
+                  URLs to Fetch
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {result.highlights && result.highlights.length > 0 && (
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-medium">Highlights</h3>
-                    {result.highlights.map((highlight, i) => (
-                      <p key={i} className="text-sm bg-muted p-3 rounded-lg">
-                        {highlight.length > 500 ? `${highlight.substring(0, 500)}...` : highlight}
-                      </p>
+                <form onSubmit={handleFetch} className="space-y-4">
+                  <div className="space-y-3">
+                    {urls.map((url, index) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          placeholder="https://example.com/article"
+                          value={url}
+                          onChange={(e) => updateUrl(index, e.target.value)}
+                          disabled={fetchState.isLoading}
+                          className="flex-1"
+                        />
+                        {urls.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeUrl(index)}
+                            disabled={fetchState.isLoading}
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {urls.length < 10 && (
+                    <Button type="button" variant="outline" size="sm" onClick={addUrl} disabled={fetchState.isLoading}>
+                      <PlusIcon className="mr-2 h-4 w-4" />
+                      Add URL
+                    </Button>
+                  )}
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="verbosity">Verbosity</Label>
+                      <Select
+                        id="verbosity"
+                        options={VERBOSITY_OPTIONS}
+                        value={verbosity}
+                        onChange={(e) => setVerbosity(e.target.value)}
+                        disabled={fetchState.isLoading}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="maxCharacters">Max Characters</Label>
+                      <Input
+                        id="maxCharacters"
+                        type="number"
+                        placeholder="5000"
+                        min={100}
+                        max={50000}
+                        value={maxCharacters}
+                        onChange={(e) => setMaxCharacters(e.target.value)}
+                        disabled={fetchState.isLoading}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="highlightsPerUrl">Highlights per URL</Label>
+                      <Input
+                        id="highlightsPerUrl"
+                        type="number"
+                        placeholder="5"
+                        min={1}
+                        max={20}
+                        value={highlightsPerUrl}
+                        onChange={(e) => setHighlightsPerUrl(e.target.value)}
+                        disabled={fetchState.isLoading}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={fetchState.isLoading}>
+                      {fetchState.isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Fetching...
+                        </>
+                      ) : (
+                        <>
+                          <GlobeIcon className="mr-2 h-4 w-4" />
+                          Fetch Content
+                        </>
+                      )}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={handleClear} disabled={fetchState.isLoading}>
+                      Clear
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </ResizablePanel>
+
+        {hasResults && (
+          <>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={60} minSize={40}>
+              <div className="h-full overflow-auto px-6 pb-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">
+                    {fetchState.results!.length} Result{fetchState.results!.length !== 1 ? "s" : ""}
+                    {fetchState.totalCost !== null && (
+                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                        (~${fetchState.totalCost.toFixed(4)})
+                      </span>
+                    )}
+                  </h2>
+                </div>
+
+                {fetchState.statuses && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Fetch Status</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {fetchState.statuses.map((status, index) => (
+                          <div key={index} className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground truncate max-w-md">{status.url}</span>
+                            {getStatusBadge(status.code)}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {fetchState.isLoading && (
+                  <div className="space-y-4">
+                    {[1, 2].map((i) => (
+                      <Card key={i}>
+                        <CardContent className="pt-6">
+                          <Skeleton className="h-6 w-3/4 mb-2" />
+                          <Skeleton className="h-4 w-1/2 mb-4" />
+                          <Skeleton className="h-4 w-full mb-1" />
+                          <Skeleton className="h-4 w-full mb-1" />
+                          <Skeleton className="h-4 w-2/3" />
+                        </CardContent>
+                      </Card>
                     ))}
                   </div>
                 )}
 
-                {result.text && (
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-medium">Content</h3>
-                    <Textarea
-                      value={result.text}
-                      readOnly
-                      className="min-h-[200px] font-mono text-sm"
-                    />
-                  </div>
+                {fetchState.error && (
+                  <Card className="border-destructive">
+                    <CardContent className="pt-6">
+                      <p className="text-sm text-destructive">{fetchState.error}</p>
+                    </CardContent>
+                  </Card>
                 )}
 
-                {!result.text && !result.highlights && (
-                  <p className="text-sm text-muted-foreground">No content available</p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                {fetchState.results!.map((result, index) => (
+                  <Card key={result.id || index}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-4">
+                        <CardTitle className="text-base line-clamp-2">
+                          {result.title || "Untitled"}
+                        </CardTitle>
+                        <a
+                          href={result.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0"
+                        >
+                          <Button variant="ghost" size="icon">
+                            <ExternalLinkIcon className="h-4 w-4" />
+                          </Button>
+                        </a>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                        <a
+                          href={result.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="truncate max-w-md hover:text-foreground"
+                        >
+                          {result.url}
+                        </a>
+                      </div>
+                      {(result.author || result.publishedDate) && (
+                        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground pt-1">
+                          {result.author && (
+                            <span className="flex items-center gap-1">
+                              <UserIcon className="h-3 w-3" />
+                              {result.author}
+                            </span>
+                          )}
+                          {result.publishedDate && (
+                            <span className="flex items-center gap-1">
+                              <CalendarIcon className="h-3 w-3" />
+                              {new Date(result.publishedDate).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {result.highlights && result.highlights.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-medium">Highlights</h3>
+                          {result.highlights.map((highlight, i) => (
+                            <p key={i} className="text-sm bg-muted p-3 rounded-lg">
+                              {highlight.length > 500 ? `${highlight.substring(0, 500)}...` : highlight}
+                            </p>
+                          ))}
+                        </div>
+                      )}
 
-      {fetchState.results && fetchState.results.length === 0 && !fetchState.isLoading && (
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <p className="text-muted-foreground">No content could be fetched from the provided URLs.</p>
-          </CardContent>
-        </Card>
-      )}
+                      {result.text && (
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-medium">Content</h3>
+                          <Textarea
+                            value={result.text}
+                            readOnly
+                            className="min-h-[200px] font-mono text-sm"
+                          />
+                        </div>
+                      )}
+
+                      {!result.text && !result.highlights && (
+                        <p className="text-sm text-muted-foreground">No content available</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+
+                {fetchState.results!.length === 0 && !fetchState.isLoading && (
+                  <Card>
+                    <CardContent className="pt-6 text-center">
+                      <p className="text-muted-foreground">No content could be fetched from the provided URLs.</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
     </div>
   )
 }
