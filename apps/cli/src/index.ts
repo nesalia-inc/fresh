@@ -1,14 +1,21 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import * as authCommands from "./commands/auth/index.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8"));
 
 const program = new Command();
 
 program
   .name("fresh")
   .description("Fresh CLI - AI-powered web search and fetch")
-  .version("0.1.0");
+  .version(packageJson.version);
 
 program
   .command("auth")
