@@ -85,10 +85,9 @@ export const login = new Command()
       console.log("\n✅ Successfully authenticated!\n");
     } catch (error) {
       console.error(formatError(error, config.apiUrl));
-      console.log("\n💡 Tip: Make sure the Fresh server is running and the API endpoint exists.");
-      console.log(`   If the URL is incorrect, set FRESH_API_URL:\n`);
-      console.log(`   Linux/macOS: export FRESH_API_URL=http://localhost:3000`);
-      console.log(`   Windows:     set FRESH_API_URL=http://localhost:3000\n`);
+      console.log(`\n💡 Tip: Make sure the Fresh server is running and the API endpoint exists.`);
+      console.log(`   Current API URL: ${config.apiUrl}`);
+      console.log(`   To change it, set FRESH_API_URL environment variable.\n`);
       process.exit(1);
     }
   });
