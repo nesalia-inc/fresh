@@ -8,11 +8,14 @@ function isCLIError(error: unknown): error is CLIError {
   return typeof error === "object" && error !== null && "code" in error && "endpoint" in error;
 }
 
-function formatError(error: unknown): string {
+function formatError(error: unknown, apiUrl: string): string {
   if (isCLIError(error)) {
     let msg = `\n❌ Authentication failed`;
     if (error.endpoint) {
-      msg += `\n   Endpoint: ${error.endpoint}`;
+      const fullUrl = error.endpoint.startsWith("http")
+        ? error.endpoint
+        : `${apiUrl}${error.endpoint}`;
+      msg += `\n   URL: ${fullUrl}`;
     }
     if (error.statusCode) {
       msg += `\n   Status: ${error.statusCode}`;
@@ -81,9 +84,9 @@ export const login = new Command()
       await storeCredential(credential);
       console.log("\n✅ Successfully authenticated!\n");
     } catch (error) {
-      console.error(formatError(error));
-      console.log("\n💡 Tip: Make sure the Fresh server is running and accessible.");
-      console.log(`   Set FRESH_API_URL to your server URL if needed:\n`);
+      console.error(formatError(error, config.apiUrl));
+      console.log("\n💡 Tip: Make sure the Fresh server is running and the API endpoint exists.");
+      console.log(`   If the URL is incorrect, set FRESH_API_URL:\n`);
       console.log(`   Linux/macOS: export FRESH_API_URL=http://localhost:3000`);
       console.log(`   Windows:     set FRESH_API_URL=http://localhost:3000\n`);
       process.exit(1);
