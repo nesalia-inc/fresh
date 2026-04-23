@@ -185,7 +185,7 @@ export async function getUserInfo(accessToken: string): Promise<{
   email: string;
 } | null> {
   try {
-    const response = await fetch(`${API_BASE}/session`, {
+    const response = await fetch(`${API_BASE}/get-session`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
@@ -193,7 +193,7 @@ export async function getUserInfo(accessToken: string): Promise<{
 
     if (!response.ok) return null;
     const data = await response.json();
-    if (data.user) {
+    if (data?.user) {
       return {
         id: data.user.id,
         name: data.user.name,
