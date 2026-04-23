@@ -1,6 +1,19 @@
 import { relations } from "drizzle-orm";
 import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
 
+export const deviceCode = pgTable("device_code", {
+  id: text("id").primaryKey(),
+  deviceCode: text("device_code").notNull(),
+  userCode: text("user_code").notNull(),
+  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+  clientId: text("client_id"),
+  scope: text("scope"),
+  status: text("status", { enum: ["pending", "approved", "denied"] }).notNull().default("pending"),
+  expiresAt: timestamp("expires_at").notNull(),
+  lastPolledAt: timestamp("last_polled_at"),
+  pollingInterval: text("polling_interval"),
+});
+
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -97,4 +110,4 @@ export const accountRelations = relations(account, ({ one }) => ({
   }),
 }));
 
-export const schema = { user, session, account, verification };
+export const schema = { user, session, account, verification, deviceCode };
