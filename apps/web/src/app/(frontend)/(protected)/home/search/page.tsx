@@ -42,7 +42,8 @@ interface SearchState {
 }
 
 export default function SearchPage() {
-  const { closeSidebar } = useSidebarControl()
+  const sidebarControl = useSidebarControl()
+  const closeSidebar = sidebarControl?.closeSidebar
   const [query, setQuery] = useState("")
   const [searchType, setSearchType] = useState("auto")
   const [category, setCategory] = useState("")

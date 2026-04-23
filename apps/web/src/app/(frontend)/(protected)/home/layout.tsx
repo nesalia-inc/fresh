@@ -19,6 +19,7 @@ import {
   SidebarRail,
   SidebarTrigger,
   SidebarInset,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { Header } from '@/components/header'
 
@@ -78,11 +79,11 @@ export function useSidebarControl() {
   return React.useContext(SidebarControlContext)
 }
 
-function HomeSidebar() {
+function SidebarContent_() {
   const pathname = usePathname()
 
   return (
-    <Sidebar collapsible="icon">
+    <>
       <SidebarHeader className="h-14 border-border border-b">
         <SidebarMenu>
           <SidebarMenuItem>
@@ -184,29 +185,22 @@ function HomeSidebar() {
         </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
-    </Sidebar>
+    </>
   )
 }
 
-// Wrapper component that provides the sidebar control context
-function SidebarController({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = React.useState(true)
+function SidebarWithContext() {
+  const { setOpen } = useSidebar()
 
   const closeSidebar = React.useCallback(() => {
-    setSidebarOpen(false)
-  }, [])
+    setOpen(false)
+  }, [setOpen])
 
   return (
     <SidebarControlContext.Provider value={{ closeSidebar }}>
-      <Sidebar open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <HomeSidebar />
+      <Sidebar collapsible="icon">
+        <SidebarContent_ />
       </Sidebar>
-      <SidebarInset>
-        <Header />
-        <main className="flex flex-1 flex-col">
-          {children}
-        </main>
-      </SidebarInset>
     </SidebarControlContext.Provider>
   )
 }
@@ -217,10 +211,14 @@ export default function HomeLayout({
   children: React.ReactNode
 }) {
   return (
-    <SidebarProvider>
-      <SidebarController>
-        {children}
-      </SidebarController>
+    <SidebarProvider defaultOpen={true}>
+      <SidebarWithContext />
+      <SidebarInset>
+        <Header />
+        <main className="flex flex-1 flex-col">
+          {children}
+        </main>
+      </SidebarInset>
     </SidebarProvider>
   )
 }

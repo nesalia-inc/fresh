@@ -29,7 +29,8 @@ interface FetchState {
 }
 
 export default function FetchPage() {
-  const { closeSidebar } = useSidebarControl()
+  const sidebarControl = useSidebarControl()
+  const closeSidebar = sidebarControl?.closeSidebar
   const [urls, setUrls] = useState<string[]>([""])
   const [verbosity, setVerbosity] = useState("")
   const [maxCharacters, setMaxCharacters] = useState<string>("")
