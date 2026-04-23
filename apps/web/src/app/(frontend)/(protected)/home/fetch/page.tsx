@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ResizablePanel, ResizableHandle, ResizablePanelGroup } from "@/components/ui/resizable"
 import { FetchResponse, FetchResult } from "@/core/types"
+import { useSidebarControl } from "../layout"
 
 const VERBOSITY_OPTIONS = [
   { value: "", label: "Standard" },
@@ -28,6 +29,7 @@ interface FetchState {
 }
 
 export default function FetchPage() {
+  const { closeSidebar } = useSidebarControl()
   const [urls, setUrls] = useState<string[]>([""])
   const [verbosity, setVerbosity] = useState("")
   const [maxCharacters, setMaxCharacters] = useState<string>("")
@@ -80,6 +82,9 @@ export default function FetchPage() {
         return
       }
     }
+
+    // Close sidebar when fetching
+    closeSidebar?.()
 
     setFetchState({ isLoading: true, results: null, error: null, totalCost: null, statuses: null })
 
@@ -169,25 +174,23 @@ export default function FetchPage() {
   const hasResults = fetchState.results && fetchState.results.length > 0
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex flex-col gap-2 p-6 pb-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Fetch Content</h1>
-        <p className="text-sm text-muted-foreground">
-          Extract and summarize content from web pages
-        </p>
-      </div>
+    <ResizablePanelGroup direction="horizontal" className="flex-1">
+      {/* LEFT: Fetch Form */}
+      <ResizablePanel defaultSize={hasResults ? 35 : 100} minSize={hasResults ? 25 : 50}>
+        <div className="h-full overflow-auto p-6">
+          <div className="max-w-xl space-y-6">
+            <div className="space-y-2">
+              <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+                <GlobeIcon className="h-6 w-6" />
+                Fetch Content
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Extract and summarize content from web pages
+              </p>
+            </div>
 
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
-        <ResizablePanel defaultSize={hasResults ? 40 : 100} minSize={hasResults ? 30 : 50}>
-          <div className="h-full overflow-auto px-6 pb-6">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <GlobeIcon className="h-5 w-5" />
-                  URLs to Fetch
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="pt-6 space-y-4">
                 <form onSubmit={handleFetch} className="space-y-4">
                   <div className="space-y-3">
                     {urls.map((url, index) => (
@@ -284,153 +287,154 @@ export default function FetchPage() {
               </CardContent>
             </Card>
           </div>
-        </ResizablePanel>
+        </div>
+      </ResizablePanel>
 
-        {hasResults && (
-          <>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={60} minSize={40}>
-              <div className="h-full overflow-auto px-6 pb-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">
-                    {fetchState.results!.length} Result{fetchState.results!.length !== 1 ? "s" : ""}
-                    {fetchState.totalCost !== null && (
-                      <span className="ml-2 text-sm font-normal text-muted-foreground">
-                        (~${fetchState.totalCost.toFixed(4)})
-                      </span>
-                    )}
-                  </h2>
+      {/* RIGHT: Results */}
+      {hasResults && (
+        <>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={65} minSize={40}>
+            <div className="h-full overflow-auto p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">
+                  {fetchState.results!.length} Result{fetchState.results!.length !== 1 ? "s" : ""}
+                  {fetchState.totalCost !== null && (
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">
+                      (~${fetchState.totalCost.toFixed(4)})
+                    </span>
+                  )}
+                </h2>
+              </div>
+
+              {fetchState.statuses && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Fetch Status</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {fetchState.statuses.map((status, index) => (
+                        <div key={index} className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground truncate max-w-md">{status.url}</span>
+                          {getStatusBadge(status.code)}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {fetchState.isLoading && (
+                <div className="space-y-4">
+                  {[1, 2].map((i) => (
+                    <Card key={i}>
+                      <CardContent className="pt-6">
+                        <Skeleton className="h-6 w-3/4 mb-2" />
+                        <Skeleton className="h-4 w-1/2 mb-4" />
+                        <Skeleton className="h-4 w-full mb-1" />
+                        <Skeleton className="h-4 w-full mb-1" />
+                        <Skeleton className="h-4 w-2/3" />
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
+              )}
 
-                {fetchState.statuses && (
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">Fetch Status</CardTitle>
-                    </CardHeader>
-                    <CardContent>
+              {fetchState.error && (
+                <Card className="border-destructive">
+                  <CardContent className="pt-6">
+                    <p className="text-sm text-destructive">{fetchState.error}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {fetchState.results!.map((result, index) => (
+                <Card key={result.id || index}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-4">
+                      <CardTitle className="text-base line-clamp-2">
+                        {result.title || "Untitled"}
+                      </CardTitle>
+                      <a
+                        href={result.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0"
+                      >
+                        <Button variant="ghost" size="icon">
+                          <ExternalLinkIcon className="h-4 w-4" />
+                        </Button>
+                      </a>
+                    </div>
+                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                      <a
+                        href={result.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="truncate max-w-md hover:text-foreground"
+                      >
+                        {result.url}
+                      </a>
+                    </div>
+                    {(result.author || result.publishedDate) && (
+                      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground pt-1">
+                        {result.author && (
+                          <span className="flex items-center gap-1">
+                            <UserIcon className="h-3 w-3" />
+                            {result.author}
+                          </span>
+                        )}
+                        {result.publishedDate && (
+                          <span className="flex items-center gap-1">
+                            <CalendarIcon className="h-3 w-3" />
+                            {new Date(result.publishedDate).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {result.highlights && result.highlights.length > 0 && (
                       <div className="space-y-2">
-                        {fetchState.statuses.map((status, index) => (
-                          <div key={index} className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground truncate max-w-md">{status.url}</span>
-                            {getStatusBadge(status.code)}
-                          </div>
+                        <h3 className="text-sm font-medium">Highlights</h3>
+                        {result.highlights.map((highlight, i) => (
+                          <p key={i} className="text-sm bg-muted p-3 rounded-lg">
+                            {highlight.length > 500 ? `${highlight.substring(0, 500)}...` : highlight}
+                          </p>
                         ))}
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    )}
 
-                {fetchState.isLoading && (
-                  <div className="space-y-4">
-                    {[1, 2].map((i) => (
-                      <Card key={i}>
-                        <CardContent className="pt-6">
-                          <Skeleton className="h-6 w-3/4 mb-2" />
-                          <Skeleton className="h-4 w-1/2 mb-4" />
-                          <Skeleton className="h-4 w-full mb-1" />
-                          <Skeleton className="h-4 w-full mb-1" />
-                          <Skeleton className="h-4 w-2/3" />
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-
-                {fetchState.error && (
-                  <Card className="border-destructive">
-                    <CardContent className="pt-6">
-                      <p className="text-sm text-destructive">{fetchState.error}</p>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {fetchState.results!.map((result, index) => (
-                  <Card key={result.id || index}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between gap-4">
-                        <CardTitle className="text-base line-clamp-2">
-                          {result.title || "Untitled"}
-                        </CardTitle>
-                        <a
-                          href={result.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0"
-                        >
-                          <Button variant="ghost" size="icon">
-                            <ExternalLinkIcon className="h-4 w-4" />
-                          </Button>
-                        </a>
+                    {result.text && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-medium">Content</h3>
+                        <Textarea
+                          value={result.text}
+                          readOnly
+                          className="min-h-[200px] font-mono text-sm"
+                        />
                       </div>
-                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                        <a
-                          href={result.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="truncate max-w-md hover:text-foreground"
-                        >
-                          {result.url}
-                        </a>
-                      </div>
-                      {(result.author || result.publishedDate) && (
-                        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground pt-1">
-                          {result.author && (
-                            <span className="flex items-center gap-1">
-                              <UserIcon className="h-3 w-3" />
-                              {result.author}
-                            </span>
-                          )}
-                          {result.publishedDate && (
-                            <span className="flex items-center gap-1">
-                              <CalendarIcon className="h-3 w-3" />
-                              {new Date(result.publishedDate).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {result.highlights && result.highlights.length > 0 && (
-                        <div className="space-y-2">
-                          <h3 className="text-sm font-medium">Highlights</h3>
-                          {result.highlights.map((highlight, i) => (
-                            <p key={i} className="text-sm bg-muted p-3 rounded-lg">
-                              {highlight.length > 500 ? `${highlight.substring(0, 500)}...` : highlight}
-                            </p>
-                          ))}
-                        </div>
-                      )}
+                    )}
 
-                      {result.text && (
-                        <div className="space-y-2">
-                          <h3 className="text-sm font-medium">Content</h3>
-                          <Textarea
-                            value={result.text}
-                            readOnly
-                            className="min-h-[200px] font-mono text-sm"
-                          />
-                        </div>
-                      )}
+                    {!result.text && !result.highlights && (
+                      <p className="text-sm text-muted-foreground">No content available</p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
 
-                      {!result.text && !result.highlights && (
-                        <p className="text-sm text-muted-foreground">No content available</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {fetchState.results!.length === 0 && !fetchState.isLoading && (
-                  <Card>
-                    <CardContent className="pt-6 text-center">
-                      <p className="text-muted-foreground">No content could be fetched from the provided URLs.</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </ResizablePanel>
-          </>
-        )}
-      </ResizablePanelGroup>
-    </div>
+              {fetchState.results!.length === 0 && !fetchState.isLoading && (
+                <Card>
+                  <CardContent className="pt-6 text-center">
+                    <p className="text-muted-foreground">No content could be fetched from the provided URLs.</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </ResizablePanel>
+        </>
+      )}
+    </ResizablePanelGroup>
   )
 }

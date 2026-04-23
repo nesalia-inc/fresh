@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { SearchIcon, GlobeIcon } from "lucide-react"
+import { SearchIcon, GlobeIcon, CreditCardIcon, KeyIcon, BarChartIcon, HelpCircleIcon } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -17,16 +17,12 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
-  SidebarSeparator,
   SidebarTrigger,
-  SidebarInset
+  SidebarInset,
 } from "@/components/ui/sidebar"
-import { Separator } from "@/components/ui/separator"
-import { Header } from '@/components/header';
+import { Header } from '@/components/header'
 
-
-
-const navigationItems = [
+const featureItems = [
   {
     title: "Search",
     href: "/home/search",
@@ -38,6 +34,33 @@ const navigationItems = [
     icon: GlobeIcon,
   },
 ]
+
+const managementItems = [
+  {
+    title: "Usage",
+    href: "/home/usage",
+    icon: BarChartIcon,
+  },
+  {
+    title: "Billing",
+    href: "/home/billing",
+    icon: CreditCardIcon,
+  },
+  {
+    title: "API Keys",
+    href: "/home/api-keys",
+    icon: KeyIcon,
+  },
+]
+
+// Context to allow child pages to control the sidebar
+const SidebarControlContext = React.createContext<{
+  closeSidebar: () => void
+} | null>(null)
+
+export function useSidebarControl() {
+  return React.useContext(SidebarControlContext)
+}
 
 function HomeSidebar() {
   const pathname = usePathname()
@@ -60,7 +83,28 @@ function HomeSidebar() {
           <SidebarGroupLabel>Features</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigationItems.map((item) => (
+              {featureItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.href}
+                  >
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Management</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {managementItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
@@ -77,16 +121,47 @@ function HomeSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="h-12 border-border border-t">
+
+      <SidebarFooter className="mt-auto border-t">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <button type="button" className="w-full">
+                <HelpCircleIcon />
+                <span>Support</span>
+              </button>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarTrigger />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
-      
     </Sidebar>
+  )
+}
+
+// Wrapper component that provides the sidebar control context
+function SidebarController({ children }: { children: React.ReactNode }) {
+  const [sidebarOpen, setSidebarOpen] = React.useState(true)
+
+  const closeSidebar = React.useCallback(() => {
+    setSidebarOpen(false)
+  }, [])
+
+  return (
+    <SidebarControlContext.Provider value={{ closeSidebar }}>
+      <Sidebar open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <HomeSidebar />
+      </Sidebar>
+      <SidebarInset>
+        <Header />
+        <main className="flex flex-1 flex-col">
+          {children}
+        </main>
+      </SidebarInset>
+    </SidebarControlContext.Provider>
   )
 }
 
@@ -97,14 +172,9 @@ export default function HomeLayout({
 }) {
   return (
     <SidebarProvider>
-      <HomeSidebar />
-      <SidebarInset>
-        <Header />
-
-      <main className="flex flex-1 flex-col">
+      <SidebarController>
         {children}
-      </main>
-      </SidebarInset>
+      </SidebarController>
     </SidebarProvider>
   )
 }
