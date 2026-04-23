@@ -59,8 +59,6 @@ export const login = new Command()
         // 4. Poll for token
         const interval = (deviceFlow.interval || 5) * 1000;
         const tokenResponse = await pollForToken(deviceFlow.deviceCode, clientId, interval);
-        // Debug: log raw response
-        console.log("\n[DEBUG] Token response:", JSON.stringify(tokenResponse, null, 2));
         // 5. Store credential
         const credential = {
             accessToken: tokenResponse.accessToken,
