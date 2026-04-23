@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { SearchIcon, GlobeIcon, CreditCardIcon, KeyIcon, BarChartIcon, HelpCircleIcon } from "lucide-react"
+import { SearchIcon, GlobeIcon, CreditCardIcon, KeyIcon, BarChartIcon, HelpCircleIcon, BookOpenIcon } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -50,6 +50,22 @@ const managementItems = [
     title: "API Keys",
     href: "/home/api-keys",
     icon: KeyIcon,
+  },
+]
+
+const learningItems = [
+  {
+    title: "Documentation",
+    href: "/docs",
+    icon: BookOpenIcon,
+  },
+]
+
+const bottomItems = [
+  {
+    title: "Support",
+    href: "#",
+    icon: HelpCircleIcon,
   },
 ]
 
@@ -120,18 +136,48 @@ function HomeSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Learning</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {learningItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.href}
+                  >
+                    <Link href={item.href} target="_blank">
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {bottomItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="mt-auto border-t">
+      <SidebarFooter className="border-t">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <button type="button" className="w-full">
-                <HelpCircleIcon />
-                <span>Support</span>
-              </button>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarTrigger />
           </SidebarMenuItem>
