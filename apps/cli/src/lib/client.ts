@@ -1,4 +1,18 @@
-const API_BASE = process.env.FRESH_API_URL || "https://api.fresh.dev";
+const API_BASE = process.env.FRESH_API_URL || "http://localhost:3000";
+
+export interface CLIError extends Error {
+  code?: string;
+  statusCode?: number;
+  endpoint?: string;
+}
+
+function createCLIError(message: string, options: { code?: string; statusCode?: number; endpoint?: string } = {}): CLIError {
+  const error = new Error(message) as CLIError;
+  error.code = options.code;
+  error.statusCode = options.statusCode;
+  error.endpoint = options.endpoint;
+  return error;
+}
 
 export interface DeviceCodeResponse {
   deviceCode: string;
@@ -19,14 +33,38 @@ export interface TokenResponse {
 }
 
 export async function requestDeviceCode(clientId: string): Promise<DeviceCodeResponse> {
-  const response = await fetch(`${API_BASE}/device/code`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ client_id: clientId }),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE}/device/code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_id: clientId }),
+    });
+  } catch (err) {
+    const error = err as Error;
+    if (error.message.includes("fetch failed") || error.message.includes("ECONNREFUSED") || error.message.includes("ENOTFOUND")) {
+      throw createCLIError(
+        `Cannot connect to ${API_BASE}. Is the Fresh server running?\n` +
+        `Hint: Set FRESH_API_URL environment variable to your server URL.\n` +
+        `Example: FRESH_API_URL=http://localhost:3000 fresh auth login`,
+        { code: "NETWORK_ERROR", endpoint: "/device/code" }
+      );
+    }
+    throw createCLIError(`Network error: ${error.message}`, { code: "NETWORK_ERROR", endpoint: "/device/code" });
+  }
 
   if (!response.ok) {
-    throw new Error(`Failed to request device code: ${response.statusText}`);
+    let errorBody: { error?: string; error_description?: string } = {};
+    try {
+      errorBody = await response.json();
+    } catch {
+      // ignore parse error
+    }
+    throw createCLIError(
+      errorBody.error_description || errorBody.error || `HTTP ${response.status}: ${response.statusText}`,
+      { code: errorBody.error || "REQUEST_FAILED", statusCode: response.status, endpoint: "/device/code" }
+    );
   }
 
   return response.json();
@@ -38,35 +76,66 @@ export async function pollForToken(
   initialInterval: number = 5000
 ): Promise<TokenResponse> {
   let interval = initialInterval;
+  let lastError: CLIError | null = null;
 
   while (true) {
-    const response = await fetch(`${API_BASE}/device/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-        device_code: deviceCode,
-        client_id: clientId,
-      }),
-    });
+    let response: Response;
+
+    try {
+      response = await fetch(`${API_BASE}/device/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+          device_code: deviceCode,
+          client_id: clientId,
+        }),
+      });
+    } catch (err) {
+      const error = err as Error;
+      if (error.message.includes("fetch failed") || error.message.includes("ECONNREFUSED") || error.message.includes("ENOTFOUND")) {
+        throw createCLIError(
+          `Cannot connect to ${API_BASE}. Is the Fresh server running?\n` +
+          `Hint: Set FRESH_API_URL environment variable to your server URL.`,
+          { code: "NETWORK_ERROR", endpoint: "/device/token" }
+        );
+      }
+      throw createCLIError(`Network error: ${error.message}`, { code: "NETWORK_ERROR", endpoint: "/device/token" });
+    }
 
     const data = await response.json();
 
     if (data.error) {
       switch (data.error) {
         case "authorization_pending":
+          lastError = null;
           await sleep(interval);
           continue;
         case "slow_down":
+          lastError = null;
           interval += 5000; // Increase by 5 seconds per RFC 8628
           await sleep(interval);
           continue;
         case "expired_token":
-          throw new Error("Code expired. Run 'fresh auth login' to try again.");
+          throw createCLIError(
+            "Code expired. Run 'fresh auth login' to try again.",
+            { code: "EXPIRED_TOKEN", endpoint: "/device/token" }
+          );
         case "access_denied":
-          throw new Error("Access denied. Run 'fresh auth login' to try again.");
+          throw createCLIError(
+            "Access denied by user. Run 'fresh auth login' to try again.",
+            { code: "ACCESS_DENIED", endpoint: "/device/token" }
+          );
+        case "authorization_declined":
+          throw createCLIError(
+            "Authorization was declined. Run 'fresh auth login' to try again.",
+            { code: "AUTHORIZATION_DECLINED", endpoint: "/device/token" }
+          );
         default:
-          throw new Error(data.errorDescription || data.error);
+          throw createCLIError(
+            data.errorDescription || `OAuth error: ${data.error}`,
+            { code: data.error, statusCode: response.status, endpoint: "/device/token" }
+          );
       }
     }
 
