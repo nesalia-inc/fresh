@@ -185,14 +185,22 @@ export async function getUserInfo(accessToken: string): Promise<{
   email: string;
 } | null> {
   try {
-    const response = await fetch(`${API_BASE}/me`, {
+    const response = await fetch(`${API_BASE}/session`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
     });
 
     if (!response.ok) return null;
-    return response.json();
+    const data = await response.json();
+    if (data.user) {
+      return {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+      };
+    }
+    return null;
   } catch {
     return null;
   }
