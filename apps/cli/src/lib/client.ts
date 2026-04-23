@@ -1,4 +1,4 @@
-const API_BASE = process.env.FRESH_API_URL || "http://localhost:3000";
+const API_BASE = process.env.FRESH_API_URL || "https://fresh.nesalia.com";
 
 export interface CLIError extends Error {
   code?: string;
