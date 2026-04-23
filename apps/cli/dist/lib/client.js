@@ -1,10 +1,35 @@
-const API_BASE = process.env.FRESH_API_URL || "https://fresh.nesalia.com";
+const API_BASE = process.env.FRESH_API_URL || "https://fresh.nesalia.com/api/auth";
 function createCLIError(message, options = {}) {
     const error = new Error(message);
     error.code = options.code;
     error.statusCode = options.statusCode;
     error.endpoint = options.endpoint;
     return error;
+}
+function toDeviceCodeResponse(data) {
+    return {
+        deviceCode: data.device_code,
+        userCode: data.user_code,
+        verificationUri: data.verification_uri,
+        verificationUriComplete: data.verification_uri_complete,
+        expiresIn: data.expires_in,
+        interval: data.interval,
+    };
+}
+function toTokenResponse(data) {
+    return {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        expiresIn: data.expires_in,
+        scope: data.scope,
+        user: data.user ? {
+            id: data.user.id,
+            name: data.user.name,
+            email: data.user.email,
+        } : undefined,
+        error: data.error,
+        errorDescription: data.error_description,
+    };
 }
 export async function requestDeviceCode(clientId) {
     let response;
@@ -34,7 +59,7 @@ export async function requestDeviceCode(clientId) {
         }
         throw createCLIError(errorBody.error_description || errorBody.error || `HTTP ${response.status}: ${response.statusText}`, { code: errorBody.error || "REQUEST_FAILED", statusCode: response.status, endpoint: "/device/code" });
     }
-    return response.json();
+    return toDeviceCodeResponse(await response.json());
 }
 export async function pollForToken(deviceCode, clientId, initialInterval = 5000) {
     let interval = initialInterval;
@@ -60,7 +85,7 @@ export async function pollForToken(deviceCode, clientId, initialInterval = 5000)
             }
             throw createCLIError(`Network error: ${error.message}`, { code: "NETWORK_ERROR", endpoint: "/device/token" });
         }
-        const data = await response.json();
+        const data = toTokenResponse(await response.json());
         if (data.error) {
             switch (data.error) {
                 case "authorization_pending":
@@ -101,14 +126,22 @@ export async function revokeToken(accessToken) {
 }
 export async function getUserInfo(accessToken) {
     try {
-        const response = await fetch(`${API_BASE}/me`, {
+        const response = await fetch(`${API_BASE}/get-session`, {
             headers: {
                 Authorization: `Bearer ${accessToken}`,
             },
         });
         if (!response.ok)
             return null;
-        return response.json();
+        const data = await response.json();
+        if (data?.user) {
+            return {
+                id: data.user.id,
+                name: data.user.name,
+                email: data.user.email,
+            };
+        }
+        return null;
     }
     catch {
         return null;

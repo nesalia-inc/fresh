@@ -65,13 +65,20 @@ export const login = new Command()
             refreshToken: tokenResponse.refreshToken || "",
             expiresAt: Date.now() + (tokenResponse.expiresIn * 1000),
             scope: tokenResponse.scope || "",
-            accountId: "",
+            accountId: tokenResponse.user?.id || "",
             environment: config.environment,
             tokenType: "device_flow",
             issuedAt: Date.now(),
+            user: tokenResponse.user,
         };
         await storeCredential(credential);
-        console.log("\n✅ Successfully authenticated!\n");
+        console.log("\n✅ Successfully authenticated!");
+        if (tokenResponse.user) {
+            console.log(`   User: ${tokenResponse.user.name} (${tokenResponse.user.email})\n`);
+        }
+        else {
+            console.log();
+        }
     }
     catch (error) {
         console.error(formatError(error, config.apiUrl));

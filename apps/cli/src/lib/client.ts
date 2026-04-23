@@ -39,6 +39,11 @@ export interface TokenResponse {
   refreshToken?: string;
   expiresIn: number;
   scope?: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
   error?: string;
   errorDescription?: string;
 }
@@ -49,6 +54,11 @@ function toTokenResponse(data: any): TokenResponse {
     refreshToken: data.refresh_token,
     expiresIn: data.expires_in,
     scope: data.scope,
+    user: data.user ? {
+      id: data.user.id,
+      name: data.user.name,
+      email: data.user.email,
+    } : undefined,
     error: data.error,
     errorDescription: data.error_description,
   };

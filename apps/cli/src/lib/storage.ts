@@ -12,6 +12,11 @@ export interface StoredCredential {
   environment: string;
   tokenType: string;
   issuedAt: number;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
 
 export async function storeCredential(cred: StoredCredential): Promise<void> {
