@@ -7,7 +7,6 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { client } from "@/lib/client"
 
 interface DeviceInfo {
   userCode: string
@@ -15,6 +14,47 @@ interface DeviceInfo {
   clientId?: string
   scope?: string
   expiresAt?: Date
+}
+
+async function verifyDeviceCode(userCode: string): Promise<{ userCode: string; status: string } | null> {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+    const response = await fetch(`${baseUrl}/api/auth/device?user_code=${encodeURIComponent(userCode)}`)
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.error_description || data.error || "Invalid verification code")
+    }
+    return response.json()
+  } catch (err) {
+    if (err instanceof Error) throw err
+    throw new Error("Failed to verify device code")
+  }
+}
+
+async function approveDevice(userCode: string): Promise<void> {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+  const response = await fetch(`${baseUrl}/api/auth/device/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userCode }),
+  })
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.error_description || data.error || "Failed to approve device")
+  }
+}
+
+async function denyDevice(userCode: string): Promise<void> {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+  const response = await fetch(`${baseUrl}/api/auth/device/deny`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userCode }),
+  })
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.error_description || data.error || "Failed to deny device")
+  }
 }
 
 function DeviceVerificationForm() {
@@ -41,20 +81,20 @@ function DeviceVerificationForm() {
     setError(null)
 
     try {
-      const response = await client.auth.device.verify({ userCode: code })
+      const response = await verifyDeviceCode(code)
 
-      if (response.error) {
-        setError(response.error.message || "Invalid verification code")
+      if (!response) {
+        setError("Invalid verification code")
         setDeviceInfo(null)
         return
       }
 
       setDeviceInfo({
-        userCode: response.userCode,
+        userCode: response.userCode || response.user_code,
         status: response.status as DeviceInfo["status"],
       })
     } catch (err) {
-      setError("Failed to verify device code")
+      setError(err instanceof Error ? err.message : "Failed to verify device code")
       setDeviceInfo(null)
     } finally {
       setIsVerifying(false)
@@ -73,19 +113,12 @@ function DeviceVerificationForm() {
     setError(null)
 
     try {
-      const { error } = await client.auth.device.approve({ userCode: deviceInfo.userCode })
-
-      if (error) {
-        toast.error(error.message || "Failed to approve device")
-        setError(error.message || "Failed to approve device")
-        return
-      }
-
+      await approveDevice(deviceInfo.userCode)
       toast.success("Device approved successfully")
       router.push("/home")
     } catch (err) {
-      toast.error("Failed to approve device")
-      setError("Failed to approve device")
+      toast.error(err instanceof Error ? err.message : "Failed to approve device")
+      setError(err instanceof Error ? err.message : "Failed to approve device")
     } finally {
       setIsLoading(false)
     }
@@ -97,19 +130,12 @@ function DeviceVerificationForm() {
     setError(null)
 
     try {
-      const { error } = await client.auth.device.deny({ userCode: deviceInfo.userCode })
-
-      if (error) {
-        toast.error(error.message || "Failed to deny device")
-        setError(error.message || "Failed to deny device")
-        return
-      }
-
+      await denyDevice(deviceInfo.userCode)
       toast.success("Device denied")
       router.push("/home")
     } catch (err) {
-      toast.error("Failed to deny device")
-      setError("Failed to deny device")
+      toast.error(err instanceof Error ? err.message : "Failed to deny device")
+      setError(err instanceof Error ? err.message : "Failed to deny device")
     } finally {
       setIsLoading(false)
     }
